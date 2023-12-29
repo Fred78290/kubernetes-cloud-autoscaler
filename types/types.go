@@ -7,9 +7,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/aws"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/desktop"
 	apigrpc "github.com/Fred78290/kubernetes-cloud-autoscaler/grpc"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/vsphere"
 	"github.com/alecthomas/kingpin"
 	glog "github.com/sirupsen/logrus"
 
@@ -303,7 +306,7 @@ type AutoScalerServerConfig struct {
 	AutoScalingOptions         *NodeGroupAutoscalingOptions      `json:"autoscaling-options,omitempty"`
 	DebugMode                  *bool                             `json:"debug,omitempty"`
 	ProviderConfig             interface{}                       `json:"provider,omitempty"`
-	cloudInfos                 providers.CloudConfiguration      `json:"-"`
+	providerConfiguration      providers.ProviderConfiguration   `json:"-"`
 }
 
 func (limits *ResourceLimiter) MergeRequestResourceLimiter(limiter *apigrpc.ResourceLimiter) {
@@ -393,8 +396,22 @@ func (limits *ResourceLimiter) GetMinValue(key string, defaultValue int) int {
 }
 
 // GetCloudConfiguration returns the cloud configuration
-func (conf *AutoScalerServerConfig) GetCloudConfiguration() providers.CloudConfiguration {
-	return conf.cloudInfos
+func (conf *AutoScalerServerConfig) GetCloudConfiguration() providers.ProviderConfiguration {
+	if conf.providerConfiguration == nil {
+		switch *conf.CloudProvider {
+		case AwsCloudProviderName:
+			conf.providerConfiguration = conf.ProviderConfig.(aws.Configuration)
+			break
+		case VSphereCloudProviderName:
+			conf.providerConfiguration = conf.ProviderConfig.(vsphere.Configuration)
+			break
+		case VMWareWorkstationPRoviderName:
+			conf.providerConfiguration = conf.ProviderConfig.(desktop.Configuration)
+			break
+		}
+	}
+
+	return conf.providerConfiguration
 }
 
 // NewConfig returns new Config object

@@ -11,14 +11,14 @@ type CallbackWaitSSHReady interface {
 	WaitSSHReady(name, address string) error
 }
 
-type CloudConfiguration interface {
+type ProviderConfiguration interface {
 	GetTestMode() bool
 	SetTestMode(value bool)
 	GetTimeout() time.Duration
 	AvailableGpuTypes() map[string]string
 	NodeGroupName() string
-	Copy() CloudConfiguration
-	Clone(nodeIndex int) (CloudConfiguration, error)
+	Copy() ProviderConfiguration
+	Clone(nodeIndex int) (ProviderConfiguration, error)
 	ConfigureNetwork(network v1alpha1.ManagedNetworkConfig)
 	AttachInstance(instanceName string) error
 	RetrieveNetworkInfos(name, vmuuid string, nodeIndex int) error
@@ -27,5 +27,10 @@ type CloudConfiguration interface {
 	GetTopologyLabels() map[string]string
 	WaitForVMReady(callback CallbackWaitSSHReady) (*string, error)
 	UUID(name string) (string, error)
-	InstanceExist(name string) bool
+	InstanceExists(name string) bool
+	InstanceAutoStart(name string) error
+	PowerOn(name string) error
+	PowerOff(name string) error
+	Delete(name string) error
+	WaitForToolsRunning(name string) (bool, error)
 }

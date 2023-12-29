@@ -172,6 +172,7 @@ func (conf *Configuration) ConfigureNetwork(network v1alpha1.ManagedNetworkConfi
 }
 
 func (conf *Configuration) UpdateMacAddressTable(nodeIndex int) {
+	// Empty
 }
 
 func (conf *Configuration) GenerateProviderID(vmuuid string) string {
@@ -187,6 +188,10 @@ func (conf *Configuration) GetTopologyLabels() map[string]string {
 
 func (conf *Configuration) WaitForVMReady(callback providers.CallbackWaitSSHReady) (*string, error) {
 	return conf.runningInstance.WaitForIP(callback)
+}
+
+func (conf *Configuration) InstanceAutoStart(name string) error {
+	return nil
 }
 
 func (conf *Configuration) Copy() *Configuration {

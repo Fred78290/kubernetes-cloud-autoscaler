@@ -160,6 +160,16 @@ func (conf *Configuration) WaitForVMReady(callback providers.CallbackWaitSSHRead
 	return nil, nil
 }
 
+func (conf *Configuration) InstanceAutoStart(name string) error {
+	if hostsystem, err := conf.GetHostSystem(name); err != nil {
+		return err
+	} else if err = conf.SetAutoStart(hostsystem, name, -1); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (conf *Configuration) getURL() (string, error) {
 	u, err := url.Parse(conf.URL)
 

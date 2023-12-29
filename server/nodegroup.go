@@ -297,7 +297,7 @@ func (g *AutoScalerServerNodeGroup) addManagedNode(crd *v1alpha1.ManagedNode) (*
 				ExtraLabels:      CreateLabelOrAnnotation(crd.Spec.Labels),
 				ExtraAnnotations: CreateLabelOrAnnotation(crd.Spec.Annotations),
 				CRDUID:           crd.GetUID(),
-				CloudConfig:      clonedConfig,
+				cloudConfig:      clonedConfig,
 				serverConfig:     g.configuration,
 			}
 
@@ -374,7 +374,7 @@ func (g *AutoScalerServerNodeGroup) prepareNodes(c types.ClientGenerator, delta 
 				ExtraLabels:      extraLabels,
 				ControlPlaneNode: false,
 				AllowDeployment:  true,
-				CloudConfig:      clonedConfig,
+				cloudConfig:      clonedConfig,
 				serverConfig:     g.configuration,
 			}
 
@@ -704,8 +704,8 @@ func (g *AutoScalerServerNodeGroup) autoDiscoveryNodes(client types.ClientGenera
 								CPU:              int(nodeInfo.Status.Capacity.Cpu().Value()),
 								Memory:           int(nodeInfo.Status.Capacity.Memory().Value() / (1024 * 1024)),
 								DiskSize:         int(nodeInfo.Status.Capacity.Storage().Value() / (1024 * 1024)),
-								CloudConfig:      cloudConfig,
 								IPAddress:        runningIP,
+								cloudConfig:      cloudConfig,
 								serverConfig:     g.configuration,
 							}
 
@@ -731,7 +731,7 @@ func (g *AutoScalerServerNodeGroup) autoDiscoveryNodes(client types.ClientGenera
 								glog.Errorf(constantes.ErrLabelNodeReturnError, nodeInfo.Name, err)
 							}
 						} else {
-							node.CloudConfig = cloudConfig
+							node.cloudConfig = cloudConfig
 							glog.Infof("Attach existing node:%s with IP:%s to nodegroup:%s", instanceName, runningIP, g.NodeGroupIdentifier)
 						}
 
@@ -869,7 +869,7 @@ func (g *AutoScalerServerNodeGroup) nodeName(vmIndex int, controlplane, managed 
 		}
 
 		if found := g.findNamedNode(nodeName); found == nil {
-			if !config.InstanceExist(nodeName) {
+			if !config.InstanceExists(nodeName) {
 				return nodeName, vmIndex
 			} else {
 				glog.Warnf(constantes.ErrVMAlreadyExists, nodeName)

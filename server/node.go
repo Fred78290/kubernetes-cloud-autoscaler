@@ -80,25 +80,25 @@ const (
 // AutoScalerServerNode Describe a AutoScaler VM
 // Node name and instance name could be differ when using AWS cloud provider
 type AutoScalerServerNode struct {
-	NodeGroupID      string                       `json:"group"`
-	InstanceName     string                       `json:"instance-name"`
-	NodeName         string                       `json:"node-name"`
-	NodeIndex        int                          `json:"index"`
-	VMUUID           string                       `json:"vm-uuid"`
-	CRDUID           uid.UID                      `json:"crd-uid"`
-	Memory           int                          `json:"memory"`
-	CPU              int                          `json:"cpu"`
-	DiskSize         int                          `json:"diskSize"`
-	DiskType         string                       `default:"standard" json:"diskType"`
-	InstanceType     string                       `json:"instance-Type"`
-	IPAddress        string                       `json:"address"`
-	State            AutoScalerServerNodeState    `json:"state"`
-	NodeType         AutoScalerServerNodeType     `json:"type"`
-	ControlPlaneNode bool                         `json:"control-plane,omitempty"`
-	AllowDeployment  bool                         `json:"allow-deployment,omitempty"`
-	ExtraLabels      types.KubernetesLabel        `json:"labels,omitempty"`
-	ExtraAnnotations types.KubernetesLabel        `json:"annotations,omitempty"`
-	CloudConfig      providers.CloudConfiguration `json:"cloud-config"`
+	NodeGroupID      string                    `json:"group"`
+	InstanceName     string                    `json:"instance-name"`
+	NodeName         string                    `json:"node-name"`
+	NodeIndex        int                       `json:"index"`
+	VMUUID           string                    `json:"vm-uuid"`
+	CRDUID           uid.UID                   `json:"crd-uid"`
+	Memory           int                       `json:"memory"`
+	CPU              int                       `json:"cpu"`
+	DiskSize         int                       `json:"diskSize"`
+	DiskType         string                    `default:"standard" json:"diskType"`
+	InstanceType     string                    `json:"instance-Type"`
+	IPAddress        string                    `json:"address"`
+	State            AutoScalerServerNodeState `json:"state"`
+	NodeType         AutoScalerServerNodeType  `json:"type"`
+	ControlPlaneNode bool                      `json:"control-plane,omitempty"`
+	AllowDeployment  bool                      `json:"allow-deployment,omitempty"`
+	ExtraLabels      types.KubernetesLabel     `json:"labels,omitempty"`
+	ExtraAnnotations types.KubernetesLabel     `json:"annotations,omitempty"`
+	cloudConfig      providers.ProviderConfiguration
 	serverConfig     *types.AutoScalerServerConfig
 }
 
@@ -118,7 +118,7 @@ func (vm *AutoScalerServerNode) recopyEtcdSslFilesIfNeeded() error {
 	if (vm.serverConfig.Distribution == nil || *vm.serverConfig.Distribution != types.RKE2DistributionName) && (vm.ControlPlaneNode || *vm.serverConfig.UseExternalEtdc) {
 		glog.Infof("Recopy Etcd ssl files for instance: %s in node group: %s", vm.InstanceName, vm.NodeGroupID)
 
-		timeout := vm.CloudConfig.GetTimeout()
+		timeout := vm.cloudConfig.GetTimeout()
 
 		if err = utils.Scp(vm.serverConfig.SSH, vm.IPAddress, vm.serverConfig.ExtSourceEtcdSslDir, "."); err != nil {
 			glog.Errorf("scp failed: %v", err)
@@ -140,7 +140,7 @@ func (vm *AutoScalerServerNode) recopyKubernetesPKIIfNeeded() error {
 	if (vm.serverConfig.Distribution == nil || *vm.serverConfig.Distribution != types.RKE2DistributionName) && vm.ControlPlaneNode {
 		glog.Infof("Recopy PKI for instance: %s in node group: %s", vm.InstanceName, vm.NodeGroupID)
 
-		timeout := vm.CloudConfig.GetTimeout()
+		timeout := vm.cloudConfig.GetTimeout()
 
 		if err = utils.Scp(vm.serverConfig.SSH, vm.IPAddress, vm.serverConfig.KubernetesPKISourceDir, "."); err != nil {
 			glog.Errorf("scp failed: %v", err)
@@ -161,7 +161,7 @@ func (vm *AutoScalerServerNode) executeCommands(args []string, restartKubelet bo
 
 	command := fmt.Sprintf("sh -c \"%s\"", strings.Join(args, " && "))
 
-	timeout := vm.CloudConfig.GetTimeout()
+	timeout := vm.cloudConfig.GetTimeout()
 
 	if out, err := utils.Sudo(vm.serverConfig.SSH, vm.IPAddress, timeout, command); err != nil {
 		return fmt.Errorf(unableToExecuteCmdError, command, out, err)
@@ -416,7 +416,7 @@ func (vm *AutoScalerServerNode) joinCluster(c types.ClientGenerator) error {
 }
 
 func (vm *AutoScalerServerNode) setNodeLabels(c types.ClientGenerator, nodeLabels, systemLabels types.KubernetesLabel) error {
-	topology := vm.CloudConfig.GetTopologyLabels()
+	topology := vm.cloudConfig.GetTopologyLabels()
 	labels := types.MergeKubernetesLabel(nodeLabels, topology, systemLabels, vm.ExtraLabels)
 
 	if err := c.LabelNode(vm.NodeName, labels); err != nil {
@@ -462,29 +462,13 @@ func (vm *AutoScalerServerNode) setNodeLabels(c types.ClientGenerator, nodeLabel
 	return nil
 }
 
-func (vm *AutoScalerServerNode) waitForSshReady() error {
-	return context.PollImmediate(time.Second, time.Duration(vm.serverConfig.SSH.WaitSshReadyInSeconds)*time.Second, func() (done bool, err error) {
-		if _, err := utils.Sudo(vm.serverConfig.SSH, vm.IPAddress, vm.CloudConfig.GetTimeout(), "ls"); err != nil {
-			if strings.HasSuffix(err.Error(), "connection refused") {
-				glog.Warnf("Wait ssh ready for node: %s, address: %s.", vm.NodeName, vm.IPAddress)
-				return false, nil
-			}
-
-			return false, fmt.Errorf("unable to ssh: %s, reason:%v", vm.NodeName, err)
-		}
-
-		return true, nil
-	})
-}
-
 func (vm *AutoScalerServerNode) launchVM(c types.ClientGenerator, nodeLabels, systemLabels types.KubernetesLabel) error {
 	glog.Debugf("AutoScalerNode::launchVM, node:%s", vm.NodeName)
 
 	var err error
 	var status AutoScalerServerNodeState
-	var hostsystem string
 
-	vsphere := vm.CloudConfig
+	cloudConfig := vm.cloudConfig
 	network := vsphere.Network
 	userInfo := vm.serverConfig.SSH
 
@@ -494,7 +478,7 @@ func (vm *AutoScalerServerNode) launchVM(c types.ClientGenerator, nodeLabels, sy
 		return fmt.Errorf(constantes.ErrVMAlreadyCreated, vm.InstanceName)
 	}
 
-	if vsphere.Exists(vm.NodeName) {
+	if cloudConfig.InstanceExists(vm.InstanceName) {
 		glog.Warnf(constantes.ErrVMAlreadyExists, vm.InstanceName)
 		return fmt.Errorf(constantes.ErrVMAlreadyExists, vm.InstanceName)
 	}
@@ -505,31 +489,27 @@ func (vm *AutoScalerServerNode) launchVM(c types.ClientGenerator, nodeLabels, sy
 
 		err = fmt.Errorf(constantes.ErrVMNotProvisionnedByMe, vm.InstanceName)
 
-	} else if _, err = vsphere.Create(vm.InstanceName, userInfo.GetUserName(), userInfo.GetAuthKeys(), vm.serverConfig.CloudInit, network, "", true, vm.Memory, vm.CPU, vm.DiskSize, vm.NodeIndex); err != nil {
+	} else if _, err = cloudConfig.Create(vm.InstanceName, userInfo.GetUserName(), userInfo.GetAuthKeys(), vm.serverConfig.CloudInit, network, "", true, vm.Memory, vm.CPU, vm.DiskSize, vm.NodeIndex); err != nil {
 
 		err = fmt.Errorf(constantes.ErrUnableToLaunchVM, vm.InstanceName, err)
 
-	} else if vm.VMUUID, err = vsphere.UUID(vm.InstanceName); err != nil {
+	} else if vm.VMUUID, err = cloudConfig.UUID(vm.InstanceName); err != nil {
 
 		err = fmt.Errorf(constantes.ErrStartVMFailed, vm.InstanceName, err)
 
-	} else if err = vsphere.PowerOn(vm.InstanceName); err != nil {
+	} else if err = cloudConfig.PowerOn(vm.InstanceName); err != nil {
 
 		err = fmt.Errorf(constantes.ErrStartVMFailed, vm.InstanceName, err)
 
-	} else if hostsystem, err = vsphere.GetHostSystem(vm.InstanceName); err != nil {
+	} else if err = cloudConfig.InstanceAutoStart(vm.InstanceName); err != nil {
 
 		err = fmt.Errorf(constantes.ErrStartVMFailed, vm.InstanceName, err)
 
-	} else if err = vsphere.SetAutoStart(hostsystem, vm.InstanceName, -1); err != nil {
+	} else if _, err = cloudConfig.WaitForToolsRunning(vm.InstanceName); err != nil {
 
 		err = fmt.Errorf(constantes.ErrStartVMFailed, vm.InstanceName, err)
 
-	} else if _, err = vsphere.WaitForToolsRunning(vm.InstanceName); err != nil {
-
-		err = fmt.Errorf(constantes.ErrStartVMFailed, vm.InstanceName, err)
-
-	} else if _, err = vsphere.WaitForIP(vm.InstanceName); err != nil {
+	} else if _, err = vm.WaitForIP(); err != nil {
 
 		err = fmt.Errorf(constantes.ErrStartVMFailed, vm.InstanceName, err)
 
@@ -538,10 +518,6 @@ func (vm *AutoScalerServerNode) launchVM(c types.ClientGenerator, nodeLabels, sy
 		err = fmt.Errorf(constantes.ErrGetVMInfoFailed, vm.InstanceName, err)
 
 	} else if status != AutoScalerServerNodeStateRunning {
-
-		err = fmt.Errorf(constantes.ErrStartVMFailed, vm.InstanceName, err)
-
-	} else if err = vm.waitForSshReady(); err != nil {
 
 		err = fmt.Errorf(constantes.ErrStartVMFailed, vm.InstanceName, err)
 
@@ -610,7 +586,7 @@ func (vm *AutoScalerServerNode) WaitSSHReady(nodename, address string) error {
 func (vm *AutoScalerServerNode) WaitForIP() (*string, error) {
 	glog.Infof("Wait IP ready for instance: %s in node group: %s", vm.InstanceName, vm.NodeGroupID)
 
-	return vm.CloudConfig.WaitForVMReady(vm)
+	return vm.cloudConfig.WaitForVMReady(vm)
 }
 
 func (vm *AutoScalerServerNode) startVM(c types.ClientGenerator) error {
@@ -621,7 +597,7 @@ func (vm *AutoScalerServerNode) startVM(c types.ClientGenerator) error {
 
 	glog.Infof("Start VM:%s", vm.InstanceName)
 
-	vsphere := vm.CloudConfig
+	vsphere := vm.cloudConfig
 
 	if vm.NodeType != AutoScalerServerNodeAutoscaled && vm.NodeType != AutoScalerServerNodeManaged {
 
@@ -641,7 +617,7 @@ func (vm *AutoScalerServerNode) startVM(c types.ClientGenerator) error {
 
 			err = fmt.Errorf(constantes.ErrStartVMFailed, vm.InstanceName, err)
 
-		} else if _, err = vsphere.WaitForIP(vm.NodeName); err != nil {
+		} else if _, err = vm.WaitForIP(); err != nil {
 
 			err = fmt.Errorf(constantes.ErrStartVMFailed, vm.InstanceName, err)
 
@@ -683,7 +659,7 @@ func (vm *AutoScalerServerNode) stopVM(c types.ClientGenerator) error {
 
 	glog.Infof("Stop VM:%s", vm.InstanceName)
 
-	vsphere := vm.CloudConfig
+	cloudConfig := vm.cloudConfig
 
 	if vm.NodeType != AutoScalerServerNodeAutoscaled && vm.NodeType != AutoScalerServerNodeManaged {
 
@@ -698,7 +674,7 @@ func (vm *AutoScalerServerNode) stopVM(c types.ClientGenerator) error {
 			glog.Errorf(constantes.ErrCordonNodeReturnError, vm.NodeName, err)
 		}
 
-		if err = vsphere.PowerOff(vm.NodeName); err == nil {
+		if err = cloudConfig.PowerOff(vm.NodeName); err == nil {
 			vm.State = AutoScalerServerNodeStateStopped
 		} else {
 			err = fmt.Errorf(constantes.ErrStopVMFailed, vm.InstanceName, err)
@@ -728,9 +704,9 @@ func (vm *AutoScalerServerNode) deleteVM(c types.ClientGenerator) error {
 	if vm.NodeType != AutoScalerServerNodeAutoscaled && vm.NodeType != AutoScalerServerNodeManaged {
 		err = fmt.Errorf(constantes.ErrVMNotProvisionnedByMe, vm.InstanceName)
 	} else {
-		vsphere := vm.CloudConfig
+		cloudConfig := vm.cloudConfig
 
-		if status, err = vsphere.Status(vm.NodeName); err == nil {
+		if status, err = cloudConfig.Status(vm.NodeName); err == nil {
 			if status.Powered {
 				// Delete kubernetes node only is alive
 				if _, err = c.GetNode(vm.NodeName); err == nil {
@@ -747,16 +723,16 @@ func (vm *AutoScalerServerNode) deleteVM(c types.ClientGenerator) error {
 					}
 				}
 
-				if err = vsphere.PowerOff(vm.NodeName); err != nil {
+				if err = cloudConfig.PowerOff(vm.NodeName); err != nil {
 					err = fmt.Errorf(constantes.ErrStopVMFailed, vm.InstanceName, err)
 				} else {
 					vm.State = AutoScalerServerNodeStateStopped
 
-					if err = vsphere.Delete(vm.NodeName); err != nil {
+					if err = cloudConfig.Delete(vm.NodeName); err != nil {
 						err = fmt.Errorf(constantes.ErrDeleteVMFailed, vm.InstanceName, err)
 					}
 				}
-			} else if err = vsphere.Delete(vm.NodeName); err != nil {
+			} else if err = cloudConfig.Delete(vm.NodeName); err != nil {
 				err = fmt.Errorf(constantes.ErrDeleteVMFailed, vm.InstanceName, err)
 			}
 		}
@@ -779,13 +755,13 @@ func (vm *AutoScalerServerNode) statusVM() (AutoScalerServerNodeState, error) {
 	var status *vsphere.Status
 	var err error
 
-	if status, err = vm.CloudConfig.Status(vm.NodeName); err != nil {
+	if status, err = vm.cloudConfig.Status(vm.NodeName); err != nil {
 		glog.Errorf(constantes.ErrGetVMInfoFailed, vm.InstanceName, err)
 		return AutoScalerServerNodeStateUndefined, err
 	}
 
 	if status != nil {
-		vm.IPAddress = vm.CloudConfig.FindPreferredIPAddress(status.Interfaces)
+		vm.IPAddress = vm.cloudConfig.FindPreferredIPAddress(status.Interfaces)
 
 		if status.Powered {
 			vm.State = AutoScalerServerNodeStateRunning
@@ -809,7 +785,7 @@ func (vm *AutoScalerServerNode) setProviderID(c types.ClientGenerator) error {
 
 func (vm *AutoScalerServerNode) generateProviderID() string {
 	if vm.serverConfig.UseControllerManager != nil && *vm.serverConfig.UseControllerManager {
-		return vm.CloudConfig.GenerateProviderID(vm.VMUUID)
+		return vm.cloudConfig.GenerateProviderID(vm.VMUUID)
 	}
 
 	if vm.serverConfig.Distribution != nil {
@@ -824,7 +800,7 @@ func (vm *AutoScalerServerNode) generateProviderID() string {
 }
 
 func (vm *AutoScalerServerNode) findInstanceUUID() string {
-	if vmUUID, err := vm.CloudConfig.UUID(vm.NodeName); err == nil {
+	if vmUUID, err := vm.cloudConfig.UUID(vm.NodeName); err == nil {
 		vm.VMUUID = vmUUID
 
 		return vmUUID
@@ -834,12 +810,12 @@ func (vm *AutoScalerServerNode) findInstanceUUID() string {
 }
 
 func (vm *AutoScalerServerNode) setServerConfiguration(config *types.AutoScalerServerConfig) {
-	vm.CloudConfig.UpdateMacAddressTable(vm.NodeIndex)
+	vm.cloudConfig.UpdateMacAddressTable(vm.NodeIndex)
 	vm.serverConfig = config
 }
 
 func (vm *AutoScalerServerNode) retrieveNetworkInfos() error {
-	return vm.CloudConfig.RetrieveNetworkInfos(vm.NodeName, vm.VMUUID, vm.NodeIndex)
+	return vm.cloudConfig.RetrieveNetworkInfos(vm.NodeName, vm.VMUUID, vm.NodeIndex)
 }
 
 // cleanOnLaunchError called when error occurs during launch

@@ -18,7 +18,7 @@ import (
 )
 
 type baseTest struct {
-	testConfig providers.CloudConfiguration
+	testConfig providers.ProviderConfiguration
 	t          *testing.T
 }
 
@@ -52,7 +52,7 @@ func (ng *autoScalerServerNodeGroupTest) createTestNode(nodeName string, desired
 		State:        state,
 		NodeType:     AutoScalerServerNodeAutoscaled,
 		NodeIndex:    1,
-		CloudConfig:  ng.testConfig,
+		cloudConfig:  ng.testConfig,
 		serverConfig: ng.configuration,
 	}
 
@@ -340,7 +340,7 @@ func (m *baseTest) ssh() {
 	}
 }
 
-func findInstanceID(config providers.CloudConfiguration, nodeName string) string {
+func findInstanceID(config providers.ProviderConfiguration, nodeName string) string {
 	if vmUUID, err := config.UUID(nodeName); err == nil {
 		return vmUUID
 	}
