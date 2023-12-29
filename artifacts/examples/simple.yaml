@@ -1,0 +1,25 @@
+apiVersion: "nodemanager.aldunelabs.com/v1alpha1"
+kind: "ManagedNode"
+metadata:
+  name: "vmware-ca-k8s-managed-01"
+spec:
+  nodegroup: vmware-ca-k8s
+  controlPlane: false
+  allowDeployment: false
+  vcpus: 2
+  memorySizeInMb: 2048
+  diskSizeInMb: 10240
+  labels:
+  - demo-label.aldunelabs.com=demo
+  - sample-label.aldunelabs.com=sample
+  annotations:
+  - demo-annotation.aldunelabs.com=demo
+  - sample-annotation.aldunelabs.com=sample
+  networks:
+    -
+      network: "VM Network"
+      dhcp: true
+    -
+      network: "VM Private"
+      dhcp: true
+      use-dhcp-routes: false

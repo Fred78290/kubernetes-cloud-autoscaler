@@ -1,0 +1,275 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.aldunelabs.vmware.desktop.autoscaler.utility";
+option java_outer_classname = "VMWareDesktopAutoscalerUtility";
+
+package api;
+
+option go_package = "api/";
+
+service VMWareDesktopAutoscalerService {
+	rpc Create(CreateRequest)returns (CreateResponse) {}
+	rpc Delete(VirtualMachineRequest) returns (DeleteResponse) {}
+	rpc PowerOn(VirtualMachineRequest) returns (PowerOnResponse) {}
+	rpc PowerOff(PowerOffRequest) returns (PowerOffResponse) {}
+	rpc PowerState(VirtualMachineRequest) returns (PowerStateResponse) {}
+	rpc ShutdownGuest(VirtualMachineRequest) returns (ShutdownGuestResponse) {}
+	rpc Status(VirtualMachineRequest) returns (StatusResponse) {}
+	rpc WaitForIP(WaitForIPRequest) returns (WaitForIPResponse) {}
+	rpc WaitForToolsRunning(WaitForToolsRunningRequest) returns (WaitForToolsRunningResponse) {}
+	rpc SetAutoStart(AutoStartRequest) returns (AutoStartResponse) {}
+	rpc VirtualMachineByName(VirtualMachineRequest) returns (VirtualMachineResponse) {}
+	rpc VirtualMachineByUUID(VirtualMachineRequest) returns (VirtualMachineResponse) {}
+	rpc ListVirtualMachines(VirtualMachinesRequest) returns (VirtualMachinesResponse) {}
+	rpc ListNetwork(NetworkRequest) returns (NetworkResponse) {}
+}
+
+message ClientError {
+    int32 code = 1;
+    string reason = 2;
+}
+
+message VirtualMachine {
+	string uuid = 1;
+	string name = 2;
+	string vmx = 3;
+	int32 vcpus = 4;
+	int64 memory = 5;
+	string address = 6;
+	bool powered = 7;
+	string toolsStatus = 8;
+}
+
+message VirtualMachineRequest {
+	string identifier = 1;
+}
+
+message NetworkInterface {
+	string macaddress = 2;
+	string vnet = 3;
+	string type = 4;
+	string device = 5;
+	string bsdName = 6;
+	string displayName = 7;
+}
+
+message CreateRequest {
+	string template = 1;
+	string name = 2;
+	int32 vcpus = 3;
+	int64 memory = 4;
+	int32 diskSizeInMb = 5;
+	repeated NetworkInterface networks = 6;
+    map<string, string> guestInfos = 7;
+	bool linked = 8;
+	bool register = 9;
+	bool autostart = 10;
+}
+
+message CreateReply {
+	VirtualMachine machine = 1;
+}
+
+message CreateResponse {
+	oneof response {
+		ClientError error = 1;
+		CreateReply result = 2;
+	}
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Set autostart VM
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+message AutoStartRequest {
+	string uuid = 1;
+	bool autostart = 2;
+}
+
+message AutoStartReply {
+	bool done = 1;
+}
+
+message AutoStartResponse {
+	oneof response {
+		ClientError error = 1;
+		AutoStartReply result = 2;
+	}
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Delete VM
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+message DeleteReply {
+	bool done = 1;
+}
+
+message DeleteResponse {
+	oneof response {
+		ClientError error = 1;
+		DeleteReply result = 2;
+	}
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Power On VM
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+message PowerOnReply {
+	bool done = 1;
+}
+
+message PowerOnResponse {
+	oneof response {
+		ClientError error = 1;
+		PowerOnReply result = 2;
+	}
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Power off VM
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+message PowerOffReply {
+	bool done = 1;
+}
+
+message PowerOffRequest {
+	string identifier = 1;
+	string mode = 2;
+}
+
+message PowerOffResponse {
+	oneof response {
+		ClientError error = 1;
+		PowerOffReply result = 2;
+	}
+}
+
+message PowerStateResponse {
+	oneof response {
+		ClientError error = 1;
+		bool powered = 2;
+	}
+}
+
+message ShutdownGuestResponse {
+	oneof response {
+		ClientError error = 1;
+		PowerOffReply result = 2;
+	}
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Power status VM
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+message Ethernet {
+	string addressType = 1;
+	string bsdName = 2;
+	string connectionType = 3;
+	string displayName = 4;
+	string generatedAddress = 5;
+	int32 generatedAddressOffset = 6;
+	bool linkStatePropagation = 7;
+	int32 pciSlotNumber = 8;
+	bool present = 9;
+	string virtualDev = 10;
+	string vnet = 11;
+	string address = 12;
+}
+
+message StatusReply {
+	bool powered = 1;
+	repeated Ethernet ethernet = 2;
+}
+
+message StatusResponse {
+	oneof response {
+		ClientError error = 1;
+		StatusReply result = 2;
+	}
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Wait for IP VM
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+message WaitForIPRequest {
+	string identifier = 1;
+	int32 timeoutInSeconds = 2;
+}
+
+message WaitForIPReply {
+	string address = 1;
+}
+
+message WaitForIPResponse {
+	oneof response {
+		ClientError error = 1;
+		WaitForIPReply result = 2;
+	}
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Wait for vmware tools running VM
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+message WaitForToolsRunningRequest {
+	string identifier = 1;
+	int32 timeoutInSeconds = 2;
+}
+
+message WaitForToolsRunningReply {
+	bool running = 1;
+}
+
+message WaitForToolsRunningResponse {
+	oneof response {
+		ClientError error = 1;
+		WaitForToolsRunningReply result = 2;
+	}
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Get VM UUID for vm name
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+message VirtualMachineResponse {
+	oneof response {
+		ClientError error = 1;
+		VirtualMachine result = 2;
+	}
+}
+
+message VirtualMachinesRequest {
+
+}
+
+message VirtualMachinesReply {
+	repeated VirtualMachine machines = 1;
+}
+
+message VirtualMachinesResponse {
+	oneof response {
+		ClientError error = 1;
+		VirtualMachinesReply result = 2;
+	}
+}
+
+message NetworkDevice {
+	string name = 1;
+	string type = 2;
+	bool dhcp = 3;
+	string subnet = 4;
+	string mask = 5;
+}
+
+message NetworkRequest {
+}
+
+message NetworkReply {
+	int32 num = 1;
+	repeated NetworkDevice vmnets = 2;
+}
+
+message NetworkResponse {
+	oneof response {
+		ClientError error = 1;
+		NetworkReply result = 2;
+	}
+}
