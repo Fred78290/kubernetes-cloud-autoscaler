@@ -222,10 +222,12 @@ func (net *Network) GetDeclaredExistingInterfaces() []*NetworkInterface {
 	return infs
 }
 
-func (net *Network) UpdateMacAddressTable(nodeIndex int) {
+func (net *Network) UpdateMacAddressTable(nodeIndex int) error {
 	for _, inf := range net.Interfaces {
 		inf.updateMacAddressTable(nodeIndex)
 	}
+
+	return nil
 }
 
 var macAddresesLock sync.Mutex

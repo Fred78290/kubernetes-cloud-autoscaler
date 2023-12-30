@@ -7,12 +7,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Fred78290/kubernetes-cloud-autoscaler/aws"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
-	"github.com/Fred78290/kubernetes-cloud-autoscaler/desktop"
 	apigrpc "github.com/Fred78290/kubernetes-cloud-autoscaler/grpc"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
-	"github.com/Fred78290/kubernetes-cloud-autoscaler/vsphere"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers/aws"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers/desktop"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers/vsphere"
 	"github.com/alecthomas/kingpin"
 	glog "github.com/sirupsen/logrus"
 
@@ -159,14 +159,6 @@ type ResourceLimiter struct {
 	MaxLimits map[string]int64 `json:"max"`
 }
 
-// MachineCharacteristic defines VM kind
-type MachineCharacteristic struct {
-	Memory   int    `json:"memsize"`                // VM Memory size in megabytes
-	Vcpu     int    `json:"vcpus"`                  // VM number of cpus
-	DiskSize int    `json:"disksize"`               // VM disk size in megabytes
-	DiskType string `default:"gp2" json:"diskType"` // VM disk type
-}
-
 // KubeJoinConfig give element to join kube master
 type KubeJoinConfig struct {
 	Address        string   `json:"address,omitempty"`
@@ -268,45 +260,47 @@ type NodeGroupAutoscalingOptions struct {
 
 // AutoScalerServerConfig is contains configuration
 type AutoScalerServerConfig struct {
-	Distribution               *string                           `default:"kubeadm" json:"distribution"`
-	CloudProvider              *string                           `default:"vmware" json:"cloud-provider"`
-	UseExternalEtdc            *bool                             `json:"use-external-etcd"`
-	UseVanillaGrpcProvider     *bool                             `json:"use-vanilla-grpc"`
-	UseControllerManager       *bool                             `json:"use-controller-manager"`
-	ExtDestinationEtcdSslDir   string                            `default:"/etc/etcd/ssl" json:"dst-etcd-ssl-dir"`
-	ExtSourceEtcdSslDir        string                            `default:"/etc/etcd/ssl" json:"src-etcd-ssl-dir"`
-	KubernetesPKISourceDir     string                            `default:"/etc/kubernetes/pki" json:"kubernetes-pki-srcdir"`
-	KubernetesPKIDestDir       string                            `default:"/etc/kubernetes/pki" json:"kubernetes-pki-dstdir"`
-	Network                    string                            `default:"tcp" json:"network"`                     // Mandatory, Network to listen (see grpc doc) to listen
-	Listen                     string                            `default:"0.0.0.0:5200" json:"listen"`             // Mandatory, Address to listen
-	CertPrivateKey             string                            `json:"cert-private-key,omitempty"`                // Optional to secure grcp channel
-	CertPublicKey              string                            `json:"cert-public-key,omitempty"`                 // Optional to secure grcp channel
-	CertCA                     string                            `json:"cert-ca,omitempty"`                         // Optional to secure grcp channel
-	ServiceIdentifier          string                            `json:"secret"`                                    // Mandatory, secret Identifier, client must match this
-	MinNode                    int                               `json:"minNode"`                                   // Mandatory, Min AutoScaler VM
-	MaxNode                    int                               `json:"maxNode"`                                   // Mandatory, Max AutoScaler VM
-	MaxPods                    int                               `default:"110" json:"maxPods"`                     // Mandatory, Max pod per node
-	MaxCreatedNodePerCycle     int                               `json:"maxNode-per-cycle" default:"2"`             // Optional, the max number VM to create in //
-	ProvisionnedNodeNamePrefix string                            `default:"autoscaled" json:"node-name-prefix"`     // Optional, the created node name prefix
-	ManagedNodeNamePrefix      string                            `default:"worker" json:"managed-name-prefix"`      // Optional, the created node name prefix
-	ControlPlaneNamePrefix     string                            `default:"master" json:"controlplane-name-prefix"` // Optional, the created node name prefix
-	NodePrice                  float64                           `json:"nodePrice"`                                 // Optional, The VM price
-	PodPrice                   float64                           `json:"podPrice"`                                  // Optional, The pod price
-	KubeAdm                    *KubeJoinConfig                   `json:"kubeadm"`
-	K3S                        *K3SJoinConfig                    `json:"k3s,omitempty"`
-	RKE2                       *RKE2JoinConfig                   `json:"rke2,omitempty"`
-	External                   *ExternalJoinConfig               `json:"external,omitempty"`
-	DefaultMachineType         string                            `default:"standard" json:"default-machine"`
-	NodeLabels                 KubernetesLabel                   `json:"nodeLabels"`
-	Machines                   map[string]*MachineCharacteristic `default:"{\"standard\": {}}" json:"machines"` // Mandatory, Available machines
-	CloudInit                  interface{}                       `json:"cloud-init"`                            // Optional, The cloud init conf file
-	Optionals                  *AutoScalerServerOptionals        `json:"optionals"`
-	ManagedNodeResourceLimiter *ResourceLimiter                  `json:"managednodes-limits"`
-	SSH                        *AutoScalerServerSSH              `json:"ssh-infos"`
-	AutoScalingOptions         *NodeGroupAutoscalingOptions      `json:"autoscaling-options,omitempty"`
-	DebugMode                  *bool                             `json:"debug,omitempty"`
-	ProviderConfig             interface{}                       `json:"provider,omitempty"`
-	providerConfiguration      providers.ProviderConfiguration   `json:"-"`
+	Distribution               *string                          `default:"kubeadm" json:"distribution"`
+	CloudProvider              *string                          `default:"vmware" json:"cloud-provider"`
+	UseExternalEtdc            *bool                            `json:"use-external-etcd"`
+	UseVanillaGrpcProvider     *bool                            `json:"use-vanilla-grpc"`
+	UseControllerManager       *bool                            `json:"use-controller-manager"`
+	ExtDestinationEtcdSslDir   string                           `default:"/etc/etcd/ssl" json:"dst-etcd-ssl-dir"`
+	ExtSourceEtcdSslDir        string                           `default:"/etc/etcd/ssl" json:"src-etcd-ssl-dir"`
+	KubernetesPKISourceDir     string                           `default:"/etc/kubernetes/pki" json:"kubernetes-pki-srcdir"`
+	KubernetesPKIDestDir       string                           `default:"/etc/kubernetes/pki" json:"kubernetes-pki-dstdir"`
+	Network                    string                           `default:"tcp" json:"network"`                     // Mandatory, Network to listen (see grpc doc) to listen
+	Listen                     string                           `default:"0.0.0.0:5200" json:"listen"`             // Mandatory, Address to listen
+	CertPrivateKey             string                           `json:"cert-private-key,omitempty"`                // Optional to secure grcp channel
+	CertPublicKey              string                           `json:"cert-public-key,omitempty"`                 // Optional to secure grcp channel
+	CertCA                     string                           `json:"cert-ca,omitempty"`                         // Optional to secure grcp channel
+	ServiceIdentifier          string                           `json:"secret"`                                    // Mandatory, secret Identifier, client must match this
+	MinNode                    int                              `json:"minNode"`                                   // Mandatory, Min AutoScaler VM
+	MaxNode                    int                              `json:"maxNode"`                                   // Mandatory, Max AutoScaler VM
+	MaxPods                    int                              `default:"110" json:"maxPods"`                     // Mandatory, Max pod per node
+	MaxCreatedNodePerCycle     int                              `json:"maxNode-per-cycle" default:"2"`             // Optional, the max number VM to create in //
+	ProvisionnedNodeNamePrefix string                           `default:"autoscaled" json:"node-name-prefix"`     // Optional, the created node name prefix
+	ManagedNodeNamePrefix      string                           `default:"worker" json:"managed-name-prefix"`      // Optional, the created node name prefix
+	ControlPlaneNamePrefix     string                           `default:"master" json:"controlplane-name-prefix"` // Optional, the created node name prefix
+	NodePrice                  float64                          `json:"nodePrice"`                                 // Optional, The VM price
+	PodPrice                   float64                          `json:"podPrice"`                                  // Optional, The pod price
+	KubeAdm                    *KubeJoinConfig                  `json:"kubeadm"`
+	K3S                        *K3SJoinConfig                   `json:"k3s,omitempty"`
+	RKE2                       *RKE2JoinConfig                  `json:"rke2,omitempty"`
+	External                   *ExternalJoinConfig              `json:"external,omitempty"`
+	DefaultMachineType         string                           `default:"standard" json:"default-machine"`
+	NodeLabels                 KubernetesLabel                  `json:"nodeLabels"`
+	Machines                   providers.MachineCharacteristics `default:"{\"standard\": {}}" json:"machines"` // Mandatory, Available machines
+	CloudInit                  interface{}                      `json:"cloud-init"`                            // Optional, The cloud init conf file
+	Optionals                  *AutoScalerServerOptionals       `json:"optionals"`
+	ManagedNodeResourceLimiter *ResourceLimiter                 `json:"managednodes-limits"`
+	SSH                        *AutoScalerServerSSH             `json:"ssh-infos"`
+	AutoScalingOptions         *NodeGroupAutoscalingOptions     `json:"autoscaling-options,omitempty"`
+	DebugMode                  *bool                            `json:"debug,omitempty"`
+	AwsProviderConfig          *aws.Configuration               `json:"aws,omitempty"`
+	VSphereProviderConfig      *vsphere.Configuration           `json:"vsphere,omitempty"`
+	DesktopProviderConfig      *desktop.Configuration           `json:"desktop,omitempty"`
+	providerConfiguration      providers.ProviderConfiguration  `json:"-"`
 }
 
 func (limits *ResourceLimiter) MergeRequestResourceLimiter(limiter *apigrpc.ResourceLimiter) {
@@ -398,16 +392,20 @@ func (limits *ResourceLimiter) GetMinValue(key string, defaultValue int) int {
 // GetCloudConfiguration returns the cloud configuration
 func (conf *AutoScalerServerConfig) GetCloudConfiguration() providers.ProviderConfiguration {
 	if conf.providerConfiguration == nil {
-		switch *conf.CloudProvider {
-		case AwsCloudProviderName:
-			conf.providerConfiguration = conf.ProviderConfig.(aws.Configuration)
-			break
-		case VSphereCloudProviderName:
-			conf.providerConfiguration = conf.ProviderConfig.(vsphere.Configuration)
-			break
-		case VMWareWorkstationPRoviderName:
-			conf.providerConfiguration = conf.ProviderConfig.(desktop.Configuration)
-			break
+		if conf.CloudProvider == nil {
+			conf.providerConfiguration = conf.DesktopProviderConfig
+		} else {
+			switch *conf.CloudProvider {
+			case AwsCloudProviderName:
+				conf.providerConfiguration = conf.AwsProviderConfig
+				break
+			case VSphereCloudProviderName:
+				conf.providerConfiguration = conf.VSphereProviderConfig
+				break
+			case VMWareWorkstationPRoviderName:
+				conf.providerConfiguration = conf.DesktopProviderConfig
+				break
+			}
 		}
 	}
 

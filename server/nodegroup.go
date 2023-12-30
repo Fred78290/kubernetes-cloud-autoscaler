@@ -8,6 +8,7 @@ import (
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha1"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/types"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/utils"
 	glog "github.com/sirupsen/logrus"
@@ -92,7 +93,7 @@ func CreateLabelOrAnnotation(values []string) types.KubernetesLabel {
 	return result
 }
 
-func (g *AutoScalerServerNodeGroup) Machine() *types.MachineCharacteristic {
+func (g *AutoScalerServerNodeGroup) Machine() *providers.MachineCharacteristic {
 	return g.configuration.Machines[g.InstanceType]
 }
 

@@ -15,6 +15,7 @@ import (
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/externalgrpc"
 	apigrpc "github.com/Fred78290/kubernetes-cloud-autoscaler/grpc"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/signals"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/types"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/utils"
 	glog "github.com/sirupsen/logrus"
@@ -35,7 +36,7 @@ type applicationInterface interface {
 	getResourceLimiter() *types.ResourceLimiter
 	syncState()
 	client() types.ClientGenerator
-	getMachineType(instanceType string) *types.MachineCharacteristic
+	getMachineType(instanceType string) *providers.MachineCharacteristic
 }
 
 // AutoScalerServerApp declare AutoScaler grpc server
@@ -629,7 +630,7 @@ func (s *AutoScalerServerApp) GetAvailableGPUTypes(ctx context.Context, request 
 	}
 
 	return &apigrpc.GetAvailableGPUTypesReply{
-		AvailableGpuTypes: s.configuration.GetCloudConfiguration().AvailableGpuTypes(),
+		AvailableGpuTypes: s.configuration.GetCloudConfiguration().GetAvailableGpuTypes(),
 	}, nil
 }
 
@@ -1487,7 +1488,7 @@ func (s *AutoScalerServerApp) Load(fileName string) error {
 	return nil
 }
 
-func (s *AutoScalerServerApp) getMachineType(instanceType string) *types.MachineCharacteristic {
+func (s *AutoScalerServerApp) getMachineType(instanceType string) *providers.MachineCharacteristic {
 
 	if machineSpec, ok := s.configuration.Machines[instanceType]; ok {
 		return machineSpec

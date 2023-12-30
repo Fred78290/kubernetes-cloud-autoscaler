@@ -48,6 +48,7 @@ import (
 	schemeclientset "github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/generated/clientset/versioned/scheme"
 	informers "github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/generated/informers/externalversions"
 	listers "github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/generated/listers/nodemanager/v1alpha1"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/types"
 )
 
@@ -630,7 +631,7 @@ func (c *Controller) processAllItems() (map[uid.UID]string, map[string][]*AutoSc
 }
 
 // check if the new node doesn't break cluster limits
-func (c *Controller) checkRessourceLimits(crd *v1alpha1.ManagedNode, machineSpec *types.MachineCharacteristic) resourceLimitsStatus {
+func (c *Controller) checkRessourceLimits(crd *v1alpha1.ManagedNode, machineSpec *providers.MachineCharacteristic) resourceLimitsStatus {
 	var currentAllocatedMemorySize int64 = 0
 	var currentAllocatedCores = 0
 

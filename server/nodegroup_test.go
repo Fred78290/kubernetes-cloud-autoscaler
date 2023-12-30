@@ -341,7 +341,7 @@ func (m *baseTest) ssh() {
 }
 
 func findInstanceID(config providers.ProviderConfiguration, nodeName string) string {
-	if vmUUID, err := config.UUID(nodeName); err == nil {
+	if vmUUID, err := config.InstanceID(nodeName); err == nil {
 		return vmUUID
 	}
 

@@ -1,7 +1,6 @@
 package aws
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -49,7 +48,7 @@ type Configuration struct {
 	Network         Network       `json:"network"`
 	DiskType        string        `default:"standard" json:"diskType"`
 	DiskSize        int           `default:"10" json:"diskSize"`
-	TestMode        bool          `json:"-"`
+	testMode        bool
 	runningInstance *Ec2Instance
 	desiredENI      *UserDefinedNetworkInterface
 }
@@ -79,6 +78,18 @@ type NetworkInterface struct {
 	PublicIP        bool     `json:"publicIP"`
 }
 
+func (eni *NetworkInterface) GetNextSubnetsID(nodeIndex int) string {
+	numOfEnis := len(eni.SubnetsID)
+
+	if numOfEnis == 1 {
+		return eni.SubnetsID[0]
+	}
+
+	index := nodeIndex % numOfEnis
+
+	return eni.SubnetsID[index]
+}
+
 // UserDefinedNetworkInterface declare a network interface interface overriding default Eni
 type UserDefinedNetworkInterface struct {
 	NetworkInterfaceID string `json:"networkInterfaceId"`
@@ -90,52 +101,35 @@ type UserDefinedNetworkInterface struct {
 
 // Status shortened vm status
 type Status struct {
-	Address string
-	Powered bool
+	address string
+	powered bool
+}
+
+func (status *Status) Address() string {
+	return status.address
+}
+
+func (status *Status) Powered() bool {
+	return status.powered
 }
 
 func isNullOrEmpty(s string) bool {
 	return len(strings.TrimSpace(s)) == 0
 }
 
-// Copy Make a deep copy from src into dst.
-func Copy(dst interface{}, src interface{}) error {
-	if dst == nil {
-		return fmt.Errorf("dst cannot be nil")
-	}
-
-	if src == nil {
-		return fmt.Errorf("src cannot be nil")
-	}
-
-	bytes, err := json.Marshal(src)
-
-	if err != nil {
-		return fmt.Errorf("unable to marshal src: %s", err)
-	}
-
-	err = json.Unmarshal(bytes, dst)
-
-	if err != nil {
-		return fmt.Errorf("unable to unmarshal into dst: %s", err)
-	}
-
-	return nil
-}
-
 func (conf *Configuration) GetTestMode() bool {
-	return conf.TestMode
+	return conf.testMode
 }
 
 func (conf *Configuration) SetTestMode(value bool) {
-	conf.TestMode = value
+	conf.testMode = value
 }
 
 func (conf *Configuration) GetTimeout() time.Duration {
 	return conf.Timeout
 }
 
-func (conf *Configuration) AvailableGpuTypes() map[string]string {
+func (conf *Configuration) GetAvailableGpuTypes() map[string]string {
 	return availableGPUTypes
 }
 
@@ -143,17 +137,23 @@ func (conf *Configuration) NodeGroupName() string {
 	return conf.NodeGroup
 }
 
-func (conf *Configuration) AttachInstance(instanceName string) error {
+func (conf *Configuration) Copy() providers.ProviderConfiguration {
+	var dup Configuration
 
-	if ec2Instance, err := GetEc2Instance(conf, instanceName); err == nil {
-		conf.runningInstance = ec2Instance
-	}
+	_ = providers.Copy(&dup, conf)
 
-	return nil
+	dup.testMode = conf.testMode
+
+	return &dup
 }
 
-func (conf *Configuration) RetrieveNetworkInfos(name, vmuuid string, nodeIndex int) error {
-	return nil
+func (conf *Configuration) Clone(nodeIndex int) (providers.ProviderConfiguration, error) {
+	dup := conf.Copy().(*Configuration)
+
+	dup.runningInstance = nil
+	dup.desiredENI = nil
+
+	return dup, nil
 }
 
 func (conf *Configuration) ConfigureNetwork(network v1alpha1.ManagedNetworkConfig) {
@@ -171,8 +171,22 @@ func (conf *Configuration) ConfigureNetwork(network v1alpha1.ManagedNetworkConfi
 	}
 }
 
-func (conf *Configuration) UpdateMacAddressTable(nodeIndex int) {
-	// Empty
+func (conf *Configuration) AttachInstance(instanceName string) error {
+	if ec2Instance, err := GetEc2Instance(conf, instanceName); err != nil {
+		return err
+	} else {
+		conf.runningInstance = ec2Instance
+	}
+
+	return nil
+}
+
+func (conf *Configuration) RetrieveNetworkInfos(name, vmuuid string, nodeIndex int) error {
+	return nil
+}
+
+func (conf *Configuration) UpdateMacAddressTable(nodeIndex int) error {
+	return nil
 }
 
 func (conf *Configuration) GenerateProviderID(vmuuid string) string {
@@ -186,43 +200,116 @@ func (conf *Configuration) GetTopologyLabels() map[string]string {
 	}
 }
 
-func (conf *Configuration) WaitForVMReady(callback providers.CallbackWaitSSHReady) (*string, error) {
+// InstanceCreate will create a named VM not powered
+// memory and disk are in megabytes
+func (conf *Configuration) InstanceCreate(nodeName string, nodeIndex int, instanceType, userName, authKey string, cloudInit interface{}, machine *providers.MachineCharacteristic) (string, error) {
+	var err error
+
+	if conf.runningInstance, err = NewEc2Instance(conf, nodeName); err != nil {
+		return "", err
+	}
+
+	if err = conf.runningInstance.Create(nodeIndex, conf.NodeGroupName(), instanceType, nil, machine.DiskType, machine.DiskSize, conf.desiredENI); err != nil {
+		return "", err
+	}
+
+	return *conf.runningInstance.InstanceID, nil
+}
+
+func (conf *Configuration) InstanceWaitReady(callback providers.CallbackWaitSSHReady) (string, error) {
+	if conf.runningInstance == nil {
+		return "", fmt.Errorf("instance not attached when calling WaitForVMReady")
+	}
+
 	return conf.runningInstance.WaitForIP(callback)
+}
+
+func (conf *Configuration) InstanceID(name string) (string, error) {
+	if instance, err := conf.GetInstanceID(name); err != nil {
+		return "", err
+	} else {
+		return *instance.InstanceID, nil
+	}
+}
+
+func (conf *Configuration) InstanceExists(name string) bool {
+	if _, err := conf.GetInstanceID(name); err == nil {
+		return true
+	}
+
+	return false
 }
 
 func (conf *Configuration) InstanceAutoStart(name string) error {
 	return nil
 }
 
-func (conf *Configuration) Copy() *Configuration {
-	var dup Configuration
-
-	_ = Copy(&dup, conf)
-
-	dup.TestMode = conf.TestMode
-
-	return &dup
-}
-
-func (conf *Configuration) Clone(nodeIndex int) (*Configuration, error) {
-	dup := conf.Copy()
-
-	dup.runningInstance = nil
-	dup.desiredENI = nil
-
-	return dup, nil
-}
-
-func (eni *NetworkInterface) GetNextSubnetsID(nodeIndex int) string {
-	numOfEnis := len(eni.SubnetsID)
-
-	if numOfEnis == 1 {
-		return eni.SubnetsID[0]
+func (conf *Configuration) InstancePowerOn(name string) error {
+	if instance, err := conf.GetInstanceID(name); err != nil {
+		return err
+	} else {
+		return instance.PowerOn()
 	}
 
-	index := nodeIndex % numOfEnis
+}
 
-	return eni.SubnetsID[index]
+func (conf *Configuration) InstancePowerOff(name string) error {
+	if instance, err := conf.GetInstanceID(name); err != nil {
+		return err
+	} else {
+		return instance.PowerOff()
+	}
+}
+
+func (conf *Configuration) InstanceDelete(name string) error {
+	if instance, err := conf.GetInstanceID(name); err != nil {
+		return err
+	} else {
+		return instance.Delete()
+	}
+}
+
+func (conf *Configuration) InstanceStatus(name string) (providers.InstanceStatus, error) {
+	if instance, err := conf.GetInstanceID(name); err != nil {
+		return nil, err
+	} else {
+		return instance.Status()
+	}
+}
+
+func (conf *Configuration) InstanceWaitForToolsRunning(name string) (bool, error) {
+	return true, nil
+}
+
+func (conf *Configuration) RegisterDNS(address string) error {
+	var err error
+
+	if conf.runningInstance != nil && len(conf.Network.ZoneID) > 0 {
+		vm := conf.runningInstance
+		hostname := fmt.Sprintf("%s.%s", vm.InstanceName, conf.Network.PrivateZoneName)
+
+		glog.Infof("Register route53 entry for instance %s, node group: %s, hostname: %s with IP:%s", vm.InstanceName, conf.NodeGroup, hostname, address)
+
+		err = vm.RegisterDNS(conf, hostname, address, conf.testMode)
+	}
+
+	return err
+
+}
+
+func (conf *Configuration) UnregisterDNS(address string) error {
+	var err error
+
+	if conf.runningInstance != nil && len(conf.Network.ZoneID) > 0 {
+		vm := conf.runningInstance
+		hostname := fmt.Sprintf("%s.%s", vm.InstanceName, conf.Network.PrivateZoneName)
+
+		glog.Infof("Unregister route53 entry for instance %s, node group: %s, hostname: %s with IP:%s", vm.InstanceName, conf.NodeGroup, hostname, address)
+
+		err = vm.UnRegisterDNS(conf, hostname, false)
+	}
+
+	return err
 }
 
 // Log logging
@@ -231,8 +318,12 @@ func (conf *Configuration) Log(args ...interface{}) {
 }
 
 // GetInstanceID return aws instance id from named ec2 instance
-func (conf *Configuration) GetInstanceID(name string) (*Ec2Instance, error) {
-	return GetEc2Instance(conf, name)
+func (conf *Configuration) GetInstanceID(instanceName string) (*Ec2Instance, error) {
+	if conf.runningInstance != nil && conf.runningInstance.InstanceName == instanceName {
+		return conf.runningInstance, nil
+	}
+
+	return GetEc2Instance(conf, instanceName)
 }
 
 func (conf *Configuration) GetFileName() string {
@@ -282,29 +373,4 @@ func (conf *Configuration) GetRoute53Region() string {
 	}
 
 	return conf.Region
-}
-
-// Create will create a named VM not powered
-// memory and disk are in megabytes
-func (conf *Configuration) Create(nodeIndex int, nodeGroup, name, instanceType string, diskType string, diskSize int, userData *string, desiredENI *UserDefinedNetworkInterface) (*Ec2Instance, error) {
-	var err error
-	var instance *Ec2Instance
-
-	if instance, err = NewEc2Instance(conf, name); err != nil {
-		return nil, err
-	}
-
-	if err = instance.Create(nodeIndex, nodeGroup, instanceType, userData, diskType, diskSize, desiredENI); err != nil {
-		return nil, err
-	}
-
-	return instance, nil
-}
-
-func (conf *Configuration) Exists(name string) bool {
-	if _, err := GetEc2Instance(conf, name); err == nil {
-		return true
-	}
-
-	return false
 }

@@ -121,6 +121,9 @@ const (
 	// ErrStartVMFailed error msg
 	ErrStartVMFailed = "could not start VM: %s, reason: %v"
 
+	// ErrRegisterDNSVMFailed error msg
+	ErrRegisterDNSVMFailed = "could not register route53 record VM: %s, reason: %v"
+
 	// ErrDeleteVMFailed error msg
 	ErrDeleteVMFailed = "could not delete VM: %s, reason: %v"
 
@@ -132,6 +135,9 @@ const (
 
 	// ErrVMNotFound error msg
 	ErrVMNotFound = "unable to find VM: %s"
+
+	// ErrVMNotFound error msg
+	ErrVMAlreadyDeleting = "VM: %s, already deleting"
 
 	// ErrVMStopFailed error msg
 	ErrVMStopFailed = "unable to stop VM: %s before delete"

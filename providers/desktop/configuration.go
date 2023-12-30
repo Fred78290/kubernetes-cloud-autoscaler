@@ -1,45 +1,60 @@
 package desktop
 
 import (
-	"encoding/json"
 	"fmt"
 	"net"
 	"time"
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/context"
-	"github.com/Fred78290/kubernetes-cloud-autoscaler/desktop/api"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha1"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers/desktop/api"
 )
 
 // Configuration declares desktop connection info
 type Configuration struct {
 	//Configuration *api.Configuration `json:"configuration"`
-	NodeGroup    string                                   `json:"nodegroup"`
-	Timeout      time.Duration                            `json:"timeout"`
-	TemplateUUID string                                   `json:"template"`
-	TimeZone     string                                   `json:"time-zone"`
-	LinkedClone  bool                                     `json:"linked"`
-	Autostart    bool                                     `json:"autostart"`
-	Network      *Network                                 `json:"network"`
-	AllowUpgrade bool                                     `json:"allow-upgrade"`
-	TestMode     bool                                     `json:"-"`
-	apiclient    api.VMWareDesktopAutoscalerServiceClient `json:"-"`
+	NodeGroup    string        `json:"nodegroup"`
+	Timeout      time.Duration `json:"timeout"`
+	TemplateUUID string        `json:"template"`
+	TimeZone     string        `json:"time-zone"`
+	LinkedClone  bool          `json:"linked"`
+	Autostart    bool          `json:"autostart"`
+	Network      *Network      `json:"network"`
+	AllowUpgrade bool          `json:"allow-upgrade"`
+	testMode     bool
+	instanceName string
+	instanceID   string
+	apiclient    api.VMWareDesktopAutoscalerServiceClient
+}
+
+type VmStatus struct {
+	Status
+	address string
+}
+
+func (status *VmStatus) Address() string {
+	return status.address
+}
+
+func (status *VmStatus) Powered() bool {
+	return status.Status.Powered
 }
 
 func (conf *Configuration) GetTestMode() bool {
-	return conf.TestMode
+	return conf.testMode
 }
 
 func (conf *Configuration) SetTestMode(value bool) {
-	conf.TestMode = value
+	conf.testMode = value
 }
 
 func (conf *Configuration) GetTimeout() time.Duration {
 	return conf.Timeout
 }
 
-func (conf *Configuration) AvailableGpuTypes() map[string]string {
+func (conf *Configuration) GetAvailableGpuTypes() map[string]string {
 	return map[string]string{}
 }
 
@@ -47,8 +62,34 @@ func (conf *Configuration) NodeGroupName() string {
 	return conf.NodeGroup
 }
 
-func (conf *Configuration) AttachInstance(instanceName string) error {
-	return nil
+// Create a shadow copy
+func (conf *Configuration) Copy() providers.ProviderConfiguration {
+	var dup Configuration
+
+	_ = providers.Copy(&dup, conf)
+
+	dup.apiclient = conf.apiclient
+
+	return &dup
+}
+
+// Clone duplicate the conf, change ip address in network config if needed
+func (conf *Configuration) Clone(nodeIndex int) (providers.ProviderConfiguration, error) {
+	dup := conf.Copy().(*Configuration)
+
+	if dup.Network != nil {
+		for _, inf := range dup.Network.Interfaces {
+			if !inf.DHCP {
+				ip := net.ParseIP(inf.IPAddress)
+				address := ip.To4()
+				address[3] += byte(nodeIndex)
+
+				inf.IPAddress = ip.String()
+			}
+		}
+	}
+
+	return dup, nil
 }
 
 func (conf *Configuration) ConfigureNetwork(network v1alpha1.ManagedNetworkConfig) {
@@ -79,8 +120,23 @@ func (conf *Configuration) ConfigureNetwork(network v1alpha1.ManagedNetworkConfi
 	}
 }
 
-func (conf *Configuration) UpdateMacAddressTable(nodeIndex int) {
-	conf.Network.UpdateMacAddressTable(nodeIndex)
+func (conf *Configuration) AttachInstance(instanceName string) error {
+	if instanceID, err := conf.UUID(instanceName); err != nil {
+		return err
+	} else {
+		conf.instanceName = instanceName
+		conf.instanceID = instanceID
+	}
+
+	return nil
+}
+
+func (conf *Configuration) RetrieveNetworkInfos(name, vmuuid string, nodeIndex int) error {
+	return conf.retrieveNetworkInfos(vmuuid, nodeIndex)
+}
+
+func (conf *Configuration) UpdateMacAddressTable(nodeIndex int) error {
+	return conf.Network.UpdateMacAddressTable(nodeIndex)
 }
 
 func (conf *Configuration) GenerateProviderID(vmuuid string) string {
@@ -91,28 +147,103 @@ func (conf *Configuration) GetTopologyLabels() map[string]string {
 	return map[string]string{}
 }
 
-// Copy Make a deep copy from src into dst.
-func Copy(dst interface{}, src interface{}) error {
-	if dst == nil {
-		return fmt.Errorf("dst cannot be nil")
+func (conf *Configuration) InstanceCreate(nodeName string, nodeIndex int, instanceType, userName, authKey string, cloudInit interface{}, machine *providers.MachineCharacteristic) (string, error) {
+	if vmuuid, err := conf.Create(nodeName, nodeIndex, userName, authKey, cloudInit, conf.Network, machine); err != nil {
+		return "", err
+	} else {
+		conf.instanceName = nodeName
+		conf.instanceID = vmuuid
+
+		return conf.instanceID, err
+	}
+}
+
+func (conf *Configuration) InstanceWaitReady(callback providers.CallbackWaitSSHReady) (string, error) {
+	if ip, err := conf.WaitForIP(conf.instanceName, conf.Timeout); err != nil {
+		return ip, err
+	} else {
+		if err := context.PollImmediate(time.Second, conf.Timeout*time.Second, func() (bool, error) {
+			var err error
+
+			if err = callback.WaitSSHReady(conf.instanceName, ip); err != nil {
+				return false, err
+			}
+
+			return true, nil
+		}); err != nil {
+			return ip, err
+		}
+
+		return ip, nil
+	}
+}
+
+func (conf *Configuration) InstanceID(name string) (string, error) {
+	if name == conf.instanceName {
+		return conf.instanceID, nil
 	}
 
-	if src == nil {
-		return fmt.Errorf("src cannot be nil")
+	return conf.UUID(name)
+}
+
+func (conf *Configuration) InstanceExists(name string) bool {
+	return conf.Exists(name)
+}
+
+func (conf *Configuration) InstanceAutoStart(name string) error {
+	return nil
+}
+
+func (conf *Configuration) InstancePowerOn(name string) error {
+	if vmuuid, err := conf.InstanceID(name); err != nil {
+		return err
+	} else {
+		return conf.PowerOn(vmuuid)
 	}
+}
 
-	bytes, err := json.Marshal(src)
-
-	if err != nil {
-		return fmt.Errorf("unable to marshal src: %s", err)
+func (conf *Configuration) InstancePowerOff(name string) error {
+	if vmuuid, err := conf.InstanceID(name); err != nil {
+		return err
+	} else {
+		return conf.PowerOff(vmuuid, "soft")
 	}
+}
 
-	err = json.Unmarshal(bytes, dst)
-
-	if err != nil {
-		return fmt.Errorf("unable to unmarshal into dst: %s", err)
+func (conf *Configuration) InstanceDelete(name string) error {
+	if vmuuid, err := conf.InstanceID(name); err != nil {
+		return err
+	} else {
+		return conf.Delete(vmuuid)
 	}
+}
 
+func (conf *Configuration) InstanceStatus(name string) (providers.InstanceStatus, error) {
+	if vmuuid, err := conf.InstanceID(name); err != nil {
+		return nil, err
+	} else if status, err := conf.Status(vmuuid); err != nil {
+		return nil, err
+	} else {
+		return &VmStatus{
+			Status:  *status,
+			address: conf.FindPreferredIPAddress(status.Ethernet),
+		}, nil
+	}
+}
+
+func (conf *Configuration) InstanceWaitForToolsRunning(name string) (bool, error) {
+	if vmuuid, err := conf.InstanceID(name); err != nil {
+		return false, err
+	} else {
+		return true, conf.WaitForPowerState(vmuuid, true)
+	}
+}
+
+func (conf *Configuration) RegisterDNS(address string) error {
+	return nil
+}
+
+func (conf *Configuration) UnregisterDNS(address string) error {
 	return nil
 }
 
@@ -122,36 +253,6 @@ func (conf *Configuration) SetClient(apiclient api.VMWareDesktopAutoscalerServic
 
 func (conf *Configuration) GetClient() (api.VMWareDesktopAutoscalerServiceClient, error) {
 	return conf.apiclient, nil
-}
-
-// Create a shadow copy
-func (conf *Configuration) Copy() *Configuration {
-	var dup Configuration
-
-	_ = Copy(&dup, conf)
-
-	dup.apiclient = conf.apiclient
-
-	return &dup
-}
-
-// Clone duplicate the conf, change ip address in network config if needed
-func (conf *Configuration) Clone(nodeIndex int) (*Configuration, error) {
-	dup := conf.Copy()
-
-	if dup.Network != nil {
-		for _, inf := range dup.Network.Interfaces {
-			if !inf.DHCP {
-				ip := net.ParseIP(inf.IPAddress)
-				address := ip.To4()
-				address[3] += byte(nodeIndex)
-
-				inf.IPAddress = ip.String()
-			}
-		}
-	}
-
-	return dup, nil
 }
 
 func (conf *Configuration) FindVNetWithContext(ctx *context.Context, name string) (*NetworkDevice, error) {
@@ -228,15 +329,15 @@ func (conf *Configuration) FindInterface(ether *VNetDevice) *NetworkInterface {
 // CreateWithContext will create a named VM not powered
 // memory and disk are in megabytes
 // Return vm UUID
-func (conf *Configuration) CreateWithContext(ctx *context.Context, name, userName, authKey string, cloudInit interface{}, network *Network, memory, cpus, disk, nodeIndex int) (string, error) {
+func (conf *Configuration) CreateWithContext(ctx *context.Context, name string, nodeIndex int, userName, authKey string, cloudInit interface{}, network *Network, machine *providers.MachineCharacteristic) (string, error) {
 	var err error
 
 	request := &api.CreateRequest{
 		Template:     conf.TemplateUUID,
 		Name:         name,
-		Vcpus:        int32(cpus),
-		Memory:       int64(memory),
-		DiskSizeInMb: int32(disk),
+		Vcpus:        int32(machine.Vcpu),
+		Memory:       int64(machine.Memory),
+		DiskSizeInMb: int32(machine.DiskSize),
 		Linked:       conf.LinkedClone,
 		Networks:     BuildNetworkInterface(conf.Network.Interfaces, nodeIndex),
 		Register:     false,
@@ -258,11 +359,11 @@ func (conf *Configuration) CreateWithContext(ctx *context.Context, name, userNam
 
 // Create will create a named VM not powered
 // memory and disk are in megabytes
-func (conf *Configuration) Create(name, userName, authKey string, cloudInit interface{}, network *Network, memory, cpus, disk, nodeIndex int) (string, error) {
+func (conf *Configuration) Create(name string, nodeIndex int, userName, authKey string, cloudInit interface{}, network *Network, machine *providers.MachineCharacteristic) (string, error) {
 	ctx := context.NewContext(conf.Timeout)
 	defer ctx.Cancel()
 
-	return conf.CreateWithContext(ctx, name, userName, authKey, cloudInit, network, memory, cpus, disk, nodeIndex)
+	return conf.CreateWithContext(ctx, name, nodeIndex, userName, authKey, cloudInit, network, machine)
 }
 
 // DeleteWithContext a VM by UUID
@@ -516,11 +617,11 @@ func (conf *Configuration) WaitForPowerState(vmuuid string, wanted bool) error {
 }
 
 // PowerOff power off a VM by name
-func (conf *Configuration) PowerOff(name, mode string) error {
+func (conf *Configuration) PowerOff(vmuuid, mode string) error {
 	ctx := context.NewContext(conf.Timeout)
 	defer ctx.Cancel()
 
-	return conf.PowerOffWithContext(ctx, name, mode)
+	return conf.PowerOffWithContext(ctx, vmuuid, mode)
 }
 
 // ShutdownGuestWithContext power off a VM by vmuuid
@@ -587,7 +688,7 @@ func (conf *Configuration) Status(vmuuid string) (*Status, error) {
 	return conf.StatusWithContext(ctx, vmuuid)
 }
 
-func (conf *Configuration) RetrieveNetworkInfosWithContext(ctx *context.Context, vmuuid string, nodeIndex int) error {
+func (conf *Configuration) retrieveNetworkInfosWithContext(ctx *context.Context, vmuuid string, nodeIndex int) error {
 	if client, err := conf.GetClient(); err != nil {
 		return err
 	} else if response, err := client.Status(ctx, &api.VirtualMachineRequest{Identifier: vmuuid}); err != nil {
@@ -607,11 +708,11 @@ func (conf *Configuration) RetrieveNetworkInfosWithContext(ctx *context.Context,
 	}
 }
 
-func (conf *Configuration) RetrieveNetworkInfos(name, vmuuid string, nodeIndex int) error {
+func (conf *Configuration) retrieveNetworkInfos(vmuuid string, nodeIndex int) error {
 	ctx := context.NewContext(conf.Timeout)
 	defer ctx.Cancel()
 
-	return conf.RetrieveNetworkInfosWithContext(ctx, vmuuid, nodeIndex)
+	return conf.retrieveNetworkInfosWithContext(ctx, vmuuid, nodeIndex)
 }
 
 // ExistsWithContext return the current status of VM by name

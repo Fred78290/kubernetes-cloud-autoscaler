@@ -226,7 +226,7 @@ func (instance *Ec2Instance) NewContextWithTimeout(timeout time.Duration) *conte
 }
 
 // WaitForIP wait ip a VM by name
-func (instance *Ec2Instance) WaitForIP(callback providers.CallbackWaitSSHReady) (*string, error) {
+func (instance *Ec2Instance) WaitForIP(callback providers.CallbackWaitSSHReady) (string, error) {
 	glog.Debugf("WaitForIP: instance %s id (%s)", instance.InstanceName, instance.getInstanceID())
 
 	if err := context.PollImmediate(time.Second, instance.config.Timeout*time.Second, func() (bool, error) {
@@ -260,10 +260,10 @@ func (instance *Ec2Instance) WaitForIP(callback providers.CallbackWaitSSHReady) 
 
 		return false, nil
 	}); err != nil {
-		return nil, err
+		return "", err
 	}
 
-	return instance.AddressIP, nil
+	return *instance.AddressIP, nil
 }
 
 // WaitForPowered wait ip a VM by name
@@ -659,8 +659,8 @@ func (instance *Ec2Instance) Status() (*Status, error) {
 			}
 
 			return &Status{
-				Address: *address,
-				Powered: *code == 16 || *code == 0,
+				address: *address,
+				powered: *code == 16 || *code == 0,
 			}, nil
 		} else {
 			return &Status{}, nil
