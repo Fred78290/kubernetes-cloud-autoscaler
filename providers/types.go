@@ -8,6 +8,19 @@ import (
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha1"
 )
 
+const (
+	RKE2DistributionName     = "rke2"
+	K3SDistributionName      = "k3s"
+	KubeAdmDistributionName  = "kubeadm"
+	ExternalDistributionName = "external"
+)
+
+const (
+	AwsCloudProviderName          = "aws"
+	VSphereCloudProviderName      = "vsphere"
+	VMWareWorkstationProviderName = "desktop"
+)
+
 // CallbackWaitSSHReady callback to test if ssh become ready or return timeout error
 type CallbackWaitSSHReady interface {
 	WaitSSHReady(name, address string) error
@@ -49,10 +62,12 @@ type ProviderConfiguration interface {
 	InstanceAutoStart(name string) error
 	InstancePowerOn(name string) error
 	InstancePowerOff(name string) error
+	InstanceShutdownGuest(name string) error
 	InstanceDelete(name string) error
 	InstanceStatus(name string) (InstanceStatus, error)
+	InstanceWaitForPowered(name string) error
 	InstanceWaitForToolsRunning(name string) (bool, error)
-
+	InstanceMaxPods(instanceType string, desiredMaxPods int) (int, error)
 	RegisterDNS(address string) error
 	UnregisterDNS(address string) error
 }

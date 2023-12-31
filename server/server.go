@@ -1664,37 +1664,41 @@ func StartServer(kubeClient types.ClientGenerator, c *types.Config) {
 		config.CloudProvider = &c.CloudProvider
 	}
 
+	if config.Providers == nil {
+		glog.Fatal("Providers configuration is not defined")
+	}
+
 	switch *config.CloudProvider {
-	case types.AwsCloudProviderName:
-		if config.KubeAdm == nil {
-			glog.Fatal("KubeAdm configuration is not defined")
+	case providers.AwsCloudProviderName:
+		if config.Providers.AwsProviderConfig == nil {
+			glog.Fatal("aws configuration is not defined")
 		}
-	case types.VSphereCloudProviderName:
-		if config.K3S == nil {
-			glog.Fatal("K3S configuration is not defined")
+	case providers.VSphereCloudProviderName:
+		if config.Providers.VSphereProviderConfig == nil {
+			glog.Fatal("VSphere configuration is not defined")
 		}
-	case types.VMWareWorkstationPRoviderName:
-		if config.RKE2 == nil {
-			glog.Fatal("RKE2 configuration is not defined")
+	case providers.VMWareWorkstationProviderName:
+		if config.Providers.DesktopProviderConfig == nil {
+			glog.Fatal("Desktop configuration is not defined")
 		}
 	default:
 		glog.Fatalf("Unsupported cloud provider: %s", *config.CloudProvider)
 	}
 
 	switch *config.Distribution {
-	case types.KubeAdmDistributionName:
+	case providers.KubeAdmDistributionName:
 		if config.KubeAdm == nil {
 			glog.Fatal("KubeAdm configuration is not defined")
 		}
-	case types.K3SDistributionName:
+	case providers.K3SDistributionName:
 		if config.K3S == nil {
 			glog.Fatal("K3S configuration is not defined")
 		}
-	case types.RKE2DistributionName:
+	case providers.RKE2DistributionName:
 		if config.RKE2 == nil {
 			glog.Fatal("RKE2 configuration is not defined")
 		}
-	case types.ExternalDistributionName:
+	case providers.ExternalDistributionName:
 		if config.External == nil {
 			glog.Fatal("External configuration is not defined")
 		}
@@ -1736,6 +1740,10 @@ func StartServer(kubeClient types.ClientGenerator, c *types.Config) {
 
 	config.ManagedNodeResourceLimiter = c.GetManagedNodeResourceLimiter()
 
+	if err = config.SetupCloudConfiguration(); err != nil {
+		glog.Fatalf("Can't setup cloud provider, reason:%s", err)
+	}
+
 	if !phSaveState || !utils.FileExists(phSavedState) {
 		autoScalerServer = &AutoScalerServerApp{
 			kubeClient:      kubeClient,
@@ -1766,15 +1774,15 @@ func StartServer(kubeClient types.ClientGenerator, c *types.Config) {
 	}
 
 	if !autoScalerServer.checkPrivateKeyExists() {
-		log.Fatalf(constantes.ErrFatalMissingSSHKey, autoScalerServer.configuration.SSH.AuthKeys)
+		glog.Fatalf(constantes.ErrFatalMissingSSHKey, autoScalerServer.configuration.SSH.AuthKeys)
 	}
 
 	if !autoScalerServer.checkKubernetesPKIReadable() {
-		log.Fatalf(constantes.ErrFatalKubernetesPKIMissingOrUnreadable, autoScalerServer.configuration.KubernetesPKISourceDir)
+		glog.Fatalf(constantes.ErrFatalKubernetesPKIMissingOrUnreadable, autoScalerServer.configuration.KubernetesPKISourceDir)
 	}
 
 	if !autoScalerServer.checkEtcdSslReadable() {
-		log.Fatalf(constantes.ErrFatalEtcdMissingOrUnreadable, autoScalerServer.configuration.ExtSourceEtcdSslDir)
+		glog.Fatalf(constantes.ErrFatalEtcdMissingOrUnreadable, autoScalerServer.configuration.ExtSourceEtcdSslDir)
 	}
 
 	if err = autoScalerServer.startController(); err != nil {

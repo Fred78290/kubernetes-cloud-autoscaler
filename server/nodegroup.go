@@ -307,7 +307,7 @@ func (g *AutoScalerServerNodeGroup) addManagedNode(crd *v1alpha1.ManagedNode) (*
 
 			annoteMaster := ""
 
-			if g.configuration.Distribution != nil && *g.configuration.Distribution != types.KubeAdmDistributionName {
+			if g.configuration.Distribution != nil && *g.configuration.Distribution != providers.KubeAdmDistributionName {
 				annoteMaster = "true"
 			}
 
@@ -338,7 +338,7 @@ func (g *AutoScalerServerNodeGroup) prepareNodes(c types.ClientGenerator, delta 
 	annoteMaster := ""
 	machine := g.Machine()
 
-	if g.configuration.Distribution != nil && *g.configuration.Distribution != types.KubeAdmDistributionName {
+	if g.configuration.Distribution != nil && *g.configuration.Distribution != providers.KubeAdmDistributionName {
 		annoteMaster = "true"
 	}
 

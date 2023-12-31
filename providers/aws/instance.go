@@ -1,11 +1,13 @@
 package aws
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"time"
 
 	glog "github.com/sirupsen/logrus"
@@ -37,11 +39,9 @@ type Ec2Instance struct {
 	AddressIP    *string
 }
 
-var phEC2Client *ec2.EC2
-
 // GetEc2Instance return an existing instance from name
 func GetEc2Instance(config *Configuration, instanceName string) (*Ec2Instance, error) {
-	if client, err := createClient(config); err != nil {
+	if client, err := config.createClient(); err != nil {
 		return nil, err
 	} else {
 		var result *ec2.DescribeInstancesOutput
@@ -106,19 +106,6 @@ func userHomeDir() string {
 	return os.Getenv("HOME")
 }
 
-// NewEc2Instance create a new instance
-func NewEc2Instance(config *Configuration, instanceName string) (*Ec2Instance, error) {
-	if client, err := createClient(config); err != nil {
-		return nil, err
-	} else {
-		return &Ec2Instance{
-			client:       client,
-			config:       config,
-			InstanceName: instanceName,
-		}, nil
-	}
-}
-
 func credentialsFileExists(filename string) bool {
 	if isNullOrEmpty(filename) {
 		if filename = os.Getenv("AWS_SHARED_CREDENTIALS_FILE"); isNullOrEmpty(filename) {
@@ -158,30 +145,6 @@ func newSessionWithOptions(accessKey, secretKey, token, filename, profile, regio
 	}
 
 	return session.NewSession(&config)
-}
-
-func newSession(conf *Configuration) (*session.Session, error) {
-	return newSessionWithOptions(conf.AccessKey, conf.SecretKey, conf.Token, conf.Filename, conf.Profile, conf.Region)
-}
-
-func createClient(conf *Configuration) (*ec2.EC2, error) {
-	if phEC2Client == nil {
-		var err error
-		var sess *session.Session
-
-		if sess, err = newSession(conf); err != nil {
-			return nil, err
-		}
-
-		// Create EC2 service client
-		if glog.GetLevel() >= glog.DebugLevel {
-			phEC2Client = ec2.New(sess, aws.NewConfig().WithLogger(conf).WithLogLevel(aws.LogDebugWithHTTPBody).WithLogLevel(aws.LogDebugWithSigning))
-		} else {
-			phEC2Client = ec2.New(sess)
-		}
-	}
-
-	return phEC2Client, nil
 }
 
 func (instance *Ec2Instance) getInstanceID() string {
@@ -726,18 +689,20 @@ func (instance *Ec2Instance) changeResourceRecordSetsInput(conf *Configuration, 
 		result, err := svc.ChangeResourceRecordSets(input)
 
 		if err != nil {
+			const format = "%s, %v"
+
 			if aerr, ok := err.(awserr.Error); ok {
 				switch aerr.Code() {
 				case route53.ErrCodeNoSuchHostedZone:
-					return fmt.Errorf("%s, %v", route53.ErrCodeNoSuchHostedZone, aerr.Error())
+					return fmt.Errorf(format, route53.ErrCodeNoSuchHostedZone, aerr.Error())
 				case route53.ErrCodeNoSuchHealthCheck:
-					return fmt.Errorf("%s, %v", route53.ErrCodeNoSuchHealthCheck, aerr.Error())
+					return fmt.Errorf(format, route53.ErrCodeNoSuchHealthCheck, aerr.Error())
 				case route53.ErrCodeInvalidChangeBatch:
-					return fmt.Errorf("%s, %v", route53.ErrCodeInvalidChangeBatch, aerr.Error())
+					return fmt.Errorf(format, route53.ErrCodeInvalidChangeBatch, aerr.Error())
 				case route53.ErrCodeInvalidInput:
-					return fmt.Errorf("%s, %v", route53.ErrCodeInvalidInput, aerr.Error())
+					return fmt.Errorf(format, route53.ErrCodeInvalidInput, aerr.Error())
 				case route53.ErrCodePriorRequestNotComplete:
-					return fmt.Errorf("%s, %v", route53.ErrCodePriorRequestNotComplete, aerr.Error())
+					return fmt.Errorf(format, route53.ErrCodePriorRequestNotComplete, aerr.Error())
 				default:
 					return aerr
 				}
@@ -770,4 +735,24 @@ func (instance *Ec2Instance) UnRegisterDNS(conf *Configuration, name string, wai
 	}
 
 	return nil
+}
+
+func (instance *Ec2Instance) kubeletDefault(instanceType string) (*string, error) {
+	//kubeletExtraArgs := fmt.Sprintf("KUBELET_EXTRA_ARGS=\\\"$KUBELET_EXTRA_ARGS --max-pods=%d --node-ip=$LOCAL_IP --provider-id=aws://$ZONEID/$INSTANCEID\\\"", maxPods)
+	//kubeletExtraArgs := fmt.Sprintf("KUBELET_EXTRA_ARGS=\\\"$KUBELET_EXTRA_ARGS --max-pods=%d --node-ip=$LOCAL_IP \\\"", maxPods)
+	kubeletExtraArgs := "KUBELET_EXTRA_ARGS=\\\"$KUBELET_EXTRA_ARGS --node-ip=$LOCAL_IP \\\""
+
+	kubeletDefault := []string{
+		"#!/bin/bash",
+		"source /etc/default/kubelet",
+		"INSTANCEID=$(curl http://169.254.169.254/latest/meta-data/instance-id)",
+		"ZONEID=$(curl http://169.254.169.254/latest/meta-data/placement/availability-zone)",
+		"LOCAL_IP=$(curl http://169.254.169.254/latest/meta-data/local-ipv4)",
+		"echo \"" + kubeletExtraArgs + "\" > /etc/default/kubelet",
+		"systemctl restart kubelet",
+	}
+
+	result := base64.StdEncoding.EncodeToString([]byte(strings.Join(kubeletDefault, "\n")))
+
+	return &result, nil
 }

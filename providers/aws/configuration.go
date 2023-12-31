@@ -8,6 +8,9 @@ import (
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha1"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	glog "github.com/sirupsen/logrus"
 )
 
@@ -48,6 +51,7 @@ type Configuration struct {
 	Network   Network       `json:"network"`
 	DiskType  string        `default:"standard" json:"diskType"`
 	DiskSize  int           `default:"10" json:"diskSize"`
+	ec2Client *ec2.EC2
 }
 
 // Tag aws tag
@@ -65,6 +69,7 @@ type Network struct {
 	Token           string             `json:"token,omitempty"`
 	Profile         string             `json:"profile,omitempty"`
 	Region          string             `json:"region,omitempty"`
+	CniPlugin       string             `json:"cni-plugin,omitempty"`
 	ENI             []NetworkInterface `json:"eni,omitempty"`
 }
 
@@ -104,15 +109,17 @@ type Status struct {
 
 type awsConfiguration struct {
 	config          *Configuration
+	distribution    string
 	testMode        bool
 	runningInstance *Ec2Instance
 	desiredENI      *UserDefinedNetworkInterface
 }
 
-func NewAwsProviderConfiguration(config *Configuration) providers.ProviderConfiguration {
+func NewAwsProviderConfiguration(distribution string, config *Configuration) (providers.ProviderConfiguration, error) {
 	return &awsConfiguration{
-		config: config,
-	}
+		config:       config,
+		distribution: distribution,
+	}, nil
 }
 
 func (status *Status) Address() string {
@@ -148,13 +155,11 @@ func (conf *awsConfiguration) NodeGroupName() string {
 }
 
 func (conf *awsConfiguration) copy() *awsConfiguration {
-	var dup awsConfiguration
-
-	_ = providers.Copy(&dup, conf)
-
-	dup.testMode = conf.testMode
-
-	return &dup
+	return &awsConfiguration{
+		config:       conf.config,
+		distribution: conf.distribution,
+		testMode:     conf.testMode,
+	}
 }
 
 func (conf *awsConfiguration) Clone(nodeIndex int) (providers.ProviderConfiguration, error) {
@@ -216,12 +221,17 @@ func (conf *awsConfiguration) GetTopologyLabels() map[string]string {
 // memory and disk are in megabytes
 func (conf *awsConfiguration) InstanceCreate(nodeName string, nodeIndex int, instanceType, userName, authKey string, cloudInit interface{}, machine *providers.MachineCharacteristic) (string, error) {
 	var err error
+	var kubeletDefault *string
 
-	if conf.runningInstance, err = NewEc2Instance(conf.config, nodeName); err != nil {
+	if conf.runningInstance, err = conf.config.newEc2Instance(nodeName); err != nil {
 		return "", err
 	}
 
-	if err = conf.runningInstance.Create(nodeIndex, conf.NodeGroupName(), instanceType, nil, machine.DiskType, machine.DiskSize, conf.desiredENI); err != nil {
+	if kubeletDefault, err = conf.kubeletDefault(instanceType); err != nil {
+		return "", err
+	}
+
+	if err = conf.runningInstance.Create(nodeIndex, conf.NodeGroupName(), instanceType, kubeletDefault, machine.DiskType, machine.DiskSize, conf.desiredENI); err != nil {
 		return "", err
 	}
 
@@ -273,6 +283,14 @@ func (conf *awsConfiguration) InstancePowerOff(name string) error {
 	}
 }
 
+func (conf *awsConfiguration) InstanceShutdownGuest(name string) error {
+	if instance, err := conf.GetInstanceID(name); err != nil {
+		return err
+	} else {
+		return instance.ShutdownGuest()
+	}
+}
+
 func (conf *awsConfiguration) InstanceDelete(name string) error {
 	if instance, err := conf.GetInstanceID(name); err != nil {
 		return err
@@ -289,8 +307,36 @@ func (conf *awsConfiguration) InstanceStatus(name string) (providers.InstanceSta
 	}
 }
 
+func (conf *awsConfiguration) InstanceWaitForPowered(name string) error {
+	if instance, err := conf.GetInstanceID(name); err != nil {
+		return err
+	} else {
+		return instance.WaitForPowered()
+	}
+}
+
 func (conf *awsConfiguration) InstanceWaitForToolsRunning(name string) (bool, error) {
 	return true, nil
+}
+
+func (conf *awsConfiguration) InstanceMaxPods(instanceType string, desiredMaxPods int) (int, error) {
+	if client, err := conf.config.createClient(); err != nil {
+		return 0, err
+	} else {
+		input := ec2.DescribeInstanceTypesInput{
+			InstanceTypes: []*string{
+				aws.String(instanceType),
+			},
+		}
+
+		if result, err := client.DescribeInstanceTypes(&input); err != nil {
+			return 0, err
+		} else {
+			networkInfos := result.InstanceTypes[0].NetworkInfo
+
+			return int(*networkInfos.MaximumNetworkInterfaces*(*networkInfos.Ipv4AddressesPerInterface-1) + 2), nil
+		}
+	}
 }
 
 func (conf *awsConfiguration) RegisterDNS(address string) error {
@@ -324,6 +370,14 @@ func (conf *awsConfiguration) UnregisterDNS(address string) error {
 	return err
 }
 
+func (conf *awsConfiguration) kubeletDefault(instanceType string) (*string, error) {
+	if conf.distribution == providers.KubeAdmDistributionName && conf.config.Network.CniPlugin == "aws" {
+		return conf.runningInstance.kubeletDefault(instanceType)
+	}
+
+	return nil, nil
+}
+
 // GetInstanceID return aws instance id from named ec2 instance
 func (conf *awsConfiguration) GetInstanceID(instanceName string) (*Ec2Instance, error) {
 	if conf.runningInstance != nil && conf.runningInstance.InstanceName == instanceName {
@@ -331,6 +385,26 @@ func (conf *awsConfiguration) GetInstanceID(instanceName string) (*Ec2Instance, 
 	}
 
 	return GetEc2Instance(conf.config, instanceName)
+}
+
+func (conf *Configuration) createClient() (*ec2.EC2, error) {
+	if conf.ec2Client == nil {
+		var err error
+		var sess *session.Session
+
+		if sess, err = newSessionWithOptions(conf.AccessKey, conf.SecretKey, conf.Token, conf.Filename, conf.Profile, conf.Region); err != nil {
+			return nil, err
+		}
+
+		// Create EC2 service client
+		if glog.GetLevel() >= glog.DebugLevel {
+			conf.ec2Client = ec2.New(sess, aws.NewConfig().WithLogger(conf).WithLogLevel(aws.LogDebugWithHTTPBody).WithLogLevel(aws.LogDebugWithSigning))
+		} else {
+			conf.ec2Client = ec2.New(sess)
+		}
+	}
+
+	return conf.ec2Client, nil
 }
 
 // Log logging
@@ -385,4 +459,16 @@ func (conf *Configuration) GetRoute53Region() string {
 	}
 
 	return conf.Region
+}
+
+func (conf *Configuration) newEc2Instance(instanceName string) (*Ec2Instance, error) {
+	if client, err := conf.createClient(); err != nil {
+		return nil, err
+	} else {
+		return &Ec2Instance{
+			client:       client,
+			config:       conf,
+			InstanceName: instanceName,
+		}, nil
+	}
 }

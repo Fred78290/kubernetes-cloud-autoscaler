@@ -38,21 +38,23 @@ type Configuration struct {
 
 type vsphereConfiguration struct {
 	config       *Configuration
+	distribution string
 	network      Network
 	testMode     bool
 	instanceName string
 	instanceID   string
 }
 
-func NewVSphereProviderConfiguration(config *Configuration) providers.ProviderConfiguration {
+func NewVSphereProviderConfiguration(distribution string, config *Configuration) (providers.ProviderConfiguration, error) {
 	var network Network
 
 	providers.Copy(&network, config.Network)
 
 	return &vsphereConfiguration{
-		config:  config,
-		network: network,
-	}
+		config:       config,
+		distribution: distribution,
+		network:      network,
+	}, nil
 }
 
 // Status shortened vm status
@@ -102,6 +104,7 @@ func (conf *vsphereConfiguration) copy() *vsphereConfiguration {
 
 	return &vsphereConfiguration{
 		config:       conf.config,
+		distribution: conf.distribution,
 		network:      network,
 		testMode:     conf.testMode,
 		instanceName: conf.instanceName,
@@ -111,15 +114,7 @@ func (conf *vsphereConfiguration) copy() *vsphereConfiguration {
 
 // Clone duplicate the conf, change ip address in network config if needed
 func (conf *vsphereConfiguration) Clone(nodeIndex int) (providers.ProviderConfiguration, error) {
-	var network Network
-
-	providers.Copy(&network, conf.config.Network)
-
-	dup := &vsphereConfiguration{
-		config:   conf.config,
-		network:  network,
-		testMode: conf.testMode,
-	}
+	dup := conf.copy()
 
 	for _, inf := range dup.network.Interfaces {
 		if !inf.DHCP {
@@ -256,6 +251,10 @@ func (conf *vsphereConfiguration) InstancePowerOff(name string) error {
 	return conf.PowerOff(name)
 }
 
+func (conf *vsphereConfiguration) InstanceShutdownGuest(name string) error {
+	return conf.ShutdownGuest(name)
+}
+
 func (conf *vsphereConfiguration) InstanceDelete(name string) error {
 	return conf.Delete(name)
 }
@@ -271,8 +270,24 @@ func (conf *vsphereConfiguration) InstanceStatus(name string) (providers.Instanc
 	}
 }
 
+func (conf *vsphereConfiguration) InstanceWaitForPowered(name string) error {
+	if vmuuid, err := conf.InstanceID(name); err != nil {
+		return err
+	} else {
+		return conf.WaitForPowered(vmuuid)
+	}
+}
+
 func (conf *vsphereConfiguration) InstanceWaitForToolsRunning(name string) (bool, error) {
 	return conf.WaitForToolsRunning(name)
+}
+
+func (conf *vsphereConfiguration) InstanceMaxPods(instanceType string, desiredMaxPods int) (int, error) {
+	if desiredMaxPods == 0 {
+		desiredMaxPods = 110
+	}
+
+	return desiredMaxPods, nil
 }
 
 func (conf *vsphereConfiguration) RegisterDNS(address string) error {
@@ -530,6 +545,21 @@ func (conf *vsphereConfiguration) WaitForToolsRunningWithContext(ctx *context.Co
 	return vm.WaitForToolsRunning(ctx)
 }
 
+// WaitForToolsRunningWithContext wait vmware tools is running a VM by name
+func (conf *vsphereConfiguration) WaitForPoweredWithContext(ctx *context.Context, name string) error {
+	if conf.testMode {
+		return nil
+	}
+
+	vm, err := conf.VirtualMachineWithContext(ctx, name)
+
+	if err != nil {
+		return err
+	}
+
+	return vm.WaitForPowered(ctx)
+}
+
 func (conf *vsphereConfiguration) GetHostSystemWithContext(ctx *context.Context, name string) (string, error) {
 	vm, err := conf.VirtualMachineWithContext(ctx, name)
 
@@ -562,6 +592,14 @@ func (conf *vsphereConfiguration) WaitForToolsRunning(name string) (bool, error)
 	defer ctx.Cancel()
 
 	return conf.WaitForToolsRunningWithContext(ctx, name)
+}
+
+// WaitForToolsRunning wait vmware tools is running a VM by name
+func (conf *vsphereConfiguration) WaitForPowered(name string) error {
+	ctx := context.NewContext(conf.config.Timeout)
+	defer ctx.Cancel()
+
+	return conf.WaitForPoweredWithContext(ctx, name)
 }
 
 // PowerOnWithContext power on a VM by name

@@ -73,6 +73,9 @@ const (
 	// ErrDecreaseSizeAttemptDeleteNodes error msg
 	ErrDecreaseSizeAttemptDeleteNodes = "attempt to delete existing nodes, targetSize: %d delta: %d existingNodes: %d"
 
+	// ErrUnableToRetrieveMaxPodsForInstanceType error msg
+	ErrUnableToRetrieveMaxPodsForInstanceType = "unable to get max pods for instance type: %s, reason: %v"
+
 	// ErrUnableToLaunchVM error msg
 	ErrUnableToLaunchVM = "unable to launch the VM owned by node: %s, reason: %v"
 
@@ -258,4 +261,15 @@ const (
 
 	// ErrFatalKubernetesPKIMissingOrUnreadable err msg
 	ErrFatalKubernetesPKIMissingOrUnreadable = "%s kubernetes pki directory is missing or unreadable"
+
+	// ErrCantCopyFileToNode err msg
+	ErrCantCopyFileToNode = "unable to transfer file: %s to %s, reason: %v"
+
+	// ErrUpdateStatusNodeFailed err msg
+	ErrUpdateStatusNodeFailed = "update status managed node %s failed, reason: %v"
+
+	// InfoManagedNodeIsDeleted info msg
+	InfoManagedNodeIsDeleted = "ManagedNode '%s' is deleted, delete associated node %s"
 )
+
+//update status managed node %s failed, reason: %v

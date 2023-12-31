@@ -440,6 +440,32 @@ func (vm VirtualMachine) IsSimulatorRunning(ctx *context.Context) bool {
 	return vm.isSimulatorRunning(ctx, v)
 }
 
+func (vm *VirtualMachine) waitForPowered(ctx *context.Context, v *object.VirtualMachine) error {
+	var running bool
+
+	p := property.DefaultCollector(vm.VimClient())
+
+	return property.Wait(ctx, p, v.Reference(), []string{object.PropRuntimePowerState}, func(pc []types.PropertyChange) bool {
+		for _, c := range pc {
+			if c.Name != object.PropRuntimePowerState {
+				continue
+			}
+			if c.Op != types.PropertyChangeOpAssign {
+				continue
+			}
+			if c.Val == nil {
+				continue
+			}
+
+			running = c.Val.(string) == string(types.VirtualMachinePowerStatePoweredOn)
+
+			return running
+		}
+
+		return false
+	})
+}
+
 func (vm *VirtualMachine) waitForToolsRunning(ctx *context.Context, v *object.VirtualMachine) (bool, error) {
 	var running bool
 
@@ -501,6 +527,22 @@ func (vm *VirtualMachine) ListAddresses(ctx *context.Context) ([]NetworkInterfac
 	}
 
 	return addresses, nil
+}
+
+// WaitForToolsRunning wait vmware tool starts
+func (vm *VirtualMachine) WaitForPowered(ctx *context.Context) error {
+	var powerState types.VirtualMachinePowerState
+	var err error
+
+	v := vm.VirtualMachine(ctx)
+
+	if powerState, err = v.PowerState(ctx); err == nil {
+		if powerState == types.VirtualMachinePowerStatePoweredOff {
+			return vm.waitForPowered(ctx, v)
+		}
+	}
+
+	return nil
 }
 
 // WaitForToolsRunning wait vmware tool starts

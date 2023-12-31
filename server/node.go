@@ -18,6 +18,7 @@ import (
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	uid "k8s.io/apimachinery/pkg/types"
+	kubelet "k8s.io/kubelet/config/v1beta1"
 )
 
 // AutoScalerServerNodeState VM state
@@ -74,6 +75,7 @@ const (
 	nodeNameTemplate         = "%s-%s-%02d"
 	errWriteFileErrorMsg     = "unable to write file: %s, reason: %v"
 	tmpConfigDestinationFile = "/tmp/config.yaml"
+	mkdirCmd                 = "mkdir -p %s"
 )
 
 // AutoScalerServerNode Describe a AutoScaler VM
@@ -114,14 +116,14 @@ func (vm *AutoScalerServerNode) waitReady(c types.ClientGenerator) error {
 func (vm *AutoScalerServerNode) recopyEtcdSslFilesIfNeeded() error {
 	var err error
 
-	if (vm.serverConfig.Distribution == nil || *vm.serverConfig.Distribution != types.RKE2DistributionName) && (vm.ControlPlaneNode || *vm.serverConfig.UseExternalEtdc) {
+	if (vm.serverConfig.Distribution == nil || *vm.serverConfig.Distribution != providers.RKE2DistributionName) && (vm.ControlPlaneNode || *vm.serverConfig.UseExternalEtdc) {
 		glog.Infof("Recopy Etcd ssl files for instance: %s in node group: %s", vm.InstanceName, vm.NodeGroupID)
 
 		timeout := vm.cloudConfig.GetTimeout()
 
 		if err = utils.Scp(vm.serverConfig.SSH, vm.IPAddress, vm.serverConfig.ExtSourceEtcdSslDir, "."); err != nil {
 			glog.Errorf("scp failed: %v", err)
-		} else if _, err = utils.Sudo(vm.serverConfig.SSH, vm.IPAddress, timeout, fmt.Sprintf("mkdir -p %s", vm.serverConfig.ExtDestinationEtcdSslDir)); err != nil {
+		} else if _, err = utils.Sudo(vm.serverConfig.SSH, vm.IPAddress, timeout, fmt.Sprintf(mkdirCmd, vm.serverConfig.ExtDestinationEtcdSslDir)); err != nil {
 			glog.Errorf("mkdir failed: %v", err)
 		} else if _, err = utils.Sudo(vm.serverConfig.SSH, vm.IPAddress, timeout, fmt.Sprintf("cp -r %s/* %s", filepath.Base(vm.serverConfig.ExtSourceEtcdSslDir), vm.serverConfig.ExtDestinationEtcdSslDir)); err != nil {
 			glog.Errorf("mv failed: %v", err)
@@ -136,14 +138,14 @@ func (vm *AutoScalerServerNode) recopyEtcdSslFilesIfNeeded() error {
 func (vm *AutoScalerServerNode) recopyKubernetesPKIIfNeeded() error {
 	var err error
 
-	if (vm.serverConfig.Distribution == nil || *vm.serverConfig.Distribution != types.RKE2DistributionName) && vm.ControlPlaneNode {
+	if (vm.serverConfig.Distribution == nil || *vm.serverConfig.Distribution != providers.RKE2DistributionName) && vm.ControlPlaneNode {
 		glog.Infof("Recopy PKI for instance: %s in node group: %s", vm.InstanceName, vm.NodeGroupID)
 
 		timeout := vm.cloudConfig.GetTimeout()
 
 		if err = utils.Scp(vm.serverConfig.SSH, vm.IPAddress, vm.serverConfig.KubernetesPKISourceDir, "."); err != nil {
 			glog.Errorf("scp failed: %v", err)
-		} else if _, err = utils.Sudo(vm.serverConfig.SSH, vm.IPAddress, timeout, fmt.Sprintf("mkdir -p %s", vm.serverConfig.KubernetesPKIDestDir)); err != nil {
+		} else if _, err = utils.Sudo(vm.serverConfig.SSH, vm.IPAddress, timeout, fmt.Sprintf(mkdirCmd, vm.serverConfig.KubernetesPKIDestDir)); err != nil {
 			glog.Errorf("mkdir failed: %v", err)
 		} else if _, err = utils.Sudo(vm.serverConfig.SSH, vm.IPAddress, timeout, fmt.Sprintf("cp -r %s/* %s", filepath.Base(vm.serverConfig.KubernetesPKISourceDir), vm.serverConfig.KubernetesPKIDestDir)); err != nil {
 			glog.Errorf("mv failed: %v", err)
@@ -189,8 +191,52 @@ func (vm *AutoScalerServerNode) executeCommands(args []string, restartKubelet bo
 	}
 }
 
-func (vm *AutoScalerServerNode) kubeAdmJoin(c types.ClientGenerator) error {
+func (vm *AutoScalerServerNode) writeKubeletMergeConfig(c types.ClientGenerator, maxPods int) error {
+	if f, err := os.CreateTemp(os.TempDir(), "kubeletconfiguration0.*.yaml"); err != nil {
+		return err
+	} else {
+		defer os.Remove(f.Name())
+
+		kubeletConfiguration := kubelet.KubeletConfiguration{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "KubeletConfiguration",
+				APIVersion: kubelet.SchemeGroupVersion.Identifier(),
+			},
+			MaxPods: int32(maxPods),
+		}
+
+		if _, err = f.WriteString(utils.ToYAML(&kubeletConfiguration)); err != nil {
+			defer f.Close()
+			return fmt.Errorf(errWriteFileErrorMsg, f.Name(), err)
+		} else {
+			f.Close()
+
+			tmpConfigDestinationFile := "/tmp/kubeletconfiguration0+merge.yaml"
+
+			if err = utils.Scp(vm.serverConfig.SSH, vm.IPAddress, f.Name(), tmpConfigDestinationFile); err != nil {
+				return fmt.Errorf(constantes.ErrCantCopyFileToNode, f.Name(), tmpConfigDestinationFile, err)
+			} else {
+				args := []string{
+					"mkdir -p /etc/kubernetes/patches",
+					fmt.Sprintf("cp %s /etc/kubernetes/patches", tmpConfigDestinationFile),
+				}
+
+				if err = vm.executeCommands(args, false, c); err != nil {
+					return fmt.Errorf(constantes.ErrCantCopyFileToNode, f.Name(), tmpConfigDestinationFile, err)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func (vm *AutoScalerServerNode) kubeAdmJoin(c types.ClientGenerator, maxPods int) error {
 	kubeAdm := vm.serverConfig.KubeAdm
+
+	if err := vm.writeKubeletMergeConfig(c, maxPods); err != nil {
+		return err
+	}
 
 	args := []string{
 		"kubeadm",
@@ -204,6 +250,8 @@ func (vm *AutoScalerServerNode) kubeAdmJoin(c types.ClientGenerator) error {
 		kubeAdm.CACert,
 		"--apiserver-advertise-address",
 		vm.IPAddress,
+		"--patches",
+		"/etc/kubernetes/patches",
 	}
 
 	if vm.ControlPlaneNode {
@@ -222,13 +270,13 @@ func (vm *AutoScalerServerNode) kubeAdmJoin(c types.ClientGenerator) error {
 	return vm.executeCommands(command, true, c)
 }
 
-func (vm *AutoScalerServerNode) externalAgentJoin(c types.ClientGenerator) error {
+func (vm *AutoScalerServerNode) externalAgentJoin(c types.ClientGenerator, maxPods int) error {
 	var result error
 
 	external := vm.serverConfig.External
 	config := map[string]interface{}{
 		"provider-id":              vm.generateProviderID(),
-		"max-pods":                 vm.serverConfig.MaxPods,
+		"max-pods":                 maxPods,
 		"node-name":                vm.NodeName,
 		"server":                   external.Address,
 		"token":                    external.Token,
@@ -260,10 +308,10 @@ func (vm *AutoScalerServerNode) externalAgentJoin(c types.ClientGenerator) error
 			f.Close()
 
 			if err = utils.Scp(vm.serverConfig.SSH, vm.IPAddress, f.Name(), tmpConfigDestinationFile); err != nil {
-				result = fmt.Errorf("unable to transfer file: %s to %s, reason: %v", f.Name(), tmpConfigDestinationFile, err)
+				result = fmt.Errorf(constantes.ErrCantCopyFileToNode, f.Name(), tmpConfigDestinationFile, err)
 			} else {
 				args := []string{
-					fmt.Sprintf("mkdir -p %s", path.Dir(external.ConfigPath)),
+					fmt.Sprintf(mkdirCmd, path.Dir(external.ConfigPath)),
 					fmt.Sprintf("cp %s %s", tmpConfigDestinationFile, external.ConfigPath),
 					external.JoinCommand,
 				}
@@ -276,21 +324,22 @@ func (vm *AutoScalerServerNode) externalAgentJoin(c types.ClientGenerator) error
 	return result
 }
 
-func (vm *AutoScalerServerNode) rke2AgentJoin(c types.ClientGenerator) error {
+func (vm *AutoScalerServerNode) rke2AgentJoin(c types.ClientGenerator, maxPods int) error {
 	var result error
 
 	rke2 := vm.serverConfig.RKE2
 	service := "rke2-server"
+	kubeletArgs := []string{"fail-swap-on=false", fmt.Sprintf("provider-id=%s", vm.generateProviderID()), fmt.Sprintf("max-pods=%d", maxPods)}
+
+	if vm.serverConfig.UseControllerManager != nil && *vm.serverConfig.UseControllerManager {
+		kubeletArgs = append(kubeletArgs, "cloud-provider=external")
+	}
+
 	config := map[string]interface{}{
-		"kubelet-arg": []string{
-			"cloud-provider=external",
-			"fail-swap-on=false",
-			fmt.Sprintf("provider-id=%s", vm.generateProviderID()),
-			fmt.Sprintf("max-pods=%d", vm.serverConfig.MaxPods),
-		},
-		"node-name": vm.NodeName,
-		"server":    fmt.Sprintf("https://%s", rke2.Address),
-		"token":     rke2.Token,
+		"kubelet-arg": kubeletArgs,
+		"node-name":   vm.NodeName,
+		"server":      fmt.Sprintf("https://%s", rke2.Address),
+		"token":       rke2.Token,
 	}
 
 	if vm.ControlPlaneNode {
@@ -333,7 +382,7 @@ func (vm *AutoScalerServerNode) rke2AgentJoin(c types.ClientGenerator) error {
 			f.Close()
 
 			if err = utils.Scp(vm.serverConfig.SSH, vm.IPAddress, f.Name(), tmpConfigDestinationFile); err != nil {
-				result = fmt.Errorf("unable to transfer file: %s to %s, reason: %v", f.Name(), tmpConfigDestinationFile, err)
+				result = fmt.Errorf(constantes.ErrCantCopyFileToNode, f.Name(), tmpConfigDestinationFile, err)
 			} else {
 				args := make([]string, 0, 5)
 
@@ -366,10 +415,10 @@ func (vm *AutoScalerServerNode) retrieveNodeInfo(c types.ClientGenerator) error 
 	return nil
 }
 
-func (vm *AutoScalerServerNode) k3sAgentJoin(c types.ClientGenerator) error {
+func (vm *AutoScalerServerNode) k3sAgentJoin(c types.ClientGenerator, maxPods int) error {
 	k3s := vm.serverConfig.K3S
 	args := []string{
-		fmt.Sprintf("echo K3S_ARGS='--kubelet-arg=provider-id=%s --kubelet-arg=max-pods=%d --node-name=%s --server=https://%s --token=%s' > /etc/systemd/system/k3s.service.env", vm.generateProviderID(), vm.serverConfig.MaxPods, vm.NodeName, k3s.Address, k3s.Token),
+		fmt.Sprintf("echo K3S_ARGS='--kubelet-arg=provider-id=%s --kubelet-arg=max-pods=%d --node-name=%s --server=https://%s --token=%s' > /etc/systemd/system/k3s.service.env", vm.generateProviderID(), maxPods, vm.NodeName, k3s.Address, k3s.Token),
 	}
 
 	if vm.ControlPlaneNode {
@@ -398,20 +447,20 @@ func (vm *AutoScalerServerNode) k3sAgentJoin(c types.ClientGenerator) error {
 	return vm.executeCommands(args, false, c)
 }
 
-func (vm *AutoScalerServerNode) joinCluster(c types.ClientGenerator) error {
+func (vm *AutoScalerServerNode) joinCluster(c types.ClientGenerator, maxPods int) error {
 	glog.Infof("Register node in cluster for instance: %s in node group: %s", vm.InstanceName, vm.NodeGroupID)
 
 	if vm.serverConfig.Distribution != nil {
-		if *vm.serverConfig.Distribution == types.K3SDistributionName {
-			return vm.k3sAgentJoin(c)
-		} else if *vm.serverConfig.Distribution == types.RKE2DistributionName {
-			return vm.rke2AgentJoin(c)
-		} else if *vm.serverConfig.Distribution == types.ExternalDistributionName {
-			return vm.externalAgentJoin(c)
+		if *vm.serverConfig.Distribution == providers.K3SDistributionName {
+			return vm.k3sAgentJoin(c, maxPods)
+		} else if *vm.serverConfig.Distribution == providers.RKE2DistributionName {
+			return vm.rke2AgentJoin(c, maxPods)
+		} else if *vm.serverConfig.Distribution == providers.ExternalDistributionName {
+			return vm.externalAgentJoin(c, maxPods)
 		}
 	}
 
-	return vm.kubeAdmJoin(c)
+	return vm.kubeAdmJoin(c, maxPods)
 }
 
 func (vm *AutoScalerServerNode) setNodeLabels(c types.ClientGenerator, nodeLabels, systemLabels types.KubernetesLabel) error {
@@ -501,6 +550,7 @@ func (vm *AutoScalerServerNode) launchVM(c types.ClientGenerator, nodeLabels, sy
 
 	var err error
 	var status AutoScalerServerNodeState
+	var maxPods int
 
 	cloudConfig := vm.cloudConfig
 	userInfo := vm.serverConfig.SSH
@@ -527,6 +577,10 @@ func (vm *AutoScalerServerNode) launchVM(c types.ClientGenerator, nodeLabels, sy
 	if vm.NodeType != AutoScalerServerNodeAutoscaled && vm.NodeType != AutoScalerServerNodeManaged {
 
 		err = fmt.Errorf(constantes.ErrVMNotProvisionnedByMe, vm.InstanceName)
+
+	} else if maxPods, err = cloudConfig.InstanceMaxPods(vm.InstanceType, vm.serverConfig.MaxPods); err != nil {
+
+		err = fmt.Errorf(constantes.ErrUnableToRetrieveMaxPodsForInstanceType, vm.InstanceType, err)
 
 	} else if vm.VMUUID, err = cloudConfig.InstanceCreate(vm.InstanceName, vm.NodeIndex, vm.InstanceType, userInfo.GetUserName(), userInfo.GetAuthKeys(), vm.serverConfig.CloudInit, desiredMachine); err != nil {
 
@@ -572,7 +626,7 @@ func (vm *AutoScalerServerNode) launchVM(c types.ClientGenerator, nodeLabels, sy
 
 		err = fmt.Errorf(constantes.ErrUpdateEtcdSslFailed, vm.InstanceName, err)
 
-	} else if err = vm.joinCluster(c); err != nil {
+	} else if err = vm.joinCluster(c, maxPods); err != nil {
 
 		err = fmt.Errorf(constantes.ErrKubeAdmJoinFailed, vm.InstanceName, err)
 
@@ -818,9 +872,9 @@ func (vm *AutoScalerServerNode) generateProviderID() string {
 	}
 
 	if vm.serverConfig.Distribution != nil {
-		if *vm.serverConfig.Distribution == types.K3SDistributionName {
+		if *vm.serverConfig.Distribution == providers.K3SDistributionName {
 			return fmt.Sprintf("k3s://%s", vm.NodeName)
-		} else if *vm.serverConfig.Distribution == types.RKE2DistributionName {
+		} else if *vm.serverConfig.Distribution == providers.RKE2DistributionName {
 			return fmt.Sprintf("rke2://%s", vm.NodeName)
 		}
 	}

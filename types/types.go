@@ -38,19 +38,6 @@ const (
 	ManagedNodeMaxDiskSize = 1024 * 1024
 )
 
-const (
-	RKE2DistributionName     = "rke2"
-	K3SDistributionName      = "k3s"
-	KubeAdmDistributionName  = "kubeadm"
-	ExternalDistributionName = "external"
-)
-
-const (
-	AwsCloudProviderName          = "aws"
-	VSphereCloudProviderName      = "vsphere"
-	VMWareWorkstationPRoviderName = "desktop"
-)
-
 // KubernetesLabel labels
 type KubernetesLabel map[string]string
 
@@ -258,10 +245,16 @@ type NodeGroupAutoscalingOptions struct {
 	ScaleDownUnreadyTime time.Duration `json:"scaleDownUnreadyTime,omitempty"`
 }
 
+type Providers struct {
+	AwsProviderConfig     *aws.Configuration     `json:"aws,omitempty"`
+	VSphereProviderConfig *vsphere.Configuration `json:"vsphere,omitempty"`
+	DesktopProviderConfig *desktop.Configuration `json:"desktop,omitempty"`
+}
+
 // AutoScalerServerConfig is contains configuration
 type AutoScalerServerConfig struct {
 	Distribution               *string                          `default:"kubeadm" json:"distribution"`
-	CloudProvider              *string                          `default:"vmware" json:"cloud-provider"`
+	CloudProvider              *string                          `default:"vsphere" json:"cloud-provider"`
 	UseExternalEtdc            *bool                            `json:"use-external-etcd"`
 	UseVanillaGrpcProvider     *bool                            `json:"use-vanilla-grpc"`
 	UseControllerManager       *bool                            `json:"use-controller-manager"`
@@ -297,9 +290,7 @@ type AutoScalerServerConfig struct {
 	SSH                        *AutoScalerServerSSH             `json:"ssh-infos"`
 	AutoScalingOptions         *NodeGroupAutoscalingOptions     `json:"autoscaling-options,omitempty"`
 	DebugMode                  *bool                            `json:"debug,omitempty"`
-	AwsProviderConfig          *aws.Configuration               `json:"aws,omitempty"`
-	VSphereProviderConfig      *vsphere.Configuration           `json:"vsphere,omitempty"`
-	DesktopProviderConfig      *desktop.Configuration           `json:"desktop,omitempty"`
+	Providers                  *Providers                       `json:"providers,omitempty"`
 	providerConfiguration      providers.ProviderConfiguration  `json:"-"`
 }
 
@@ -389,23 +380,33 @@ func (limits *ResourceLimiter) GetMinValue(key string, defaultValue int) int {
 	return defaultValue
 }
 
-// GetCloudConfiguration returns the cloud configuration
-func (conf *AutoScalerServerConfig) GetCloudConfiguration() providers.ProviderConfiguration {
+// SetupCloudConfiguration returns the cloud configuration
+func (conf *AutoScalerServerConfig) SetupCloudConfiguration() error {
+	var err error
+
 	if conf.providerConfiguration == nil {
-		if conf.CloudProvider == nil {
-			conf.providerConfiguration = vsphere.NewVSphereProviderConfiguration(conf.VSphereProviderConfig)
+		if conf.Providers == nil {
+			err = fmt.Errorf("Providers configuration is not defined")
 		} else {
-			switch *conf.CloudProvider {
-			case AwsCloudProviderName:
-				conf.providerConfiguration = aws.NewAwsProviderConfiguration(conf.AwsProviderConfig)
-			case VSphereCloudProviderName:
-				conf.providerConfiguration = vsphere.NewVSphereProviderConfiguration(conf.VSphereProviderConfig)
-			case VMWareWorkstationPRoviderName:
-				conf.providerConfiguration = desktop.NewDesktopProviderConfiguration(conf.DesktopProviderConfig)
+			if conf.CloudProvider == nil {
+				conf.providerConfiguration, err = vsphere.NewVSphereProviderConfiguration(*conf.Distribution, conf.Providers.VSphereProviderConfig)
+			} else {
+				switch *conf.CloudProvider {
+				case providers.AwsCloudProviderName:
+					conf.providerConfiguration, err = aws.NewAwsProviderConfiguration(*conf.Distribution, conf.Providers.AwsProviderConfig)
+				case providers.VSphereCloudProviderName:
+					conf.providerConfiguration, err = vsphere.NewVSphereProviderConfiguration(*conf.Distribution, conf.Providers.VSphereProviderConfig)
+				case providers.VMWareWorkstationProviderName:
+					conf.providerConfiguration, err = desktop.NewDesktopProviderConfiguration(*conf.Distribution, conf.Providers.DesktopProviderConfig)
+				}
 			}
 		}
 	}
 
+	return err
+}
+
+func (conf *AutoScalerServerConfig) GetCloudConfiguration() providers.ProviderConfiguration {
 	return conf.providerConfiguration
 }
 
@@ -414,7 +415,7 @@ func NewConfig() *Config {
 	return &Config{
 		APIServerURL:             "",
 		KubeConfig:               "",
-		Distribution:             KubeAdmDistributionName,
+		Distribution:             providers.KubeAdmDistributionName,
 		UseExternalEtdc:          false,
 		UseVanillaGrpcProvider:   false,
 		UseControllerManager:     true,
@@ -465,8 +466,8 @@ func (cfg *Config) ParseFlags(args []string, version string) error {
 
 	app.Flag("debug", "Debug mode").Default("false").BoolVar(&cfg.DebugMode)
 
-	app.Flag("cloud-provider", "Which cloud provider used: vsphere, aws, desktop").Default(VSphereCloudProviderName).EnumVar(&cfg.CloudProvider, AwsCloudProviderName, VSphereCloudProviderName, VMWareWorkstationPRoviderName)
-	app.Flag("distribution", "Which kubernetes distribution to use: kubeadm, k3s, rke2, external").Default(K3SDistributionName).EnumVar(&cfg.Distribution, KubeAdmDistributionName, K3SDistributionName, RKE2DistributionName, ExternalDistributionName)
+	app.Flag("cloud-provider", "Which cloud provider used: vsphere, aws, desktop").Default(providers.VSphereCloudProviderName).EnumVar(&cfg.CloudProvider, providers.AwsCloudProviderName, providers.VSphereCloudProviderName, providers.VMWareWorkstationProviderName)
+	app.Flag("distribution", "Which kubernetes distribution to use: kubeadm, k3s, rke2, external").Default(providers.K3SDistributionName).EnumVar(&cfg.Distribution, providers.KubeAdmDistributionName, providers.K3SDistributionName, providers.RKE2DistributionName, providers.ExternalDistributionName)
 	app.Flag("use-vanilla-grpc", "Tell we use vanilla autoscaler externalgrpc cloudprovider").Default("false").BoolVar(&cfg.UseVanillaGrpcProvider)
 	app.Flag("use-controller-manager", "Tell we use vsphere controller manager").Default("true").BoolVar(&cfg.UseControllerManager)
 

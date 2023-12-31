@@ -479,7 +479,7 @@ func (c *Controller) startManagedNodes(managedNodesByUID map[uid.UID]string, nod
 						}
 
 						if err := c.updateManagedNodeStatus(managedNode, newStatus); err != nil {
-							glog.Errorf("update status managed node %s failed, reason: %v", key, err)
+							glog.Errorf(constantes.ErrUpdateStatusNodeFailed, key, err)
 						}
 					} else {
 						glog.Errorf("managed node by key: %s is not found, reason: %v", key, err)
@@ -509,7 +509,7 @@ func (c *Controller) findManagedNodeDeleted() {
 										glog.Warnf(warnNodeDeletionErr, node.NodeName, err)
 									}
 
-									glog.Infof("ManagedNode '%s' is deleted, delete associated node %s", ownerRef.Name, node.NodeName)
+									glog.Infof(constantes.InfoManagedNodeIsDeleted, ownerRef.Name, node.NodeName)
 
 									deleted++
 								} else {
@@ -701,7 +701,7 @@ func (c *Controller) handleManagedNode(key string, managedNodesByUID map[uid.UID
 			if managedNode != nil && managedNode.Status.Code == nodemanager.StatusManagedNodeCreated {
 				if nodeGroup, err = c.application.getNodeGroup(managedNode.GetNodegroup()); err == nil {
 					if node, err = nodeGroup.findNodeByCRDUID(managedNode.GetUID()); err == nil {
-						glog.Infof("ManagedNode '%s' is deleted, delete associated node %s", key, node.NodeName)
+						glog.Infof(constantes.InfoManagedNodeIsDeleted, key, node.NodeName)
 
 						if err = nodeGroup.deleteNode(c.client, node); err != nil {
 							glog.Warnf(warnNodeDeletionErr, node.NodeName, err)
@@ -748,7 +748,7 @@ func (c *Controller) handleManagedNode(key string, managedNodesByUID map[uid.UID
 				}
 
 				if updateErr = c.updateManagedNodeStatus(managedNode, newStatus); updateErr != nil {
-					glog.Errorf("update status managed node %s failed, reason: %v", key, updateErr)
+					glog.Errorf(constantes.ErrUpdateStatusNodeFailed, key, updateErr)
 				}
 			}
 
@@ -836,7 +836,7 @@ func (c *Controller) handleManagedNode(key string, managedNodesByUID map[uid.UID
 
 			if oldStatus.Code != newStatus.Code {
 				if updateErr = c.updateManagedNodeStatus(managedNode, newStatus); updateErr != nil {
-					glog.Errorf("update status managed node %s failed, reason: %v", key, updateErr)
+					glog.Errorf(constantes.ErrUpdateStatusNodeFailed, key, updateErr)
 				}
 			}
 		}
@@ -890,7 +890,7 @@ func (c *Controller) deleteManagedNode(obj interface{}) {
 	if managedNode, ok := obj.(*v1alpha1.ManagedNode); ok {
 		if nodeGroup, err := c.application.getNodeGroup(managedNode.GetNodegroup()); err == nil {
 			if node, err := nodeGroup.findNodeByCRDUID(managedNode.GetUID()); err == nil {
-				glog.Infof("ManagedNode '%s' is deleted, delete associated node %s", c.generateKey(managedNode), node.NodeName)
+				glog.Infof(constantes.InfoManagedNodeIsDeleted, c.generateKey(managedNode), node.NodeName)
 
 				if err = nodeGroup.deleteNode(c.client, node); err != nil {
 					glog.Warnf(warnNodeDeletionErr, node.NodeName, err)
