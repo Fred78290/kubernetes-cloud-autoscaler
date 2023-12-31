@@ -31,12 +31,28 @@ type Configuration struct {
 	LinkedClone   bool          `json:"linked"`
 	AllowUpgrade  bool          `json:"allow-upgrade"`
 	Customization string        `json:"customization"`
-	Network       *Network      `json:"network"`
+	Network       Network       `json:"network"`
 	VMWareRegion  string        `json:"csi-region"`
 	VMWareZone    string        `json:"csi-zone"`
-	testMode      bool
-	instanceName  string
-	instanceID    string
+}
+
+type vsphereConfiguration struct {
+	config       *Configuration
+	network      Network
+	testMode     bool
+	instanceName string
+	instanceID   string
+}
+
+func NewVSphereProviderConfiguration(config *Configuration) providers.ProviderConfiguration {
+	var network Network
+
+	providers.Copy(&network, config.Network)
+
+	return &vsphereConfiguration{
+		config:  config,
+		network: network,
+	}
 }
 
 // Status shortened vm status
@@ -58,57 +74,67 @@ func (status *VmStatus) Powered() bool {
 	return status.Status.Powered
 }
 
-func (conf *Configuration) GetTestMode() bool {
+func (conf *vsphereConfiguration) GetTestMode() bool {
 	return conf.testMode
 }
 
-func (conf *Configuration) SetTestMode(value bool) {
+func (conf *vsphereConfiguration) SetTestMode(value bool) {
 	conf.testMode = value
 }
 
-func (conf *Configuration) GetTimeout() time.Duration {
-	return conf.Timeout
+func (conf *vsphereConfiguration) GetTimeout() time.Duration {
+	return conf.config.Timeout
 }
 
-func (conf *Configuration) GetAvailableGpuTypes() map[string]string {
+func (conf *vsphereConfiguration) GetAvailableGpuTypes() map[string]string {
 	return map[string]string{}
 }
 
-func (conf *Configuration) NodeGroupName() string {
-	return conf.NodeGroup
+func (conf *vsphereConfiguration) NodeGroupName() string {
+	return conf.config.NodeGroup
 }
 
 // Create a shadow copy
-func (conf *Configuration) Copy() providers.ProviderConfiguration {
-	var dup Configuration
+func (conf *vsphereConfiguration) copy() *vsphereConfiguration {
+	var network Network
 
-	_ = providers.Copy(&dup, conf)
+	providers.Copy(&network, conf.config.Network)
 
-	dup.testMode = conf.testMode
-
-	return &dup
+	return &vsphereConfiguration{
+		config:       conf.config,
+		network:      network,
+		testMode:     conf.testMode,
+		instanceName: conf.instanceName,
+		instanceID:   conf.instanceID,
+	}
 }
 
 // Clone duplicate the conf, change ip address in network config if needed
-func (conf *Configuration) Clone(nodeIndex int) (providers.ProviderConfiguration, error) {
-	dup := conf.Copy().(*Configuration)
+func (conf *vsphereConfiguration) Clone(nodeIndex int) (providers.ProviderConfiguration, error) {
+	var network Network
 
-	if dup.Network != nil {
-		for _, inf := range dup.Network.Interfaces {
-			if !inf.DHCP {
-				ip := net.ParseIP(inf.IPAddress)
-				address := ip.To4()
-				address[3] += byte(nodeIndex)
+	providers.Copy(&network, conf.config.Network)
 
-				inf.IPAddress = ip.String()
-			}
+	dup := &vsphereConfiguration{
+		config:   conf.config,
+		network:  network,
+		testMode: conf.testMode,
+	}
+
+	for _, inf := range dup.network.Interfaces {
+		if !inf.DHCP {
+			ip := net.ParseIP(inf.IPAddress)
+			address := ip.To4()
+			address[3] += byte(nodeIndex)
+
+			inf.IPAddress = ip.String()
 		}
 	}
 
 	return dup, nil
 }
 
-func (conf *Configuration) ConfigureNetwork(network v1alpha1.ManagedNetworkConfig) {
+func (conf *vsphereConfiguration) ConfigureNetwork(network v1alpha1.ManagedNetworkConfig) {
 	if len(network.VMWare) > 0 {
 		for _, network := range network.VMWare {
 			if inf := conf.FindInterfaceByName(network.NetworkName); inf != nil {
@@ -136,44 +162,45 @@ func (conf *Configuration) ConfigureNetwork(network v1alpha1.ManagedNetworkConfi
 	}
 }
 
-func (conf *Configuration) AttachInstance(instanceName string) error {
+func (conf *vsphereConfiguration) AttachInstance(instanceName string) (providers.ProviderConfiguration, error) {
+	clone := conf.copy()
 	var err error
 
-	conf.instanceID, err = conf.UUID(instanceName)
-	conf.instanceName = instanceName
+	clone.instanceID, err = conf.UUID(instanceName)
+	clone.instanceName = instanceName
 
-	return err
+	return clone, err
 }
 
-func (conf *Configuration) RetrieveNetworkInfos(name, vmuuid string, nodeIndex int) error {
-	ctx := context.NewContext(conf.Timeout)
+func (conf *vsphereConfiguration) RetrieveNetworkInfos(name, vmuuid string, nodeIndex int) error {
+	ctx := context.NewContext(conf.config.Timeout)
 	defer ctx.Cancel()
 
 	return conf.RetrieveNetworkInfosWithContext(ctx, name, nodeIndex)
 }
 
-func (conf *Configuration) UpdateMacAddressTable(nodeIndex int) error {
-	return conf.Network.UpdateMacAddressTable(nodeIndex)
+func (conf *vsphereConfiguration) UpdateMacAddressTable(nodeIndex int) error {
+	return conf.network.UpdateMacAddressTable(nodeIndex)
 }
 
-func (conf *Configuration) GenerateProviderID(vmuuid string) string {
+func (conf *vsphereConfiguration) GenerateProviderID(vmuuid string) string {
 	return fmt.Sprintf("vsphere://%s", vmuuid)
 }
 
-func (conf *Configuration) GetTopologyLabels() map[string]string {
+func (conf *vsphereConfiguration) GetTopologyLabels() map[string]string {
 	return map[string]string{
-		constantes.NodeLabelTopologyRegion:  conf.VMWareRegion,
-		constantes.NodeLabelTopologyZone:    conf.VMWareZone,
-		constantes.NodeLabelVMWareCSIRegion: conf.VMWareRegion,
-		constantes.NodeLabelVMWareCSIZone:   conf.VMWareZone,
+		constantes.NodeLabelTopologyRegion:  conf.config.VMWareRegion,
+		constantes.NodeLabelTopologyZone:    conf.config.VMWareZone,
+		constantes.NodeLabelVMWareCSIRegion: conf.config.VMWareRegion,
+		constantes.NodeLabelVMWareCSIZone:   conf.config.VMWareZone,
 	}
 }
 
-func (conf *Configuration) InstanceCreate(nodeName string, nodeIndex int, instanceType, userName, authKey string, cloudInit interface{}, machine *providers.MachineCharacteristic) (string, error) {
-	if vm, err := conf.Create(nodeName, nodeIndex, userName, authKey, cloudInit, conf.Network, machine); err != nil {
+func (conf *vsphereConfiguration) InstanceCreate(nodeName string, nodeIndex int, instanceType, userName, authKey string, cloudInit interface{}, machine *providers.MachineCharacteristic) (string, error) {
+	if vm, err := conf.Create(nodeName, nodeIndex, userName, authKey, cloudInit, &conf.network, machine); err != nil {
 		return "", err
 	} else {
-		ctx := context.NewContext(conf.Timeout)
+		ctx := context.NewContext(conf.config.Timeout)
 		defer ctx.Cancel()
 
 		conf.instanceName = nodeName
@@ -183,11 +210,11 @@ func (conf *Configuration) InstanceCreate(nodeName string, nodeIndex int, instan
 	}
 }
 
-func (conf *Configuration) InstanceWaitReady(callback providers.CallbackWaitSSHReady) (string, error) {
+func (conf *vsphereConfiguration) InstanceWaitReady(callback providers.CallbackWaitSSHReady) (string, error) {
 	if ip, err := conf.WaitForIP(conf.instanceName); err != nil {
 		return ip, err
 	} else {
-		if err := context.PollImmediate(time.Second, conf.Timeout*time.Second, func() (bool, error) {
+		if err := context.PollImmediate(time.Second, conf.config.Timeout*time.Second, func() (bool, error) {
 			var err error
 
 			if err = callback.WaitSSHReady(conf.instanceName, ip); err != nil {
@@ -203,15 +230,15 @@ func (conf *Configuration) InstanceWaitReady(callback providers.CallbackWaitSSHR
 	}
 }
 
-func (conf *Configuration) InstanceID(name string) (string, error) {
+func (conf *vsphereConfiguration) InstanceID(name string) (string, error) {
 	return conf.UUID(name)
 }
 
-func (conf *Configuration) InstanceExists(name string) bool {
+func (conf *vsphereConfiguration) InstanceExists(name string) bool {
 	return conf.Exists(name)
 }
 
-func (conf *Configuration) InstanceAutoStart(name string) error {
+func (conf *vsphereConfiguration) InstanceAutoStart(name string) error {
 	if hostsystem, err := conf.GetHostSystem(name); err != nil {
 		return err
 	} else if err = conf.SetAutoStart(hostsystem, name, -1); err != nil {
@@ -221,19 +248,19 @@ func (conf *Configuration) InstanceAutoStart(name string) error {
 	return nil
 }
 
-func (conf *Configuration) InstancePowerOn(name string) error {
+func (conf *vsphereConfiguration) InstancePowerOn(name string) error {
 	return conf.PowerOn(name)
 }
 
-func (conf *Configuration) InstancePowerOff(name string) error {
+func (conf *vsphereConfiguration) InstancePowerOff(name string) error {
 	return conf.PowerOff(name)
 }
 
-func (conf *Configuration) InstanceDelete(name string) error {
+func (conf *vsphereConfiguration) InstanceDelete(name string) error {
 	return conf.Delete(name)
 }
 
-func (conf *Configuration) InstanceStatus(name string) (providers.InstanceStatus, error) {
+func (conf *vsphereConfiguration) InstanceStatus(name string) (providers.InstanceStatus, error) {
 	if status, err := conf.Status(name); err != nil {
 		return nil, err
 	} else {
@@ -244,31 +271,31 @@ func (conf *Configuration) InstanceStatus(name string) (providers.InstanceStatus
 	}
 }
 
-func (conf *Configuration) InstanceWaitForToolsRunning(name string) (bool, error) {
+func (conf *vsphereConfiguration) InstanceWaitForToolsRunning(name string) (bool, error) {
 	return conf.WaitForToolsRunning(name)
 }
 
-func (conf *Configuration) RegisterDNS(address string) error {
+func (conf *vsphereConfiguration) RegisterDNS(address string) error {
 	return nil
 }
 
-func (conf *Configuration) UnregisterDNS(address string) error {
+func (conf *vsphereConfiguration) UnregisterDNS(address string) error {
 	return nil
 }
 
-func (conf *Configuration) getURL() (string, error) {
-	u, err := url.Parse(conf.URL)
+func (conf *vsphereConfiguration) getURL() (string, error) {
+	u, err := url.Parse(conf.config.URL)
 
 	if err != nil {
 		return "", err
 	}
 
-	u.User = url.UserPassword(conf.UserName, conf.Password)
+	u.User = url.UserPassword(conf.config.UserName, conf.config.Password)
 
 	return u.String(), err
 }
 
-func (conf *Configuration) FindPreferredIPAddress(interfaces []NetworkInterface) string {
+func (conf *vsphereConfiguration) FindPreferredIPAddress(interfaces []NetworkInterface) string {
 	address := ""
 
 	for _, inf := range interfaces {
@@ -282,19 +309,18 @@ func (conf *Configuration) FindPreferredIPAddress(interfaces []NetworkInterface)
 	return address
 }
 
-func (conf *Configuration) FindInterfaceByName(networkName string) *NetworkInterface {
-	if conf.Network != nil {
-		for _, inf := range conf.Network.Interfaces {
-			if inf.NetworkName == networkName {
-				return inf
-			}
+func (conf *vsphereConfiguration) FindInterfaceByName(networkName string) *NetworkInterface {
+	for _, inf := range conf.network.Interfaces {
+		if inf.NetworkName == networkName {
+			return inf
 		}
 	}
+
 	return nil
 }
 
 // GetClient create a new govomi client
-func (conf *Configuration) GetClient(ctx *context.Context) (*Client, error) {
+func (conf *vsphereConfiguration) GetClient(ctx *context.Context) (*Client, error) {
 	var u *url.URL
 	var sURL string
 	var err error
@@ -303,10 +329,10 @@ func (conf *Configuration) GetClient(ctx *context.Context) (*Client, error) {
 	if sURL, err = conf.getURL(); err == nil {
 		if u, err = soap.ParseURL(sURL); err == nil {
 			// Connect and log in to ESX or vCenter
-			if c, err = govmomi.NewClient(ctx, u, conf.Insecure); err == nil {
+			if c, err = govmomi.NewClient(ctx, u, conf.config.Insecure); err == nil {
 				return &Client{
 					Client:        c,
-					Configuration: conf,
+					Configuration: conf.config,
 				}, nil
 			}
 		}
@@ -316,7 +342,7 @@ func (conf *Configuration) GetClient(ctx *context.Context) (*Client, error) {
 
 // CreateWithContext will create a named VM not powered
 // memory and disk are in megabytes
-func (conf *Configuration) CreateWithContext(ctx *context.Context, name string, nodeIndex int, userName, authKey string, cloudInit interface{}, network *Network, machine *providers.MachineCharacteristic) (*VirtualMachine, error) {
+func (conf *vsphereConfiguration) CreateWithContext(ctx *context.Context, name string, nodeIndex int, userName, authKey string, cloudInit interface{}, network *Network, machine *providers.MachineCharacteristic) (*VirtualMachine, error) {
 	var err error
 	var client *Client
 	var dc *Datacenter
@@ -324,10 +350,10 @@ func (conf *Configuration) CreateWithContext(ctx *context.Context, name string, 
 	var vm *VirtualMachine
 
 	if client, err = conf.GetClient(ctx); err == nil {
-		if dc, err = client.GetDatacenter(ctx, conf.DataCenter); err == nil {
-			if ds, err = dc.GetDatastore(ctx, conf.DataStore); err == nil {
-				if vm, err = ds.CreateVirtualMachine(ctx, name, conf.TemplateName, conf.VMBasePath, conf.Resource, conf.Template, conf.LinkedClone, network, conf.Customization, nodeIndex); err == nil {
-					err = vm.Configure(ctx, userName, authKey, cloudInit, network, "", true, machine.Memory, machine.Vcpu, machine.DiskSize, nodeIndex, conf.AllowUpgrade)
+		if dc, err = client.GetDatacenter(ctx, conf.config.DataCenter); err == nil {
+			if ds, err = dc.GetDatastore(ctx, conf.config.DataStore); err == nil {
+				if vm, err = ds.CreateVirtualMachine(ctx, name, conf.config.TemplateName, conf.config.VMBasePath, conf.config.Resource, conf.config.Template, conf.config.LinkedClone, network, conf.config.Customization, nodeIndex); err == nil {
+					err = vm.Configure(ctx, userName, authKey, cloudInit, network, "", true, machine.Memory, machine.Vcpu, machine.DiskSize, nodeIndex, conf.config.AllowUpgrade)
 				}
 			}
 		}
@@ -343,15 +369,15 @@ func (conf *Configuration) CreateWithContext(ctx *context.Context, name string, 
 
 // Create will create a named VM not powered
 // memory and disk are in megabytes
-func (conf *Configuration) Create(name string, nodeIndex int, userName, authKey string, cloudInit interface{}, network *Network, machine *providers.MachineCharacteristic) (*VirtualMachine, error) {
-	ctx := context.NewContext(conf.Timeout)
+func (conf *vsphereConfiguration) Create(name string, nodeIndex int, userName, authKey string, cloudInit interface{}, network *Network, machine *providers.MachineCharacteristic) (*VirtualMachine, error) {
+	ctx := context.NewContext(conf.config.Timeout)
 	defer ctx.Cancel()
 
 	return conf.CreateWithContext(ctx, name, nodeIndex, userName, authKey, cloudInit, network, machine)
 }
 
 // DeleteWithContext a VM by name
-func (conf *Configuration) DeleteWithContext(ctx *context.Context, name string) error {
+func (conf *vsphereConfiguration) DeleteWithContext(ctx *context.Context, name string) error {
 	vm, err := conf.VirtualMachineWithContext(ctx, name)
 
 	if err != nil {
@@ -362,23 +388,23 @@ func (conf *Configuration) DeleteWithContext(ctx *context.Context, name string) 
 }
 
 // Delete a VM by name
-func (conf *Configuration) Delete(name string) error {
-	ctx := context.NewContext(conf.Timeout)
+func (conf *vsphereConfiguration) Delete(name string) error {
+	ctx := context.NewContext(conf.config.Timeout)
 	defer ctx.Cancel()
 
 	return conf.DeleteWithContext(ctx, name)
 }
 
 // VirtualMachineWithContext  Retrieve VM by name
-func (conf *Configuration) VirtualMachineWithContext(ctx *context.Context, name string) (*VirtualMachine, error) {
+func (conf *vsphereConfiguration) VirtualMachineWithContext(ctx *context.Context, name string) (*VirtualMachine, error) {
 	var err error
 	var client *Client
 	var dc *Datacenter
 	var ds *Datastore
 
 	if client, err = conf.GetClient(ctx); err == nil {
-		if dc, err = client.GetDatacenter(ctx, conf.DataCenter); err == nil {
-			if ds, err = dc.GetDatastore(ctx, conf.DataStore); err == nil {
+		if dc, err = client.GetDatacenter(ctx, conf.config.DataCenter); err == nil {
+			if ds, err = dc.GetDatastore(ctx, conf.config.DataStore); err == nil {
 				return ds.VirtualMachine(ctx, name)
 			}
 		}
@@ -388,23 +414,23 @@ func (conf *Configuration) VirtualMachineWithContext(ctx *context.Context, name 
 }
 
 // VirtualMachine  Retrieve VM by name
-func (conf *Configuration) VirtualMachine(name string) (*VirtualMachine, error) {
-	ctx := context.NewContext(conf.Timeout)
+func (conf *vsphereConfiguration) VirtualMachine(name string) (*VirtualMachine, error) {
+	ctx := context.NewContext(conf.config.Timeout)
 	defer ctx.Cancel()
 
 	return conf.VirtualMachineWithContext(ctx, name)
 }
 
 // VirtualMachineListWithContext return all VM for the current datastore
-func (conf *Configuration) VirtualMachineListWithContext(ctx *context.Context) ([]*VirtualMachine, error) {
+func (conf *vsphereConfiguration) VirtualMachineListWithContext(ctx *context.Context) ([]*VirtualMachine, error) {
 	var err error
 	var client *Client
 	var dc *Datacenter
 	var ds *Datastore
 
 	if client, err = conf.GetClient(ctx); err == nil {
-		if dc, err = client.GetDatacenter(ctx, conf.DataCenter); err == nil {
-			if ds, err = dc.GetDatastore(ctx, conf.DataStore); err == nil {
+		if dc, err = client.GetDatacenter(ctx, conf.config.DataCenter); err == nil {
+			if ds, err = dc.GetDatastore(ctx, conf.config.DataStore); err == nil {
 				return ds.List(ctx)
 			}
 		}
@@ -414,15 +440,15 @@ func (conf *Configuration) VirtualMachineListWithContext(ctx *context.Context) (
 }
 
 // VirtualMachineList return all VM for the current datastore
-func (conf *Configuration) VirtualMachineList() ([]*VirtualMachine, error) {
-	ctx := context.NewContext(conf.Timeout)
+func (conf *vsphereConfiguration) VirtualMachineList() ([]*VirtualMachine, error) {
+	ctx := context.NewContext(conf.config.Timeout)
 	defer ctx.Cancel()
 
 	return conf.VirtualMachineListWithContext(ctx)
 }
 
 // UUID get VM UUID by name
-func (conf *Configuration) UUIDWithContext(ctx *context.Context, name string) (string, error) {
+func (conf *vsphereConfiguration) UUIDWithContext(ctx *context.Context, name string) (string, error) {
 	vm, err := conf.VirtualMachineWithContext(ctx, name)
 
 	if err != nil {
@@ -433,19 +459,19 @@ func (conf *Configuration) UUIDWithContext(ctx *context.Context, name string) (s
 }
 
 // UUID get VM UUID by name
-func (conf *Configuration) UUID(name string) (string, error) {
+func (conf *vsphereConfiguration) UUID(name string) (string, error) {
 	if name == conf.instanceName {
 		return conf.instanceID, nil
 	}
 
-	ctx := context.NewContext(conf.Timeout)
+	ctx := context.NewContext(conf.config.Timeout)
 	defer ctx.Cancel()
 
 	return conf.UUIDWithContext(ctx, name)
 }
 
 // WaitForIPWithContext wait ip a VM by name
-func (conf *Configuration) WaitForIPWithContext(ctx *context.Context, name string) (string, error) {
+func (conf *vsphereConfiguration) WaitForIPWithContext(ctx *context.Context, name string) (string, error) {
 
 	if conf.testMode {
 		return "127.0.0.1", nil
@@ -461,15 +487,15 @@ func (conf *Configuration) WaitForIPWithContext(ctx *context.Context, name strin
 }
 
 // WaitForIP wait ip a VM by name
-func (conf *Configuration) WaitForIP(name string) (string, error) {
-	ctx := context.NewContext(conf.Timeout)
+func (conf *vsphereConfiguration) WaitForIP(name string) (string, error) {
+	ctx := context.NewContext(conf.config.Timeout)
 	defer ctx.Cancel()
 
 	return conf.WaitForIPWithContext(ctx, name)
 }
 
 // SetAutoStartWithContext set autostart for the VM
-func (conf *Configuration) SetAutoStartWithContext(ctx *context.Context, esxi, name string, startOrder int) error {
+func (conf *vsphereConfiguration) SetAutoStartWithContext(ctx *context.Context, esxi, name string, startOrder int) error {
 	var err error = nil
 
 	if !conf.testMode {
@@ -478,9 +504,9 @@ func (conf *Configuration) SetAutoStartWithContext(ctx *context.Context, esxi, n
 		var host *HostAutoStartManager
 
 		if client, err = conf.GetClient(ctx); err == nil {
-			if dc, err = client.GetDatacenter(ctx, conf.DataCenter); err == nil {
+			if dc, err = client.GetDatacenter(ctx, conf.config.DataCenter); err == nil {
 				if host, err = dc.GetHostAutoStartManager(ctx, esxi); err == nil {
-					return host.SetAutoStart(ctx, conf.DataStore, name, startOrder)
+					return host.SetAutoStart(ctx, conf.config.DataStore, name, startOrder)
 				}
 			}
 		}
@@ -490,7 +516,7 @@ func (conf *Configuration) SetAutoStartWithContext(ctx *context.Context, esxi, n
 }
 
 // WaitForToolsRunningWithContext wait vmware tools is running a VM by name
-func (conf *Configuration) WaitForToolsRunningWithContext(ctx *context.Context, name string) (bool, error) {
+func (conf *vsphereConfiguration) WaitForToolsRunningWithContext(ctx *context.Context, name string) (bool, error) {
 	if conf.testMode {
 		return true, nil
 	}
@@ -504,7 +530,7 @@ func (conf *Configuration) WaitForToolsRunningWithContext(ctx *context.Context, 
 	return vm.WaitForToolsRunning(ctx)
 }
 
-func (conf *Configuration) GetHostSystemWithContext(ctx *context.Context, name string) (string, error) {
+func (conf *vsphereConfiguration) GetHostSystemWithContext(ctx *context.Context, name string) (string, error) {
 	vm, err := conf.VirtualMachineWithContext(ctx, name)
 
 	if err != nil {
@@ -515,31 +541,31 @@ func (conf *Configuration) GetHostSystemWithContext(ctx *context.Context, name s
 }
 
 // GetHostSystem return the host where the virtual machine leave
-func (conf *Configuration) GetHostSystem(name string) (string, error) {
-	ctx := context.NewContext(conf.Timeout)
+func (conf *vsphereConfiguration) GetHostSystem(name string) (string, error) {
+	ctx := context.NewContext(conf.config.Timeout)
 	defer ctx.Cancel()
 
 	return conf.GetHostSystemWithContext(ctx, name)
 }
 
 // SetAutoStart set autostart for the VM
-func (conf *Configuration) SetAutoStart(esxi, name string, startOrder int) error {
-	ctx := context.NewContext(conf.Timeout)
+func (conf *vsphereConfiguration) SetAutoStart(esxi, name string, startOrder int) error {
+	ctx := context.NewContext(conf.config.Timeout)
 	defer ctx.Cancel()
 
 	return conf.SetAutoStartWithContext(ctx, esxi, name, startOrder)
 }
 
 // WaitForToolsRunning wait vmware tools is running a VM by name
-func (conf *Configuration) WaitForToolsRunning(name string) (bool, error) {
-	ctx := context.NewContext(conf.Timeout)
+func (conf *vsphereConfiguration) WaitForToolsRunning(name string) (bool, error) {
+	ctx := context.NewContext(conf.config.Timeout)
 	defer ctx.Cancel()
 
 	return conf.WaitForToolsRunningWithContext(ctx, name)
 }
 
 // PowerOnWithContext power on a VM by name
-func (conf *Configuration) PowerOnWithContext(ctx *context.Context, name string) error {
+func (conf *vsphereConfiguration) PowerOnWithContext(ctx *context.Context, name string) error {
 	vm, err := conf.VirtualMachineWithContext(ctx, name)
 
 	if err != nil {
@@ -550,15 +576,15 @@ func (conf *Configuration) PowerOnWithContext(ctx *context.Context, name string)
 }
 
 // PowerOn power on a VM by name
-func (conf *Configuration) PowerOn(name string) error {
-	ctx := context.NewContext(conf.Timeout)
+func (conf *vsphereConfiguration) PowerOn(name string) error {
+	ctx := context.NewContext(conf.config.Timeout)
 	defer ctx.Cancel()
 
 	return conf.PowerOnWithContext(ctx, name)
 }
 
 // PowerOffWithContext power off a VM by name
-func (conf *Configuration) PowerOffWithContext(ctx *context.Context, name string) error {
+func (conf *vsphereConfiguration) PowerOffWithContext(ctx *context.Context, name string) error {
 	vm, err := conf.VirtualMachineWithContext(ctx, name)
 
 	if err != nil {
@@ -569,7 +595,7 @@ func (conf *Configuration) PowerOffWithContext(ctx *context.Context, name string
 }
 
 // ShutdownGuestWithContext power off a VM by name
-func (conf *Configuration) ShutdownGuestWithContext(ctx *context.Context, name string) error {
+func (conf *vsphereConfiguration) ShutdownGuestWithContext(ctx *context.Context, name string) error {
 	vm, err := conf.VirtualMachineWithContext(ctx, name)
 
 	if err != nil {
@@ -580,23 +606,23 @@ func (conf *Configuration) ShutdownGuestWithContext(ctx *context.Context, name s
 }
 
 // PowerOff power off a VM by name
-func (conf *Configuration) PowerOff(name string) error {
-	ctx := context.NewContext(conf.Timeout)
+func (conf *vsphereConfiguration) PowerOff(name string) error {
+	ctx := context.NewContext(conf.config.Timeout)
 	defer ctx.Cancel()
 
 	return conf.PowerOffWithContext(ctx, name)
 }
 
 // ShutdownGuest power off a VM by name
-func (conf *Configuration) ShutdownGuest(name string) error {
-	ctx := context.NewContext(conf.Timeout)
+func (conf *vsphereConfiguration) ShutdownGuest(name string) error {
+	ctx := context.NewContext(conf.config.Timeout)
 	defer ctx.Cancel()
 
 	return conf.ShutdownGuestWithContext(ctx, name)
 }
 
 // StatusWithContext return the current status of VM by name
-func (conf *Configuration) StatusWithContext(ctx *context.Context, name string) (*Status, error) {
+func (conf *vsphereConfiguration) StatusWithContext(ctx *context.Context, name string) (*Status, error) {
 	vm, err := conf.VirtualMachineWithContext(ctx, name)
 
 	if err != nil {
@@ -607,25 +633,25 @@ func (conf *Configuration) StatusWithContext(ctx *context.Context, name string) 
 }
 
 // Status return the current status of VM by name
-func (conf *Configuration) Status(name string) (*Status, error) {
-	ctx := context.NewContext(conf.Timeout)
+func (conf *vsphereConfiguration) Status(name string) (*Status, error) {
+	ctx := context.NewContext(conf.config.Timeout)
 	defer ctx.Cancel()
 
 	return conf.StatusWithContext(ctx, name)
 }
 
-func (conf *Configuration) RetrieveNetworkInfosWithContext(ctx *context.Context, name string, nodeIndex int) error {
+func (conf *vsphereConfiguration) RetrieveNetworkInfosWithContext(ctx *context.Context, name string, nodeIndex int) error {
 	vm, err := conf.VirtualMachineWithContext(ctx, name)
 
 	if err != nil {
 		return err
 	}
 
-	return vm.collectNetworkInfos(ctx, conf.Network, nodeIndex)
+	return vm.collectNetworkInfos(ctx, &conf.network, nodeIndex)
 }
 
 // ExistsWithContext return the current status of VM by name
-func (conf *Configuration) ExistsWithContext(ctx *context.Context, name string) bool {
+func (conf *vsphereConfiguration) ExistsWithContext(ctx *context.Context, name string) bool {
 	if _, err := conf.VirtualMachineWithContext(ctx, name); err == nil {
 		return true
 	}
@@ -633,8 +659,8 @@ func (conf *Configuration) ExistsWithContext(ctx *context.Context, name string) 
 	return false
 }
 
-func (conf *Configuration) Exists(name string) bool {
-	ctx := context.NewContext(conf.Timeout)
+func (conf *vsphereConfiguration) Exists(name string) bool {
+	ctx := context.NewContext(conf.config.Timeout)
 	defer ctx.Cancel()
 
 	return conf.ExistsWithContext(ctx, name)

@@ -33,24 +33,21 @@ var availableGPUTypes = map[string]string{
 
 // Configuration declares aws connection info
 type Configuration struct {
-	NodeGroup       string        `json:"nodegroup"`
-	AccessKey       string        `json:"accessKey,omitempty"`
-	SecretKey       string        `json:"secretKey,omitempty"`
-	Token           string        `json:"token,omitempty"`
-	Filename        string        `json:"filename,omitempty"`
-	Profile         string        `json:"profile,omitempty"`
-	Region          string        `json:"region,omitempty"`
-	Timeout         time.Duration `json:"timeout"`
-	ImageID         string        `json:"ami"`
-	IamRole         string        `json:"iam-role-arn"`
-	KeyName         string        `json:"keyName"`
-	Tags            []Tag         `json:"tags,omitempty"`
-	Network         Network       `json:"network"`
-	DiskType        string        `default:"standard" json:"diskType"`
-	DiskSize        int           `default:"10" json:"diskSize"`
-	testMode        bool
-	runningInstance *Ec2Instance
-	desiredENI      *UserDefinedNetworkInterface
+	NodeGroup string        `json:"nodegroup"`
+	AccessKey string        `json:"accessKey,omitempty"`
+	SecretKey string        `json:"secretKey,omitempty"`
+	Token     string        `json:"token,omitempty"`
+	Filename  string        `json:"filename,omitempty"`
+	Profile   string        `json:"profile,omitempty"`
+	Region    string        `json:"region,omitempty"`
+	Timeout   time.Duration `json:"timeout"`
+	ImageID   string        `json:"ami"`
+	IamRole   string        `json:"iam-role-arn"`
+	KeyName   string        `json:"keyName"`
+	Tags      []Tag         `json:"tags,omitempty"`
+	Network   Network       `json:"network"`
+	DiskType  string        `default:"standard" json:"diskType"`
+	DiskSize  int           `default:"10" json:"diskSize"`
 }
 
 // Tag aws tag
@@ -105,6 +102,19 @@ type Status struct {
 	powered bool
 }
 
+type awsConfiguration struct {
+	config          *Configuration
+	testMode        bool
+	runningInstance *Ec2Instance
+	desiredENI      *UserDefinedNetworkInterface
+}
+
+func NewAwsProviderConfiguration(config *Configuration) providers.ProviderConfiguration {
+	return &awsConfiguration{
+		config: config,
+	}
+}
+
 func (status *Status) Address() string {
 	return status.address
 }
@@ -117,28 +127,28 @@ func isNullOrEmpty(s string) bool {
 	return len(strings.TrimSpace(s)) == 0
 }
 
-func (conf *Configuration) GetTestMode() bool {
+func (conf *awsConfiguration) GetTestMode() bool {
 	return conf.testMode
 }
 
-func (conf *Configuration) SetTestMode(value bool) {
+func (conf *awsConfiguration) SetTestMode(value bool) {
 	conf.testMode = value
 }
 
-func (conf *Configuration) GetTimeout() time.Duration {
-	return conf.Timeout
+func (conf *awsConfiguration) GetTimeout() time.Duration {
+	return conf.config.Timeout
 }
 
-func (conf *Configuration) GetAvailableGpuTypes() map[string]string {
+func (conf *awsConfiguration) GetAvailableGpuTypes() map[string]string {
 	return availableGPUTypes
 }
 
-func (conf *Configuration) NodeGroupName() string {
-	return conf.NodeGroup
+func (conf *awsConfiguration) NodeGroupName() string {
+	return conf.config.NodeGroup
 }
 
-func (conf *Configuration) Copy() providers.ProviderConfiguration {
-	var dup Configuration
+func (conf *awsConfiguration) copy() *awsConfiguration {
+	var dup awsConfiguration
 
 	_ = providers.Copy(&dup, conf)
 
@@ -147,8 +157,8 @@ func (conf *Configuration) Copy() providers.ProviderConfiguration {
 	return &dup
 }
 
-func (conf *Configuration) Clone(nodeIndex int) (providers.ProviderConfiguration, error) {
-	dup := conf.Copy().(*Configuration)
+func (conf *awsConfiguration) Clone(nodeIndex int) (providers.ProviderConfiguration, error) {
+	dup := conf.copy()
 
 	dup.runningInstance = nil
 	dup.desiredENI = nil
@@ -156,7 +166,7 @@ func (conf *Configuration) Clone(nodeIndex int) (providers.ProviderConfiguration
 	return dup, nil
 }
 
-func (conf *Configuration) ConfigureNetwork(network v1alpha1.ManagedNetworkConfig) {
+func (conf *awsConfiguration) ConfigureNetwork(network v1alpha1.ManagedNetworkConfig) {
 	if network.ENI != nil {
 		eni := network.ENI
 		if len(eni.SubnetID)+len(eni.SecurityGroupID) > 0 {
@@ -171,29 +181,31 @@ func (conf *Configuration) ConfigureNetwork(network v1alpha1.ManagedNetworkConfi
 	}
 }
 
-func (conf *Configuration) AttachInstance(instanceName string) error {
-	if ec2Instance, err := GetEc2Instance(conf, instanceName); err != nil {
-		return err
+func (conf *awsConfiguration) AttachInstance(instanceName string) (providers.ProviderConfiguration, error) {
+	clone := conf.copy()
+
+	if ec2Instance, err := GetEc2Instance(conf.config, instanceName); err != nil {
+		return nil, err
 	} else {
-		conf.runningInstance = ec2Instance
+		clone.runningInstance = ec2Instance
 	}
 
+	return clone, nil
+}
+
+func (conf *awsConfiguration) RetrieveNetworkInfos(name, vmuuid string, nodeIndex int) error {
 	return nil
 }
 
-func (conf *Configuration) RetrieveNetworkInfos(name, vmuuid string, nodeIndex int) error {
+func (conf *awsConfiguration) UpdateMacAddressTable(nodeIndex int) error {
 	return nil
 }
 
-func (conf *Configuration) UpdateMacAddressTable(nodeIndex int) error {
-	return nil
-}
-
-func (conf *Configuration) GenerateProviderID(vmuuid string) string {
+func (conf *awsConfiguration) GenerateProviderID(vmuuid string) string {
 	return fmt.Sprintf("aws://%s/%s", *conf.runningInstance.Zone, *conf.runningInstance.InstanceID)
 }
 
-func (conf *Configuration) GetTopologyLabels() map[string]string {
+func (conf *awsConfiguration) GetTopologyLabels() map[string]string {
 	return map[string]string{
 		constantes.NodeLabelTopologyRegion: *conf.runningInstance.Region,
 		constantes.NodeLabelTopologyZone:   *conf.runningInstance.Zone,
@@ -202,10 +214,10 @@ func (conf *Configuration) GetTopologyLabels() map[string]string {
 
 // InstanceCreate will create a named VM not powered
 // memory and disk are in megabytes
-func (conf *Configuration) InstanceCreate(nodeName string, nodeIndex int, instanceType, userName, authKey string, cloudInit interface{}, machine *providers.MachineCharacteristic) (string, error) {
+func (conf *awsConfiguration) InstanceCreate(nodeName string, nodeIndex int, instanceType, userName, authKey string, cloudInit interface{}, machine *providers.MachineCharacteristic) (string, error) {
 	var err error
 
-	if conf.runningInstance, err = NewEc2Instance(conf, nodeName); err != nil {
+	if conf.runningInstance, err = NewEc2Instance(conf.config, nodeName); err != nil {
 		return "", err
 	}
 
@@ -216,7 +228,7 @@ func (conf *Configuration) InstanceCreate(nodeName string, nodeIndex int, instan
 	return *conf.runningInstance.InstanceID, nil
 }
 
-func (conf *Configuration) InstanceWaitReady(callback providers.CallbackWaitSSHReady) (string, error) {
+func (conf *awsConfiguration) InstanceWaitReady(callback providers.CallbackWaitSSHReady) (string, error) {
 	if conf.runningInstance == nil {
 		return "", fmt.Errorf("instance not attached when calling WaitForVMReady")
 	}
@@ -224,7 +236,7 @@ func (conf *Configuration) InstanceWaitReady(callback providers.CallbackWaitSSHR
 	return conf.runningInstance.WaitForIP(callback)
 }
 
-func (conf *Configuration) InstanceID(name string) (string, error) {
+func (conf *awsConfiguration) InstanceID(name string) (string, error) {
 	if instance, err := conf.GetInstanceID(name); err != nil {
 		return "", err
 	} else {
@@ -232,7 +244,7 @@ func (conf *Configuration) InstanceID(name string) (string, error) {
 	}
 }
 
-func (conf *Configuration) InstanceExists(name string) bool {
+func (conf *awsConfiguration) InstanceExists(name string) bool {
 	if _, err := conf.GetInstanceID(name); err == nil {
 		return true
 	}
@@ -240,11 +252,11 @@ func (conf *Configuration) InstanceExists(name string) bool {
 	return false
 }
 
-func (conf *Configuration) InstanceAutoStart(name string) error {
+func (conf *awsConfiguration) InstanceAutoStart(name string) error {
 	return nil
 }
 
-func (conf *Configuration) InstancePowerOn(name string) error {
+func (conf *awsConfiguration) InstancePowerOn(name string) error {
 	if instance, err := conf.GetInstanceID(name); err != nil {
 		return err
 	} else {
@@ -253,7 +265,7 @@ func (conf *Configuration) InstancePowerOn(name string) error {
 
 }
 
-func (conf *Configuration) InstancePowerOff(name string) error {
+func (conf *awsConfiguration) InstancePowerOff(name string) error {
 	if instance, err := conf.GetInstanceID(name); err != nil {
 		return err
 	} else {
@@ -261,7 +273,7 @@ func (conf *Configuration) InstancePowerOff(name string) error {
 	}
 }
 
-func (conf *Configuration) InstanceDelete(name string) error {
+func (conf *awsConfiguration) InstanceDelete(name string) error {
 	if instance, err := conf.GetInstanceID(name); err != nil {
 		return err
 	} else {
@@ -269,7 +281,7 @@ func (conf *Configuration) InstanceDelete(name string) error {
 	}
 }
 
-func (conf *Configuration) InstanceStatus(name string) (providers.InstanceStatus, error) {
+func (conf *awsConfiguration) InstanceStatus(name string) (providers.InstanceStatus, error) {
 	if instance, err := conf.GetInstanceID(name); err != nil {
 		return nil, err
 	} else {
@@ -277,53 +289,53 @@ func (conf *Configuration) InstanceStatus(name string) (providers.InstanceStatus
 	}
 }
 
-func (conf *Configuration) InstanceWaitForToolsRunning(name string) (bool, error) {
+func (conf *awsConfiguration) InstanceWaitForToolsRunning(name string) (bool, error) {
 	return true, nil
 }
 
-func (conf *Configuration) RegisterDNS(address string) error {
+func (conf *awsConfiguration) RegisterDNS(address string) error {
 	var err error
 
-	if conf.runningInstance != nil && len(conf.Network.ZoneID) > 0 {
+	if conf.runningInstance != nil && len(conf.config.Network.ZoneID) > 0 {
 		vm := conf.runningInstance
-		hostname := fmt.Sprintf("%s.%s", vm.InstanceName, conf.Network.PrivateZoneName)
+		hostname := fmt.Sprintf("%s.%s", vm.InstanceName, conf.config.Network.PrivateZoneName)
 
-		glog.Infof("Register route53 entry for instance %s, node group: %s, hostname: %s with IP:%s", vm.InstanceName, conf.NodeGroup, hostname, address)
+		glog.Infof("Register route53 entry for instance %s, node group: %s, hostname: %s with IP:%s", vm.InstanceName, conf.config.NodeGroup, hostname, address)
 
-		err = vm.RegisterDNS(conf, hostname, address, conf.testMode)
+		err = vm.RegisterDNS(conf.config, hostname, address, conf.testMode)
 	}
 
 	return err
 
 }
 
-func (conf *Configuration) UnregisterDNS(address string) error {
+func (conf *awsConfiguration) UnregisterDNS(address string) error {
 	var err error
 
-	if conf.runningInstance != nil && len(conf.Network.ZoneID) > 0 {
+	if conf.runningInstance != nil && len(conf.config.Network.ZoneID) > 0 {
 		vm := conf.runningInstance
-		hostname := fmt.Sprintf("%s.%s", vm.InstanceName, conf.Network.PrivateZoneName)
+		hostname := fmt.Sprintf("%s.%s", vm.InstanceName, conf.config.Network.PrivateZoneName)
 
-		glog.Infof("Unregister route53 entry for instance %s, node group: %s, hostname: %s with IP:%s", vm.InstanceName, conf.NodeGroup, hostname, address)
+		glog.Infof("Unregister route53 entry for instance %s, node group: %s, hostname: %s with IP:%s", vm.InstanceName, conf.config.NodeGroup, hostname, address)
 
-		err = vm.UnRegisterDNS(conf, hostname, false)
+		err = vm.UnRegisterDNS(conf.config, hostname, false)
 	}
 
 	return err
+}
+
+// GetInstanceID return aws instance id from named ec2 instance
+func (conf *awsConfiguration) GetInstanceID(instanceName string) (*Ec2Instance, error) {
+	if conf.runningInstance != nil && conf.runningInstance.InstanceName == instanceName {
+		return conf.runningInstance, nil
+	}
+
+	return GetEc2Instance(conf.config, instanceName)
 }
 
 // Log logging
 func (conf *Configuration) Log(args ...interface{}) {
 	glog.Infoln(args...)
-}
-
-// GetInstanceID return aws instance id from named ec2 instance
-func (conf *Configuration) GetInstanceID(instanceName string) (*Ec2Instance, error) {
-	if conf.runningInstance != nil && conf.runningInstance.InstanceName == instanceName {
-		return conf.runningInstance, nil
-	}
-
-	return GetEc2Instance(conf, instanceName)
 }
 
 func (conf *Configuration) GetFileName() string {

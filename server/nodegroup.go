@@ -684,10 +684,10 @@ func (g *AutoScalerServerNodeGroup) autoDiscoveryNodes(client types.ClientGenera
 						}
 					}
 
-					cloudConfig := g.configuration.GetCloudConfiguration().Copy()
+					cloudConfig := g.configuration.GetCloudConfiguration()
 
 					// Node name and instance name could be differ when using AWS cloud provider
-					if err = cloudConfig.AttachInstance(instanceName); err == nil {
+					if cloudConfig, err = cloudConfig.AttachInstance(instanceName); err == nil {
 						if node == nil {
 							glog.Infof("Add node:%s with IP:%s to nodegroup:%s", instanceName, runningIP, g.NodeGroupIdentifier)
 

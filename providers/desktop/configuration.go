@@ -23,15 +23,31 @@ type Configuration struct {
 	Autostart    bool          `json:"autostart"`
 	Network      *Network      `json:"network"`
 	AllowUpgrade bool          `json:"allow-upgrade"`
-	testMode     bool
-	instanceName string
-	instanceID   string
 	apiclient    api.VMWareDesktopAutoscalerServiceClient
+}
+
+func NewDesktopProviderConfiguration(config *Configuration) providers.ProviderConfiguration {
+	var network Network
+
+	providers.Copy(&network, config.Network)
+
+	return &desktopConfiguration{
+		config:  config,
+		network: network,
+	}
 }
 
 type VmStatus struct {
 	Status
 	address string
+}
+
+type desktopConfiguration struct {
+	config       *Configuration
+	network      Network
+	testMode     bool
+	instanceName string
+	instanceID   string
 }
 
 func (status *VmStatus) Address() string {
@@ -42,57 +58,65 @@ func (status *VmStatus) Powered() bool {
 	return status.Status.Powered
 }
 
-func (conf *Configuration) GetTestMode() bool {
+func (conf *desktopConfiguration) GetTestMode() bool {
 	return conf.testMode
 }
 
-func (conf *Configuration) SetTestMode(value bool) {
+func (conf *desktopConfiguration) SetTestMode(value bool) {
 	conf.testMode = value
 }
 
-func (conf *Configuration) GetTimeout() time.Duration {
-	return conf.Timeout
+func (conf *desktopConfiguration) GetTimeout() time.Duration {
+	return conf.config.Timeout
 }
 
-func (conf *Configuration) GetAvailableGpuTypes() map[string]string {
+func (conf *desktopConfiguration) GetAvailableGpuTypes() map[string]string {
 	return map[string]string{}
 }
 
-func (conf *Configuration) NodeGroupName() string {
-	return conf.NodeGroup
+func (conf *desktopConfiguration) NodeGroupName() string {
+	return conf.config.NodeGroup
 }
 
 // Create a shadow copy
-func (conf *Configuration) Copy() providers.ProviderConfiguration {
-	var dup Configuration
+func (conf *desktopConfiguration) copy() *desktopConfiguration {
+	var network Network
 
-	_ = providers.Copy(&dup, conf)
+	providers.Copy(&network, conf.config.Network)
 
-	dup.apiclient = conf.apiclient
-
-	return &dup
+	return &desktopConfiguration{
+		config:   conf.config,
+		network:  network,
+		testMode: conf.testMode,
+	}
 }
 
 // Clone duplicate the conf, change ip address in network config if needed
-func (conf *Configuration) Clone(nodeIndex int) (providers.ProviderConfiguration, error) {
-	dup := conf.Copy().(*Configuration)
+func (conf *desktopConfiguration) Clone(nodeIndex int) (providers.ProviderConfiguration, error) {
+	var network Network
 
-	if dup.Network != nil {
-		for _, inf := range dup.Network.Interfaces {
-			if !inf.DHCP {
-				ip := net.ParseIP(inf.IPAddress)
-				address := ip.To4()
-				address[3] += byte(nodeIndex)
+	providers.Copy(&network, conf.config.Network)
 
-				inf.IPAddress = ip.String()
-			}
+	dup := &desktopConfiguration{
+		config:   conf.config,
+		network:  network,
+		testMode: conf.testMode,
+	}
+
+	for _, inf := range dup.network.Interfaces {
+		if !inf.DHCP {
+			ip := net.ParseIP(inf.IPAddress)
+			address := ip.To4()
+			address[3] += byte(nodeIndex)
+
+			inf.IPAddress = ip.String()
 		}
 	}
 
 	return dup, nil
 }
 
-func (conf *Configuration) ConfigureNetwork(network v1alpha1.ManagedNetworkConfig) {
+func (conf *desktopConfiguration) ConfigureNetwork(network v1alpha1.ManagedNetworkConfig) {
 	if len(network.VMWare) > 0 {
 		for _, network := range network.VMWare {
 			if inf := conf.FindVMNet(network.NetworkName); inf != nil {
@@ -120,35 +144,37 @@ func (conf *Configuration) ConfigureNetwork(network v1alpha1.ManagedNetworkConfi
 	}
 }
 
-func (conf *Configuration) AttachInstance(instanceName string) error {
+func (conf *desktopConfiguration) AttachInstance(instanceName string) (providers.ProviderConfiguration, error) {
 	if instanceID, err := conf.UUID(instanceName); err != nil {
-		return err
+		return nil, err
 	} else {
-		conf.instanceName = instanceName
-		conf.instanceID = instanceID
-	}
+		clone := conf.copy()
 
-	return nil
+		clone.instanceName = instanceName
+		clone.instanceID = instanceID
+
+		return clone, nil
+	}
 }
 
-func (conf *Configuration) RetrieveNetworkInfos(name, vmuuid string, nodeIndex int) error {
+func (conf *desktopConfiguration) RetrieveNetworkInfos(name, vmuuid string, nodeIndex int) error {
 	return conf.retrieveNetworkInfos(vmuuid, nodeIndex)
 }
 
-func (conf *Configuration) UpdateMacAddressTable(nodeIndex int) error {
-	return conf.Network.UpdateMacAddressTable(nodeIndex)
+func (conf *desktopConfiguration) UpdateMacAddressTable(nodeIndex int) error {
+	return conf.network.UpdateMacAddressTable(nodeIndex)
 }
 
-func (conf *Configuration) GenerateProviderID(vmuuid string) string {
+func (conf *desktopConfiguration) GenerateProviderID(vmuuid string) string {
 	return fmt.Sprintf("desktop://%s", vmuuid)
 }
 
-func (conf *Configuration) GetTopologyLabels() map[string]string {
+func (conf *desktopConfiguration) GetTopologyLabels() map[string]string {
 	return map[string]string{}
 }
 
-func (conf *Configuration) InstanceCreate(nodeName string, nodeIndex int, instanceType, userName, authKey string, cloudInit interface{}, machine *providers.MachineCharacteristic) (string, error) {
-	if vmuuid, err := conf.Create(nodeName, nodeIndex, userName, authKey, cloudInit, conf.Network, machine); err != nil {
+func (conf *desktopConfiguration) InstanceCreate(nodeName string, nodeIndex int, instanceType, userName, authKey string, cloudInit interface{}, machine *providers.MachineCharacteristic) (string, error) {
+	if vmuuid, err := conf.Create(nodeName, nodeIndex, userName, authKey, cloudInit, &conf.network, machine); err != nil {
 		return "", err
 	} else {
 		conf.instanceName = nodeName
@@ -158,11 +184,11 @@ func (conf *Configuration) InstanceCreate(nodeName string, nodeIndex int, instan
 	}
 }
 
-func (conf *Configuration) InstanceWaitReady(callback providers.CallbackWaitSSHReady) (string, error) {
-	if ip, err := conf.WaitForIP(conf.instanceName, conf.Timeout); err != nil {
+func (conf *desktopConfiguration) InstanceWaitReady(callback providers.CallbackWaitSSHReady) (string, error) {
+	if ip, err := conf.WaitForIP(conf.instanceName, conf.config.Timeout); err != nil {
 		return ip, err
 	} else {
-		if err := context.PollImmediate(time.Second, conf.Timeout*time.Second, func() (bool, error) {
+		if err := context.PollImmediate(time.Second, conf.config.Timeout*time.Second, func() (bool, error) {
 			var err error
 
 			if err = callback.WaitSSHReady(conf.instanceName, ip); err != nil {
@@ -178,7 +204,7 @@ func (conf *Configuration) InstanceWaitReady(callback providers.CallbackWaitSSHR
 	}
 }
 
-func (conf *Configuration) InstanceID(name string) (string, error) {
+func (conf *desktopConfiguration) InstanceID(name string) (string, error) {
 	if name == conf.instanceName {
 		return conf.instanceID, nil
 	}
@@ -186,15 +212,15 @@ func (conf *Configuration) InstanceID(name string) (string, error) {
 	return conf.UUID(name)
 }
 
-func (conf *Configuration) InstanceExists(name string) bool {
+func (conf *desktopConfiguration) InstanceExists(name string) bool {
 	return conf.Exists(name)
 }
 
-func (conf *Configuration) InstanceAutoStart(name string) error {
+func (conf *desktopConfiguration) InstanceAutoStart(name string) error {
 	return nil
 }
 
-func (conf *Configuration) InstancePowerOn(name string) error {
+func (conf *desktopConfiguration) InstancePowerOn(name string) error {
 	if vmuuid, err := conf.InstanceID(name); err != nil {
 		return err
 	} else {
@@ -202,7 +228,7 @@ func (conf *Configuration) InstancePowerOn(name string) error {
 	}
 }
 
-func (conf *Configuration) InstancePowerOff(name string) error {
+func (conf *desktopConfiguration) InstancePowerOff(name string) error {
 	if vmuuid, err := conf.InstanceID(name); err != nil {
 		return err
 	} else {
@@ -210,7 +236,7 @@ func (conf *Configuration) InstancePowerOff(name string) error {
 	}
 }
 
-func (conf *Configuration) InstanceDelete(name string) error {
+func (conf *desktopConfiguration) InstanceDelete(name string) error {
 	if vmuuid, err := conf.InstanceID(name); err != nil {
 		return err
 	} else {
@@ -218,7 +244,7 @@ func (conf *Configuration) InstanceDelete(name string) error {
 	}
 }
 
-func (conf *Configuration) InstanceStatus(name string) (providers.InstanceStatus, error) {
+func (conf *desktopConfiguration) InstanceStatus(name string) (providers.InstanceStatus, error) {
 	if vmuuid, err := conf.InstanceID(name); err != nil {
 		return nil, err
 	} else if status, err := conf.Status(vmuuid); err != nil {
@@ -231,7 +257,7 @@ func (conf *Configuration) InstanceStatus(name string) (providers.InstanceStatus
 	}
 }
 
-func (conf *Configuration) InstanceWaitForToolsRunning(name string) (bool, error) {
+func (conf *desktopConfiguration) InstanceWaitForToolsRunning(name string) (bool, error) {
 	if vmuuid, err := conf.InstanceID(name); err != nil {
 		return false, err
 	} else {
@@ -239,11 +265,11 @@ func (conf *Configuration) InstanceWaitForToolsRunning(name string) (bool, error
 	}
 }
 
-func (conf *Configuration) RegisterDNS(address string) error {
+func (conf *desktopConfiguration) RegisterDNS(address string) error {
 	return nil
 }
 
-func (conf *Configuration) UnregisterDNS(address string) error {
+func (conf *desktopConfiguration) UnregisterDNS(address string) error {
 	return nil
 }
 
@@ -255,8 +281,8 @@ func (conf *Configuration) GetClient() (api.VMWareDesktopAutoscalerServiceClient
 	return conf.apiclient, nil
 }
 
-func (conf *Configuration) FindVNetWithContext(ctx *context.Context, name string) (*NetworkDevice, error) {
-	if client, err := conf.GetClient(); err != nil {
+func (conf *desktopConfiguration) FindVNetWithContext(ctx *context.Context, name string) (*NetworkDevice, error) {
+	if client, err := conf.config.GetClient(); err != nil {
 		return nil, err
 	} else if response, err := client.ListNetwork(ctx, &api.NetworkRequest{}); err != nil {
 		return nil, err
@@ -281,14 +307,14 @@ func (conf *Configuration) FindVNetWithContext(ctx *context.Context, name string
 	}
 }
 
-func (conf *Configuration) FindVNet(name string) (*NetworkDevice, error) {
-	ctx := context.NewContext(conf.Timeout)
+func (conf *desktopConfiguration) FindVNet(name string) (*NetworkDevice, error) {
+	ctx := context.NewContext(conf.config.Timeout)
 	defer ctx.Cancel()
 
 	return conf.FindVNetWithContext(ctx, name)
 }
 
-func (conf *Configuration) FindPreferredIPAddress(devices []VNetDevice) string {
+func (conf *desktopConfiguration) FindPreferredIPAddress(devices []VNetDevice) string {
 	address := ""
 
 	for _, ether := range devices {
@@ -302,24 +328,20 @@ func (conf *Configuration) FindPreferredIPAddress(devices []VNetDevice) string {
 	return address
 }
 
-func (conf *Configuration) FindVMNet(name string) *NetworkInterface {
-	if conf.Network != nil {
-		for _, inf := range conf.Network.Interfaces {
-			if name == inf.VNet {
-				return inf
-			}
+func (conf *desktopConfiguration) FindVMNet(name string) *NetworkInterface {
+	for _, inf := range conf.network.Interfaces {
+		if name == inf.VNet {
+			return inf
 		}
 	}
 
 	return nil
 }
 
-func (conf *Configuration) FindInterface(ether *VNetDevice) *NetworkInterface {
-	if conf.Network != nil {
-		for _, inf := range conf.Network.Interfaces {
-			if inf.Same(ether.ConnectionType, ether.VNet) {
-				return inf
-			}
+func (conf *desktopConfiguration) FindInterface(ether *VNetDevice) *NetworkInterface {
+	for _, inf := range conf.network.Interfaces {
+		if inf.Same(ether.ConnectionType, ether.VNet) {
+			return inf
 		}
 	}
 
@@ -329,24 +351,24 @@ func (conf *Configuration) FindInterface(ether *VNetDevice) *NetworkInterface {
 // CreateWithContext will create a named VM not powered
 // memory and disk are in megabytes
 // Return vm UUID
-func (conf *Configuration) CreateWithContext(ctx *context.Context, name string, nodeIndex int, userName, authKey string, cloudInit interface{}, network *Network, machine *providers.MachineCharacteristic) (string, error) {
+func (conf *desktopConfiguration) CreateWithContext(ctx *context.Context, name string, nodeIndex int, userName, authKey string, cloudInit interface{}, network *Network, machine *providers.MachineCharacteristic) (string, error) {
 	var err error
 
 	request := &api.CreateRequest{
-		Template:     conf.TemplateUUID,
+		Template:     conf.config.TemplateUUID,
 		Name:         name,
 		Vcpus:        int32(machine.Vcpu),
 		Memory:       int64(machine.Memory),
 		DiskSizeInMb: int32(machine.DiskSize),
-		Linked:       conf.LinkedClone,
-		Networks:     BuildNetworkInterface(conf.Network.Interfaces, nodeIndex),
+		Linked:       conf.config.LinkedClone,
+		Networks:     BuildNetworkInterface(conf.network.Interfaces, nodeIndex),
 		Register:     false,
-		Autostart:    conf.Autostart,
+		Autostart:    conf.config.Autostart,
 	}
 
-	if request.GuestInfos, err = BuildCloudInit(name, userName, authKey, conf.TimeZone, cloudInit, network, nodeIndex, conf.AllowUpgrade); err != nil {
+	if request.GuestInfos, err = BuildCloudInit(name, userName, authKey, conf.config.TimeZone, cloudInit, network, nodeIndex, conf.config.AllowUpgrade); err != nil {
 		return "", fmt.Errorf(constantes.ErrCloudInitFailCreation, name, err)
-	} else if client, err := conf.GetClient(); err != nil {
+	} else if client, err := conf.config.GetClient(); err != nil {
 		return "", err
 	} else if response, err := client.Create(ctx, request); err != nil {
 		return "", err
@@ -359,16 +381,16 @@ func (conf *Configuration) CreateWithContext(ctx *context.Context, name string, 
 
 // Create will create a named VM not powered
 // memory and disk are in megabytes
-func (conf *Configuration) Create(name string, nodeIndex int, userName, authKey string, cloudInit interface{}, network *Network, machine *providers.MachineCharacteristic) (string, error) {
-	ctx := context.NewContext(conf.Timeout)
+func (conf *desktopConfiguration) Create(name string, nodeIndex int, userName, authKey string, cloudInit interface{}, network *Network, machine *providers.MachineCharacteristic) (string, error) {
+	ctx := context.NewContext(conf.config.Timeout)
 	defer ctx.Cancel()
 
 	return conf.CreateWithContext(ctx, name, nodeIndex, userName, authKey, cloudInit, network, machine)
 }
 
 // DeleteWithContext a VM by UUID
-func (conf *Configuration) DeleteWithContext(ctx *context.Context, vmuuid string) error {
-	if client, err := conf.GetClient(); err != nil {
+func (conf *desktopConfiguration) DeleteWithContext(ctx *context.Context, vmuuid string) error {
+	if client, err := conf.config.GetClient(); err != nil {
 		return err
 	} else if response, err := client.Delete(ctx, &api.VirtualMachineRequest{Identifier: vmuuid}); err != nil {
 		return err
@@ -380,16 +402,16 @@ func (conf *Configuration) DeleteWithContext(ctx *context.Context, vmuuid string
 }
 
 // Delete a VM by vmuuid
-func (conf *Configuration) Delete(vmuuid string) error {
-	ctx := context.NewContext(conf.Timeout)
+func (conf *desktopConfiguration) Delete(vmuuid string) error {
+	ctx := context.NewContext(conf.config.Timeout)
 	defer ctx.Cancel()
 
 	return conf.DeleteWithContext(ctx, vmuuid)
 }
 
 // VirtualMachineWithContext  Retrieve VM by name
-func (conf *Configuration) VirtualMachineByNameWithContext(ctx *context.Context, name string) (*VirtualMachine, error) {
-	if client, err := conf.GetClient(); err != nil {
+func (conf *desktopConfiguration) VirtualMachineByNameWithContext(ctx *context.Context, name string) (*VirtualMachine, error) {
+	if client, err := conf.config.GetClient(); err != nil {
 		return nil, err
 	} else if response, err := client.VirtualMachineByName(ctx, &api.VirtualMachineRequest{Identifier: name}); err != nil {
 		return nil, err
@@ -409,16 +431,16 @@ func (conf *Configuration) VirtualMachineByNameWithContext(ctx *context.Context,
 }
 
 // VirtualMachine  Retrieve VM by vmuuid
-func (conf *Configuration) VirtualMachineByName(name string) (*VirtualMachine, error) {
-	ctx := context.NewContext(conf.Timeout)
+func (conf *desktopConfiguration) VirtualMachineByName(name string) (*VirtualMachine, error) {
+	ctx := context.NewContext(conf.config.Timeout)
 	defer ctx.Cancel()
 
 	return conf.VirtualMachineByNameWithContext(ctx, name)
 }
 
 // VirtualMachineWithContext  Retrieve VM by vmuuid
-func (conf *Configuration) VirtualMachineByUUIDWithContext(ctx *context.Context, vmuuid string) (*VirtualMachine, error) {
-	if client, err := conf.GetClient(); err != nil {
+func (conf *desktopConfiguration) VirtualMachineByUUIDWithContext(ctx *context.Context, vmuuid string) (*VirtualMachine, error) {
+	if client, err := conf.config.GetClient(); err != nil {
 		return nil, err
 	} else if response, err := client.VirtualMachineByUUID(ctx, &api.VirtualMachineRequest{Identifier: vmuuid}); err != nil {
 		return nil, err
@@ -438,16 +460,16 @@ func (conf *Configuration) VirtualMachineByUUIDWithContext(ctx *context.Context,
 }
 
 // VirtualMachine  Retrieve VM by vmuuid
-func (conf *Configuration) VirtualMachineByUUID(vmuuid string) (*VirtualMachine, error) {
-	ctx := context.NewContext(conf.Timeout)
+func (conf *desktopConfiguration) VirtualMachineByUUID(vmuuid string) (*VirtualMachine, error) {
+	ctx := context.NewContext(conf.config.Timeout)
 	defer ctx.Cancel()
 
 	return conf.VirtualMachineByUUIDWithContext(ctx, vmuuid)
 }
 
 // VirtualMachineListWithContext return all VM for the current datastore
-func (conf *Configuration) VirtualMachineListWithContext(ctx *context.Context) ([]*VirtualMachine, error) {
-	if client, err := conf.GetClient(); err != nil {
+func (conf *desktopConfiguration) VirtualMachineListWithContext(ctx *context.Context) ([]*VirtualMachine, error) {
+	if client, err := conf.config.GetClient(); err != nil {
 		return nil, err
 	} else if response, err := client.ListVirtualMachines(ctx, &api.VirtualMachinesRequest{}); err != nil {
 		return nil, err
@@ -472,15 +494,15 @@ func (conf *Configuration) VirtualMachineListWithContext(ctx *context.Context) (
 }
 
 // VirtualMachineList return all VM for the current datastore
-func (conf *Configuration) VirtualMachineList() ([]*VirtualMachine, error) {
-	ctx := context.NewContext(conf.Timeout)
+func (conf *desktopConfiguration) VirtualMachineList() ([]*VirtualMachine, error) {
+	ctx := context.NewContext(conf.config.Timeout)
 	defer ctx.Cancel()
 
 	return conf.VirtualMachineListWithContext(ctx)
 }
 
 // UUID get VM UUID by name
-func (conf *Configuration) UUIDWithContext(ctx *context.Context, name string) (string, error) {
+func (conf *desktopConfiguration) UUIDWithContext(ctx *context.Context, name string) (string, error) {
 	if vm, err := conf.VirtualMachineByNameWithContext(ctx, name); err != nil {
 		return "", err
 	} else {
@@ -489,16 +511,16 @@ func (conf *Configuration) UUIDWithContext(ctx *context.Context, name string) (s
 }
 
 // UUID get VM UUID by name
-func (conf *Configuration) UUID(name string) (string, error) {
-	ctx := context.NewContext(conf.Timeout)
+func (conf *desktopConfiguration) UUID(name string) (string, error) {
+	ctx := context.NewContext(conf.config.Timeout)
 	defer ctx.Cancel()
 
 	return conf.UUIDWithContext(ctx, name)
 }
 
 // WaitForIPWithContext wait ip a VM by vmuuid
-func (conf *Configuration) WaitForIPWithContext(ctx *context.Context, vmuuid string, timeout time.Duration) (string, error) {
-	if client, err := conf.GetClient(); err != nil {
+func (conf *desktopConfiguration) WaitForIPWithContext(ctx *context.Context, vmuuid string, timeout time.Duration) (string, error) {
+	if client, err := conf.config.GetClient(); err != nil {
 		return "", err
 	} else if response, err := client.WaitForIP(ctx, &api.WaitForIPRequest{Identifier: vmuuid, TimeoutInSeconds: int32(timeout / time.Second)}); err != nil {
 		return "", err
@@ -510,16 +532,16 @@ func (conf *Configuration) WaitForIPWithContext(ctx *context.Context, vmuuid str
 }
 
 // WaitForIP wait ip a VM by vmuuid
-func (conf *Configuration) WaitForIP(vmuuid string, timeout time.Duration) (string, error) {
-	ctx := context.NewContext(conf.Timeout)
+func (conf *desktopConfiguration) WaitForIP(vmuuid string, timeout time.Duration) (string, error) {
+	ctx := context.NewContext(conf.config.Timeout)
 	defer ctx.Cancel()
 
 	return conf.WaitForIPWithContext(ctx, vmuuid, timeout)
 }
 
 // SetAutoStartWithContext set autostart for the VM
-func (conf *Configuration) SetAutoStartWithContext(ctx *context.Context, vmuuid string, autostart bool) error {
-	if client, err := conf.GetClient(); err != nil {
+func (conf *desktopConfiguration) SetAutoStartWithContext(ctx *context.Context, vmuuid string, autostart bool) error {
+	if client, err := conf.config.GetClient(); err != nil {
 		return err
 	} else if response, err := client.SetAutoStart(ctx, &api.AutoStartRequest{Uuid: vmuuid, Autostart: autostart}); err != nil {
 		return err
@@ -531,16 +553,16 @@ func (conf *Configuration) SetAutoStartWithContext(ctx *context.Context, vmuuid 
 }
 
 // SetAutoStart set autostart for the VM
-func (conf *Configuration) SetAutoStart(vmuuid string, autostart bool) error {
-	ctx := context.NewContext(conf.Timeout)
+func (conf *desktopConfiguration) SetAutoStart(vmuuid string, autostart bool) error {
+	ctx := context.NewContext(conf.config.Timeout)
 	defer ctx.Cancel()
 
 	return conf.SetAutoStartWithContext(ctx, vmuuid, autostart)
 }
 
 // WaitForToolsRunningWithContext wait vmware tools is running a VM by vmuuid
-func (conf *Configuration) WaitForToolsRunningWithContext(ctx *context.Context, vmuuid string, timeout time.Duration) (bool, error) {
-	if client, err := conf.GetClient(); err != nil {
+func (conf *desktopConfiguration) WaitForToolsRunningWithContext(ctx *context.Context, vmuuid string, timeout time.Duration) (bool, error) {
+	if client, err := conf.config.GetClient(); err != nil {
 		return false, err
 	} else if response, err := client.WaitForToolsRunning(ctx, &api.WaitForToolsRunningRequest{Identifier: vmuuid, TimeoutInSeconds: int32(timeout / time.Second)}); err != nil {
 		return false, err
@@ -552,16 +574,16 @@ func (conf *Configuration) WaitForToolsRunningWithContext(ctx *context.Context, 
 }
 
 // WaitForToolsRunning wait vmware tools is running a VM by vmuuid
-func (conf *Configuration) WaitForToolsRunning(vmuuid string, timeout time.Duration) (bool, error) {
-	ctx := context.NewContext(conf.Timeout)
+func (conf *desktopConfiguration) WaitForToolsRunning(vmuuid string, timeout time.Duration) (bool, error) {
+	ctx := context.NewContext(conf.config.Timeout)
 	defer ctx.Cancel()
 
 	return conf.WaitForToolsRunningWithContext(ctx, vmuuid, timeout)
 }
 
 // PowerOnWithContext power on a VM by vmuuid
-func (conf *Configuration) PowerOnWithContext(ctx *context.Context, vmuuid string) error {
-	if client, err := conf.GetClient(); err != nil {
+func (conf *desktopConfiguration) PowerOnWithContext(ctx *context.Context, vmuuid string) error {
+	if client, err := conf.config.GetClient(); err != nil {
 		return err
 	} else if response, err := client.PowerOn(ctx, &api.VirtualMachineRequest{Identifier: vmuuid}); err != nil {
 		return err
@@ -573,16 +595,16 @@ func (conf *Configuration) PowerOnWithContext(ctx *context.Context, vmuuid strin
 }
 
 // PowerOn power on a VM by vmuuid
-func (conf *Configuration) PowerOn(vmuuid string) error {
-	ctx := context.NewContext(conf.Timeout)
+func (conf *desktopConfiguration) PowerOn(vmuuid string) error {
+	ctx := context.NewContext(conf.config.Timeout)
 	defer ctx.Cancel()
 
 	return conf.PowerOnWithContext(ctx, vmuuid)
 }
 
 // PowerOffWithContext power off a VM by vmuuid
-func (conf *Configuration) PowerOffWithContext(ctx *context.Context, vmuuid, mode string) error {
-	if client, err := conf.GetClient(); err != nil {
+func (conf *desktopConfiguration) PowerOffWithContext(ctx *context.Context, vmuuid, mode string) error {
+	if client, err := conf.config.GetClient(); err != nil {
 		return err
 	} else if response, err := client.PowerOff(ctx, &api.PowerOffRequest{Identifier: vmuuid, Mode: mode}); err != nil {
 		return err
@@ -593,11 +615,11 @@ func (conf *Configuration) PowerOffWithContext(ctx *context.Context, vmuuid, mod
 	}
 }
 
-func (conf *Configuration) WaitForPowerStateWithContenxt(ctx *context.Context, vmuuid string, wanted bool) error {
-	if client, err := conf.GetClient(); err != nil {
+func (conf *desktopConfiguration) WaitForPowerStateWithContenxt(ctx *context.Context, vmuuid string, wanted bool) error {
+	if client, err := conf.config.GetClient(); err != nil {
 		return err
 	} else {
-		return context.PollImmediate(time.Second, conf.Timeout, func() (bool, error) {
+		return context.PollImmediate(time.Second, conf.config.Timeout, func() (bool, error) {
 			if response, err := client.PowerState(ctx, &api.VirtualMachineRequest{Identifier: vmuuid}); err != nil {
 				return false, err
 			} else if response.GetError() != nil {
@@ -609,24 +631,24 @@ func (conf *Configuration) WaitForPowerStateWithContenxt(ctx *context.Context, v
 	}
 }
 
-func (conf *Configuration) WaitForPowerState(vmuuid string, wanted bool) error {
-	ctx := context.NewContext(conf.Timeout)
+func (conf *desktopConfiguration) WaitForPowerState(vmuuid string, wanted bool) error {
+	ctx := context.NewContext(conf.config.Timeout)
 	defer ctx.Cancel()
 
 	return conf.WaitForPowerStateWithContenxt(ctx, vmuuid, wanted)
 }
 
 // PowerOff power off a VM by name
-func (conf *Configuration) PowerOff(vmuuid, mode string) error {
-	ctx := context.NewContext(conf.Timeout)
+func (conf *desktopConfiguration) PowerOff(vmuuid, mode string) error {
+	ctx := context.NewContext(conf.config.Timeout)
 	defer ctx.Cancel()
 
 	return conf.PowerOffWithContext(ctx, vmuuid, mode)
 }
 
 // ShutdownGuestWithContext power off a VM by vmuuid
-func (conf *Configuration) ShutdownGuestWithContext(ctx *context.Context, vmuuid string) error {
-	if client, err := conf.GetClient(); err != nil {
+func (conf *desktopConfiguration) ShutdownGuestWithContext(ctx *context.Context, vmuuid string) error {
+	if client, err := conf.config.GetClient(); err != nil {
 		return err
 	} else if response, err := client.ShutdownGuest(ctx, &api.VirtualMachineRequest{Identifier: vmuuid}); err != nil {
 		return err
@@ -638,16 +660,16 @@ func (conf *Configuration) ShutdownGuestWithContext(ctx *context.Context, vmuuid
 }
 
 // ShutdownGuest power off a VM by vmuuid
-func (conf *Configuration) ShutdownGuest(vmuuid string) error {
-	ctx := context.NewContext(conf.Timeout)
+func (conf *desktopConfiguration) ShutdownGuest(vmuuid string) error {
+	ctx := context.NewContext(conf.config.Timeout)
 	defer ctx.Cancel()
 
 	return conf.ShutdownGuestWithContext(ctx, vmuuid)
 }
 
 // StatusWithContext return the current status of VM by vmuuid
-func (conf *Configuration) StatusWithContext(ctx *context.Context, vmuuid string) (*Status, error) {
-	if client, err := conf.GetClient(); err != nil {
+func (conf *desktopConfiguration) StatusWithContext(ctx *context.Context, vmuuid string) (*Status, error) {
+	if client, err := conf.config.GetClient(); err != nil {
 		return nil, err
 	} else if response, err := client.Status(ctx, &api.VirtualMachineRequest{Identifier: vmuuid}); err != nil {
 		return nil, err
@@ -681,15 +703,15 @@ func (conf *Configuration) StatusWithContext(ctx *context.Context, vmuuid string
 }
 
 // Status return the current status of VM by vmuuid
-func (conf *Configuration) Status(vmuuid string) (*Status, error) {
-	ctx := context.NewContext(conf.Timeout)
+func (conf *desktopConfiguration) Status(vmuuid string) (*Status, error) {
+	ctx := context.NewContext(conf.config.Timeout)
 	defer ctx.Cancel()
 
 	return conf.StatusWithContext(ctx, vmuuid)
 }
 
-func (conf *Configuration) retrieveNetworkInfosWithContext(ctx *context.Context, vmuuid string, nodeIndex int) error {
-	if client, err := conf.GetClient(); err != nil {
+func (conf *desktopConfiguration) retrieveNetworkInfosWithContext(ctx *context.Context, vmuuid string, nodeIndex int) error {
+	if client, err := conf.config.GetClient(); err != nil {
 		return err
 	} else if response, err := client.Status(ctx, &api.VirtualMachineRequest{Identifier: vmuuid}); err != nil {
 		return err
@@ -697,7 +719,7 @@ func (conf *Configuration) retrieveNetworkInfosWithContext(ctx *context.Context,
 		return api.NewApiError(response.GetError())
 	} else {
 		for _, ether := range response.GetResult().GetEthernet() {
-			for _, inf := range conf.Network.Interfaces {
+			for _, inf := range conf.network.Interfaces {
 				if (inf.VNet == ether.Vnet) || (inf.ConnectionType == ether.ConnectionType && inf.ConnectionType != "custom") {
 					inf.AttachMacAddress(ether.GeneratedAddress, nodeIndex)
 				}
@@ -708,15 +730,15 @@ func (conf *Configuration) retrieveNetworkInfosWithContext(ctx *context.Context,
 	}
 }
 
-func (conf *Configuration) retrieveNetworkInfos(vmuuid string, nodeIndex int) error {
-	ctx := context.NewContext(conf.Timeout)
+func (conf *desktopConfiguration) retrieveNetworkInfos(vmuuid string, nodeIndex int) error {
+	ctx := context.NewContext(conf.config.Timeout)
 	defer ctx.Cancel()
 
 	return conf.retrieveNetworkInfosWithContext(ctx, vmuuid, nodeIndex)
 }
 
 // ExistsWithContext return the current status of VM by name
-func (conf *Configuration) ExistsWithContext(ctx *context.Context, name string) bool {
+func (conf *desktopConfiguration) ExistsWithContext(ctx *context.Context, name string) bool {
 	if _, err := conf.VirtualMachineByNameWithContext(ctx, name); err == nil {
 		return true
 	}
@@ -724,8 +746,8 @@ func (conf *Configuration) ExistsWithContext(ctx *context.Context, name string) 
 	return false
 }
 
-func (conf *Configuration) Exists(name string) bool {
-	ctx := context.NewContext(conf.Timeout)
+func (conf *desktopConfiguration) Exists(name string) bool {
+	ctx := context.NewContext(conf.config.Timeout)
 	defer ctx.Cancel()
 
 	return conf.ExistsWithContext(ctx, name)

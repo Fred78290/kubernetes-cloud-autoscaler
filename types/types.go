@@ -393,18 +393,15 @@ func (limits *ResourceLimiter) GetMinValue(key string, defaultValue int) int {
 func (conf *AutoScalerServerConfig) GetCloudConfiguration() providers.ProviderConfiguration {
 	if conf.providerConfiguration == nil {
 		if conf.CloudProvider == nil {
-			conf.providerConfiguration = conf.DesktopProviderConfig
+			conf.providerConfiguration = vsphere.NewVSphereProviderConfiguration(conf.VSphereProviderConfig)
 		} else {
 			switch *conf.CloudProvider {
 			case AwsCloudProviderName:
-				conf.providerConfiguration = conf.AwsProviderConfig
-				break
+				conf.providerConfiguration = aws.NewAwsProviderConfiguration(conf.AwsProviderConfig)
 			case VSphereCloudProviderName:
-				conf.providerConfiguration = conf.VSphereProviderConfig
-				break
+				conf.providerConfiguration = vsphere.NewVSphereProviderConfiguration(conf.VSphereProviderConfig)
 			case VMWareWorkstationPRoviderName:
-				conf.providerConfiguration = conf.DesktopProviderConfig
-				break
+				conf.providerConfiguration = desktop.NewDesktopProviderConfiguration(conf.DesktopProviderConfig)
 			}
 		}
 	}

@@ -34,10 +34,10 @@ type ProviderConfiguration interface {
 	GetTimeout() time.Duration
 	GetAvailableGpuTypes() map[string]string
 	NodeGroupName() string
-	Copy() ProviderConfiguration
+	//	Copy() ProviderConfiguration
 	Clone(nodeIndex int) (ProviderConfiguration, error)
 	ConfigureNetwork(network v1alpha1.ManagedNetworkConfig)
-	AttachInstance(instanceName string) error
+	AttachInstance(instanceName string) (ProviderConfiguration, error)
 	RetrieveNetworkInfos(name, vmuuid string, nodeIndex int) error
 	UpdateMacAddressTable(nodeIndex int) error
 	GenerateProviderID(vmuuid string) string
