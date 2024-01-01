@@ -268,7 +268,7 @@ func (g *AutoScalerServerNodeGroup) addManagedNode(crd *v1alpha1.ManagedNode) (*
 	nodeName, nodeIndex := g.nodeName(g.findNextNodeIndex(true), controlPlane, true)
 
 	// Clone the config to allow increment IP address for vmware
-	if clonedConfig, err := g.configuration.GetCloudConfiguration().Clone(nodeIndex); err == nil {
+	if clonedConfig, err := g.configuration.GetCloudConfiguration().CreateInstance(nodeName, nodeIndex); err == nil {
 		var instanceType = crd.Spec.InstanceType
 
 		if len(instanceType) == 0 {
@@ -351,7 +351,7 @@ func (g *AutoScalerServerNodeGroup) prepareNodes(c types.ClientGenerator, delta 
 		nodeName, nodeIndex := g.nodeName(g.findNextNodeIndex(false), false, false)
 
 		// Clone the vsphere config to allow increment IP address
-		if clonedConfig, err := config.Clone(nodeIndex); err == nil {
+		if clonedConfig, err := config.CreateInstance(nodeName, nodeIndex); err == nil {
 
 			g.RunningNodes[nodeIndex] = ServerNodeStateCreating
 
@@ -632,6 +632,7 @@ func (g *AutoScalerServerNodeGroup) autoDiscoveryNodes(client types.ClientGenera
 			var crdUID uid.UID
 			var vmUUID string
 			var nodeIndex string
+			var handler providers.ProviderHandler
 
 			autoProvisionned, _ := strconv.ParseBool(nodeInfo.Annotations[constantes.AnnotationNodeAutoProvisionned])
 			managedNode, _ := strconv.ParseBool(nodeInfo.Annotations[constantes.AnnotationNodeManaged])
@@ -684,10 +685,8 @@ func (g *AutoScalerServerNodeGroup) autoDiscoveryNodes(client types.ClientGenera
 						}
 					}
 
-					cloudConfig := g.configuration.GetCloudConfiguration()
-
 					// Node name and instance name could be differ when using AWS cloud provider
-					if cloudConfig, err = cloudConfig.AttachInstance(instanceName); err == nil {
+					if handler, err = g.configuration.GetCloudConfiguration().AttachInstance(instanceName, lastNodeIndex); err == nil {
 						if node == nil {
 							glog.Infof("Add node:%s with IP:%s to nodegroup:%s", instanceName, runningIP, g.NodeGroupIdentifier)
 
@@ -706,7 +705,7 @@ func (g *AutoScalerServerNodeGroup) autoDiscoveryNodes(client types.ClientGenera
 								Memory:           int(nodeInfo.Status.Capacity.Memory().Value() / (1024 * 1024)),
 								DiskSize:         int(nodeInfo.Status.Capacity.Storage().Value() / (1024 * 1024)),
 								IPAddress:        runningIP,
-								cloudConfig:      cloudConfig,
+								cloudConfig:      handler,
 								serverConfig:     g.configuration,
 							}
 
@@ -732,7 +731,7 @@ func (g *AutoScalerServerNodeGroup) autoDiscoveryNodes(client types.ClientGenera
 								glog.Errorf(constantes.ErrLabelNodeReturnError, nodeInfo.Name, err)
 							}
 						} else {
-							node.cloudConfig = cloudConfig
+							node.cloudConfig = handler
 							glog.Infof("Attach existing node:%s with IP:%s to nodegroup:%s", instanceName, runningIP, g.NodeGroupIdentifier)
 						}
 

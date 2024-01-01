@@ -99,7 +99,7 @@ type AutoScalerServerNode struct {
 	AllowDeployment  bool                      `json:"allow-deployment,omitempty"`
 	ExtraLabels      types.KubernetesLabel     `json:"labels,omitempty"`
 	ExtraAnnotations types.KubernetesLabel     `json:"annotations,omitempty"`
-	cloudConfig      providers.ProviderConfiguration
+	cloudConfig      providers.ProviderHandler
 	serverConfig     *types.AutoScalerServerConfig
 }
 
@@ -560,11 +560,6 @@ func (vm *AutoScalerServerNode) launchVM(c types.ClientGenerator, nodeLabels, sy
 		return fmt.Errorf(constantes.ErrVMAlreadyCreated, vm.InstanceName)
 	}
 
-	if cloudConfig.InstanceExists(vm.InstanceName) {
-		glog.Warnf(constantes.ErrVMAlreadyExists, vm.InstanceName)
-		return fmt.Errorf(constantes.ErrVMAlreadyExists, vm.InstanceName)
-	}
-
 	vm.State = AutoScalerServerNodeStateCreating
 
 	desiredMachine := &providers.MachineCharacteristic{
@@ -586,19 +581,19 @@ func (vm *AutoScalerServerNode) launchVM(c types.ClientGenerator, nodeLabels, sy
 
 		err = fmt.Errorf(constantes.ErrUnableToLaunchVM, vm.InstanceName, err)
 
-	} else if vm.VMUUID, err = cloudConfig.InstanceID(vm.InstanceName); err != nil {
+	} else if vm.VMUUID, err = cloudConfig.InstanceID(); err != nil {
 
 		err = fmt.Errorf(constantes.ErrStartVMFailed, vm.InstanceName, err)
 
-	} else if err = cloudConfig.InstancePowerOn(vm.InstanceName); err != nil {
+	} else if err = cloudConfig.InstancePowerOn(); err != nil {
 
 		err = fmt.Errorf(constantes.ErrStartVMFailed, vm.InstanceName, err)
 
-	} else if err = cloudConfig.InstanceAutoStart(vm.InstanceName); err != nil {
+	} else if err = cloudConfig.InstanceAutoStart(); err != nil {
 
 		err = fmt.Errorf(constantes.ErrStartVMFailed, vm.InstanceName, err)
 
-	} else if _, err = cloudConfig.InstanceWaitForToolsRunning(vm.InstanceName); err != nil {
+	} else if _, err = cloudConfig.InstanceWaitForToolsRunning(); err != nil {
 
 		err = fmt.Errorf(constantes.ErrStartVMFailed, vm.InstanceName, err)
 
@@ -675,11 +670,11 @@ func (vm *AutoScalerServerNode) startVM(c types.ClientGenerator) error {
 
 	} else if state == AutoScalerServerNodeStateStopped {
 
-		if err = cloudConfig.InstancePowerOn(vm.NodeName); err != nil {
+		if err = cloudConfig.InstancePowerOn(); err != nil {
 
 			err = fmt.Errorf(constantes.ErrStartVMFailed, vm.InstanceName, err)
 
-		} else if _, err = cloudConfig.InstanceWaitForToolsRunning(vm.NodeName); err != nil {
+		} else if _, err = cloudConfig.InstanceWaitForToolsRunning(); err != nil {
 
 			err = fmt.Errorf(constantes.ErrStartVMFailed, vm.InstanceName, err)
 
@@ -742,7 +737,7 @@ func (vm *AutoScalerServerNode) stopVM(c types.ClientGenerator) error {
 			glog.Errorf(constantes.ErrCordonNodeReturnError, vm.NodeName, err)
 		}
 
-		if err = cloudConfig.InstancePowerOff(vm.InstanceName); err == nil {
+		if err = cloudConfig.InstancePowerOff(); err == nil {
 			vm.State = AutoScalerServerNodeStateStopped
 		} else {
 			err = fmt.Errorf(constantes.ErrStopVMFailed, vm.InstanceName, err)
@@ -774,7 +769,7 @@ func (vm *AutoScalerServerNode) deleteVM(c types.ClientGenerator) error {
 	if vm.NodeType != AutoScalerServerNodeAutoscaled && vm.NodeType != AutoScalerServerNodeManaged {
 		err = fmt.Errorf(constantes.ErrVMNotProvisionnedByMe, vm.InstanceName)
 	} else if vm.State != AutoScalerServerNodeStateDeleting {
-		if status, err = cloudConfig.InstanceStatus(vm.NodeName); err == nil {
+		if status, err = cloudConfig.InstanceStatus(); err == nil {
 			vm.State = AutoScalerServerNodeStateDeleting
 
 			if err = cloudConfig.UnregisterDNS(status.Address()); err != nil {
@@ -797,16 +792,16 @@ func (vm *AutoScalerServerNode) deleteVM(c types.ClientGenerator) error {
 					}
 				}
 
-				if err = cloudConfig.InstancePowerOff(vm.InstanceName); err != nil {
+				if err = cloudConfig.InstancePowerOff(); err != nil {
 					err = fmt.Errorf(constantes.ErrStopVMFailed, vm.InstanceName, err)
 				} else {
 					vm.State = AutoScalerServerNodeStateStopped
 
-					if err = cloudConfig.InstanceDelete(vm.InstanceName); err != nil {
+					if err = cloudConfig.InstanceDelete(); err != nil {
 						err = fmt.Errorf(constantes.ErrDeleteVMFailed, vm.InstanceName, err)
 					}
 				}
-			} else if err = cloudConfig.InstanceDelete(vm.InstanceName); err != nil {
+			} else if err = cloudConfig.InstanceDelete(); err != nil {
 				err = fmt.Errorf(constantes.ErrDeleteVMFailed, vm.InstanceName, err)
 			}
 		}
@@ -834,7 +829,7 @@ func (vm *AutoScalerServerNode) statusVM() (AutoScalerServerNodeState, error) {
 	var status providers.InstanceStatus
 	var err error
 
-	if status, err = vm.cloudConfig.InstanceStatus(vm.NodeName); err != nil {
+	if status, err = vm.cloudConfig.InstanceStatus(); err != nil {
 		glog.Errorf(constantes.ErrGetVMInfoFailed, vm.InstanceName, err)
 		return AutoScalerServerNodeStateUndefined, err
 	}
@@ -868,7 +863,7 @@ func (vm *AutoScalerServerNode) setProviderID(c types.ClientGenerator) error {
 
 func (vm *AutoScalerServerNode) generateProviderID() string {
 	if vm.serverConfig.UseControllerManager != nil && *vm.serverConfig.UseControllerManager {
-		return vm.cloudConfig.GenerateProviderID(vm.VMUUID)
+		return vm.cloudConfig.GenerateProviderID()
 	}
 
 	if vm.serverConfig.Distribution != nil {
@@ -883,7 +878,7 @@ func (vm *AutoScalerServerNode) generateProviderID() string {
 }
 
 func (vm *AutoScalerServerNode) findInstanceUUID() string {
-	if vmUUID, err := vm.cloudConfig.InstanceID(vm.NodeName); err == nil {
+	if vmUUID, err := vm.cloudConfig.InstanceID(); err == nil {
 		vm.VMUUID = vmUUID
 
 		return vmUUID
@@ -893,12 +888,12 @@ func (vm *AutoScalerServerNode) findInstanceUUID() string {
 }
 
 func (vm *AutoScalerServerNode) setServerConfiguration(config *types.AutoScalerServerConfig) {
-	vm.cloudConfig.UpdateMacAddressTable(vm.NodeIndex)
+	vm.cloudConfig.UpdateMacAddressTable()
 	vm.serverConfig = config
 }
 
 func (vm *AutoScalerServerNode) retrieveNetworkInfos() error {
-	return vm.cloudConfig.RetrieveNetworkInfos(vm.NodeName, vm.VMUUID, vm.NodeIndex)
+	return vm.cloudConfig.RetrieveNetworkInfos()
 }
 
 // cleanOnLaunchError called when error occurs during launch

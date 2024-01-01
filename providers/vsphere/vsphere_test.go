@@ -23,7 +23,7 @@ type ConfigurationTest struct {
 	VM        string                    `json:"old-vm"`
 	New       *NewVirtualMachineConf    `json:"new-vm"`
 	inited    bool
-	provider  providers.ProviderConfiguration
+	provider  providers.ProviderHandler
 }
 
 type NewVirtualMachineConf struct {
@@ -106,7 +106,7 @@ func Test_getVM(t *testing.T) {
 	if utils.ShouldTestFeature("Test_getVM") {
 		config := loadFromJson(confName)
 
-		if _, err := config.provider.AttachInstance(config.New.Name); err != nil {
+		if _, err := config.provider.AttachInstance(config.New.Name, 0); err != nil {
 			assert.NoError(t, err, fmt.Sprintf(cantFindInstanceName, config.New.Name))
 		}
 	}
@@ -134,8 +134,8 @@ func Test_statusVM(t *testing.T) {
 	if utils.ShouldTestFeature("Test_statusVM") {
 		config := loadFromJson(confName)
 
-		if instance, err := config.provider.AttachInstance(config.New.Name); err == nil {
-			status, err := instance.InstanceStatus(config.New.Name)
+		if instance, err := config.provider.AttachInstance(config.New.Name, 0); err == nil {
+			status, err := instance.InstanceStatus()
 
 			if assert.NoError(t, err, "Can't get status VM") {
 				t.Logf("The power of vm %s is:%v", config.New.Name, status.Powered())
@@ -150,9 +150,9 @@ func Test_powerOnVM(t *testing.T) {
 	if utils.ShouldTestFeature("Test_powerOnVM") {
 		config := loadFromJson(confName)
 
-		if instance, err := config.provider.AttachInstance(config.New.Name); assert.NoError(t, err, fmt.Sprintf(cantFindInstanceName, config.New.Name)) {
-			if status, err := instance.InstanceStatus(config.New.Name); assert.NoError(t, err, cantGetStatus) && status.Powered() == false {
-				err = instance.InstancePowerOn(config.New.Name)
+		if instance, err := config.provider.AttachInstance(config.New.Name, 0); assert.NoError(t, err, fmt.Sprintf(cantFindInstanceName, config.New.Name)) {
+			if status, err := instance.InstanceStatus(); assert.NoError(t, err, cantGetStatus) && status.Powered() == false {
+				err = instance.InstancePowerOn()
 
 				if assert.NoError(t, err, "Can't power on VM") {
 					ipaddr, err := instance.InstanceWaitReady(config)
@@ -170,9 +170,9 @@ func Test_powerOffVM(t *testing.T) {
 	if utils.ShouldTestFeature("Test_powerOffVM") {
 		config := loadFromJson(confName)
 
-		if instance, err := config.provider.AttachInstance(config.New.Name); assert.NoError(t, err, fmt.Sprintf(cantFindInstanceName, config.New.Name)) {
-			if status, err := instance.InstanceStatus(config.New.Name); assert.NoError(t, err, cantGetStatus) && status.Powered() {
-				err = instance.InstancePowerOff(config.New.Name)
+		if instance, err := config.provider.AttachInstance(config.New.Name, 0); assert.NoError(t, err, fmt.Sprintf(cantFindInstanceName, config.New.Name)) {
+			if status, err := instance.InstanceStatus(); assert.NoError(t, err, cantGetStatus) && status.Powered() {
+				err = instance.InstancePowerOff()
 
 				if assert.NoError(t, err, "Can't power off VM") {
 					t.Logf("VM shutdown")
@@ -186,9 +186,9 @@ func Test_shutdownGuest(t *testing.T) {
 	if utils.ShouldTestFeature("Test_shutdownGuest") {
 		config := loadFromJson(confName)
 
-		if instance, err := config.provider.AttachInstance(config.New.Name); assert.NoError(t, err, fmt.Sprintf(cantFindInstanceName, config.New.Name)) {
-			if status, err := instance.InstanceStatus(config.New.Name); assert.NoError(t, err, cantGetStatus) && status.Powered() {
-				err = instance.InstanceShutdownGuest(config.New.Name)
+		if instance, err := config.provider.AttachInstance(config.New.Name, 0); assert.NoError(t, err, fmt.Sprintf(cantFindInstanceName, config.New.Name)) {
+			if status, err := instance.InstanceStatus(); assert.NoError(t, err, cantGetStatus) && status.Powered() {
+				err = instance.InstanceShutdownGuest()
 
 				if assert.NoError(t, err, "Can't power off VM") {
 					t.Logf("VM shutdown")
@@ -202,8 +202,8 @@ func Test_deleteVM(t *testing.T) {
 	if utils.ShouldTestFeature("Test_deleteVM") {
 		config := loadFromJson(confName)
 
-		if instance, err := config.provider.AttachInstance(config.New.Name); assert.NoError(t, err, fmt.Sprintf(cantFindInstanceName, config.New.Name)) {
-			err := instance.InstanceDelete(config.New.Name)
+		if instance, err := config.provider.AttachInstance(config.New.Name, 0); assert.NoError(t, err, fmt.Sprintf(cantFindInstanceName, config.New.Name)) {
+			err := instance.InstanceDelete()
 
 			if assert.NoError(t, err, "Can't delete VM") {
 				t.Logf("VM deleted")

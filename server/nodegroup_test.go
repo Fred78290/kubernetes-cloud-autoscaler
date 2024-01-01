@@ -18,7 +18,7 @@ import (
 )
 
 type baseTest struct {
-	testConfig providers.ProviderConfiguration
+	testConfig providers.ProviderHandler
 	t          *testing.T
 }
 
@@ -322,7 +322,6 @@ func (m *baseTest) newTestConfig() (*types.AutoScalerServerConfig, error) {
 	} else {
 		if err = json.Unmarshal(configStr, &config); err == nil {
 			m.testConfig = config.GetCloudConfiguration()
-			m.testConfig.SetTestMode(true)
 			config.SSH.TestMode = true
 		}
 
@@ -340,8 +339,8 @@ func (m *baseTest) ssh() {
 	}
 }
 
-func findInstanceID(config providers.ProviderConfiguration, nodeName string) string {
-	if vmUUID, err := config.InstanceID(nodeName); err == nil {
+func findInstanceID(config providers.ProviderHandler, nodeName string) string {
+	if vmUUID, err := config.UUID(nodeName); err == nil {
 		return vmUUID
 	}
 

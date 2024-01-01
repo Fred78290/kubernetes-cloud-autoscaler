@@ -3,9 +3,11 @@ package providers
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha1"
+	glog "github.com/sirupsen/logrus"
 )
 
 const (
@@ -42,34 +44,36 @@ type MachineCharacteristic struct {
 type MachineCharacteristics map[string]*MachineCharacteristic
 
 type ProviderConfiguration interface {
-	GetTestMode() bool
-	SetTestMode(value bool)
-	GetTimeout() time.Duration
-	GetAvailableGpuTypes() map[string]string
+	AttachInstance(instanceName string, nodeIndex int) (ProviderHandler, error)
+	CreateInstance(instanceName string, nodeIndex int) (ProviderHandler, error)
 	NodeGroupName() string
-	//	Copy() ProviderConfiguration
-	Clone(nodeIndex int) (ProviderConfiguration, error)
+	GetAvailableGpuTypes() map[string]string
+	InstanceExists(name string) bool
+}
+
+type ProviderHandler interface {
+	GetTimeout() time.Duration
+	NodeGroupName() string
 	ConfigureNetwork(network v1alpha1.ManagedNetworkConfig)
-	AttachInstance(instanceName string) (ProviderConfiguration, error)
-	RetrieveNetworkInfos(name, vmuuid string, nodeIndex int) error
-	UpdateMacAddressTable(nodeIndex int) error
-	GenerateProviderID(vmuuid string) string
+	RetrieveNetworkInfos() error
+	UpdateMacAddressTable() error
+	GenerateProviderID() string
 	GetTopologyLabels() map[string]string
 	InstanceCreate(nodeName string, nodeIndex int, instanceType, userName, authKey string, cloudInit interface{}, machine *MachineCharacteristic) (string, error)
 	InstanceWaitReady(callback CallbackWaitSSHReady) (string, error)
-	InstanceID(name string) (string, error)
-	InstanceExists(name string) bool
-	InstanceAutoStart(name string) error
-	InstancePowerOn(name string) error
-	InstancePowerOff(name string) error
-	InstanceShutdownGuest(name string) error
-	InstanceDelete(name string) error
-	InstanceStatus(name string) (InstanceStatus, error)
-	InstanceWaitForPowered(name string) error
-	InstanceWaitForToolsRunning(name string) (bool, error)
+	InstanceID() (string, error)
+	InstanceAutoStart() error
+	InstancePowerOn() error
+	InstancePowerOff() error
+	InstanceShutdownGuest() error
+	InstanceDelete() error
+	InstanceStatus() (InstanceStatus, error)
+	InstanceWaitForPowered() error
+	InstanceWaitForToolsRunning() (bool, error)
 	InstanceMaxPods(instanceType string, desiredMaxPods int) (int, error)
 	RegisterDNS(address string) error
 	UnregisterDNS(address string) error
+	UUID(name string) (string, error)
 }
 
 // Copy Make a deep copy from src into dst.
@@ -92,6 +96,28 @@ func Copy(dst interface{}, src interface{}) error {
 
 	if err != nil {
 		return fmt.Errorf("unable to unmarshal into dst: %s", err)
+	}
+
+	return nil
+}
+
+func LoadConfig(fileName string, config any) error {
+	file, err := os.Open(fileName)
+
+	if err != nil {
+		glog.Errorf("Failed to open file:%s, error:%v", fileName, err)
+
+		return err
+	}
+
+	defer file.Close()
+
+	decoder := json.NewDecoder(file)
+	err = decoder.Decode(config)
+
+	if err != nil {
+		glog.Errorf("failed to decode AutoScalerServerApp file:%s, error:%v", fileName, err)
+		return err
 	}
 
 	return nil

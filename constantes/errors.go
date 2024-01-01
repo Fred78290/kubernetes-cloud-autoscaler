@@ -270,6 +270,9 @@ const (
 
 	// InfoManagedNodeIsDeleted info msg
 	InfoManagedNodeIsDeleted = "ManagedNode '%s' is deleted, delete associated node %s"
+
+	// ErrInstanceIsNotAttachedToCloudProvider err msg
+	ErrInstanceIsNotAttachedToCloudProvider = "instance is not attached to cloud provider"
 )
 
 //update status managed node %s failed, reason: %v

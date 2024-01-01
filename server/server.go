@@ -1664,25 +1664,8 @@ func StartServer(kubeClient types.ClientGenerator, c *types.Config) {
 		config.CloudProvider = &c.CloudProvider
 	}
 
-	if config.Providers == nil {
-		glog.Fatal("Providers configuration is not defined")
-	}
-
-	switch *config.CloudProvider {
-	case providers.AwsCloudProviderName:
-		if config.Providers.AwsProviderConfig == nil {
-			glog.Fatal("aws configuration is not defined")
-		}
-	case providers.VSphereCloudProviderName:
-		if config.Providers.VSphereProviderConfig == nil {
-			glog.Fatal("VSphere configuration is not defined")
-		}
-	case providers.VMWareWorkstationProviderName:
-		if config.Providers.DesktopProviderConfig == nil {
-			glog.Fatal("Desktop configuration is not defined")
-		}
-	default:
-		glog.Fatalf("Unsupported cloud provider: %s", *config.CloudProvider)
+	if err = config.SetupCloudConfiguration(c.ProviderConfig); err != nil {
+		glog.Fatalf("Can't setup cloud provider, reason:%s", err)
 	}
 
 	switch *config.Distribution {
@@ -1739,10 +1722,6 @@ func StartServer(kubeClient types.ClientGenerator, c *types.Config) {
 	}
 
 	config.ManagedNodeResourceLimiter = c.GetManagedNodeResourceLimiter()
-
-	if err = config.SetupCloudConfiguration(); err != nil {
-		glog.Fatalf("Can't setup cloud provider, reason:%s", err)
-	}
 
 	if !phSaveState || !utils.FileExists(phSavedState) {
 		autoScalerServer = &AutoScalerServerApp{

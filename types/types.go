@@ -57,6 +57,7 @@ func MergeKubernetesLabel(labels ...KubernetesLabel) KubernetesLabel {
 type Config struct {
 	APIServerURL             string
 	KubeConfig               string
+	ProviderConfig           string
 	ExtDestinationEtcdSslDir string
 	ExtSourceEtcdSslDir      string
 	KubernetesPKISourceDir   string
@@ -245,12 +246,6 @@ type NodeGroupAutoscalingOptions struct {
 	ScaleDownUnreadyTime time.Duration `json:"scaleDownUnreadyTime,omitempty"`
 }
 
-type Providers struct {
-	AwsProviderConfig     *aws.Configuration     `json:"aws,omitempty"`
-	VSphereProviderConfig *vsphere.Configuration `json:"vsphere,omitempty"`
-	DesktopProviderConfig *desktop.Configuration `json:"desktop,omitempty"`
-}
-
 // AutoScalerServerConfig is contains configuration
 type AutoScalerServerConfig struct {
 	Distribution               *string                          `default:"kubeadm" json:"distribution"`
@@ -290,7 +285,6 @@ type AutoScalerServerConfig struct {
 	SSH                        *AutoScalerServerSSH             `json:"ssh-infos"`
 	AutoScalingOptions         *NodeGroupAutoscalingOptions     `json:"autoscaling-options,omitempty"`
 	DebugMode                  *bool                            `json:"debug,omitempty"`
-	Providers                  *Providers                       `json:"providers,omitempty"`
 	providerConfiguration      providers.ProviderConfiguration  `json:"-"`
 }
 
@@ -381,24 +375,22 @@ func (limits *ResourceLimiter) GetMinValue(key string, defaultValue int) int {
 }
 
 // SetupCloudConfiguration returns the cloud configuration
-func (conf *AutoScalerServerConfig) SetupCloudConfiguration() error {
+func (conf *AutoScalerServerConfig) SetupCloudConfiguration(configFile string) error {
 	var err error
 
 	if conf.providerConfiguration == nil {
-		if conf.Providers == nil {
-			err = fmt.Errorf("Providers configuration is not defined")
+		if conf.CloudProvider == nil {
+			conf.providerConfiguration, err = vsphere.NewVSphereProviderConfiguration(configFile)
 		} else {
-			if conf.CloudProvider == nil {
-				conf.providerConfiguration, err = vsphere.NewVSphereProviderConfiguration(*conf.Distribution, conf.Providers.VSphereProviderConfig)
-			} else {
-				switch *conf.CloudProvider {
-				case providers.AwsCloudProviderName:
-					conf.providerConfiguration, err = aws.NewAwsProviderConfiguration(*conf.Distribution, conf.Providers.AwsProviderConfig)
-				case providers.VSphereCloudProviderName:
-					conf.providerConfiguration, err = vsphere.NewVSphereProviderConfiguration(*conf.Distribution, conf.Providers.VSphereProviderConfig)
-				case providers.VMWareWorkstationProviderName:
-					conf.providerConfiguration, err = desktop.NewDesktopProviderConfiguration(*conf.Distribution, conf.Providers.DesktopProviderConfig)
-				}
+			switch *conf.CloudProvider {
+			case providers.AwsCloudProviderName:
+				conf.providerConfiguration, err = aws.NewAwsProviderConfiguration(configFile)
+			case providers.VSphereCloudProviderName:
+				conf.providerConfiguration, err = vsphere.NewVSphereProviderConfiguration(configFile)
+			case providers.VMWareWorkstationProviderName:
+				conf.providerConfiguration, err = desktop.NewDesktopProviderConfiguration(configFile)
+			default:
+				glog.Fatalf("Unsupported cloud provider: %s", *conf.CloudProvider)
 			}
 		}
 	}
@@ -415,6 +407,7 @@ func NewConfig() *Config {
 	return &Config{
 		APIServerURL:             "",
 		KubeConfig:               "",
+		ProviderConfig:           "/etc/cluster/config-provider.json",
 		Distribution:             providers.KubeAdmDistributionName,
 		UseExternalEtdc:          false,
 		UseVanillaGrpcProvider:   false,
@@ -429,7 +422,7 @@ func NewConfig() *Config {
 		NodeReadyTimeout:         DefaultNodeReadyTimeout,
 		CloudProvider:            "vsphere",
 		DisplayVersion:           false,
-		Config:                   "/etc/cluster/vmware-cluster-autoscaler.json",
+		Config:                   "/etc/cluster/config-autoscaler.json",
 		MinCpus:                  2,
 		MinMemory:                1024,
 		MaxCpus:                  24,
@@ -467,6 +460,8 @@ func (cfg *Config) ParseFlags(args []string, version string) error {
 	app.Flag("debug", "Debug mode").Default("false").BoolVar(&cfg.DebugMode)
 
 	app.Flag("cloud-provider", "Which cloud provider used: vsphere, aws, desktop").Default(providers.VSphereCloudProviderName).EnumVar(&cfg.CloudProvider, providers.AwsCloudProviderName, providers.VSphereCloudProviderName, providers.VMWareWorkstationProviderName)
+	app.Flag("cloud-provider-config", "Cloud provider config file").Default(cfg.ProviderConfig).StringVar(&cfg.ProviderConfig)
+
 	app.Flag("distribution", "Which kubernetes distribution to use: kubeadm, k3s, rke2, external").Default(providers.K3SDistributionName).EnumVar(&cfg.Distribution, providers.KubeAdmDistributionName, providers.K3SDistributionName, providers.RKE2DistributionName, providers.ExternalDistributionName)
 	app.Flag("use-vanilla-grpc", "Tell we use vanilla autoscaler externalgrpc cloudprovider").Default("false").BoolVar(&cfg.UseVanillaGrpcProvider)
 	app.Flag("use-controller-manager", "Tell we use vsphere controller manager").Default("true").BoolVar(&cfg.UseControllerManager)
