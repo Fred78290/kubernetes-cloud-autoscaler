@@ -18,7 +18,7 @@ import (
 )
 
 type baseTest struct {
-	testConfig providers.ProviderHandler
+	testConfig providers.ProviderConfiguration
 	t          *testing.T
 }
 
@@ -41,19 +41,25 @@ func (ng *autoScalerServerNodeGroupTest) createTestNode(nodeName string, desired
 	machine := ng.Machine()
 
 	node := &AutoScalerServerNode{
-		NodeGroupID:  testGroupID,
-		NodeName:     nodeName,
-		VMUUID:       testVMUUID,
-		CRDUID:       testCRDUID,
-		Memory:       machine.Memory,
-		CPU:          machine.Vcpu,
-		DiskSize:     machine.DiskSize,
-		IPAddress:    "127.0.0.1",
-		State:        state,
-		NodeType:     AutoScalerServerNodeAutoscaled,
-		NodeIndex:    1,
-		cloudConfig:  ng.testConfig,
-		serverConfig: ng.configuration,
+		NodeGroupID:     testGroupID,
+		NodeName:        nodeName,
+		VMUUID:          testVMUUID,
+		CRDUID:          testCRDUID,
+		Memory:          machine.Memory,
+		CPU:             machine.Vcpu,
+		DiskSize:        machine.DiskSize,
+		IPAddress:       "127.0.0.1",
+		State:           state,
+		NodeType:        AutoScalerServerNodeAutoscaled,
+		NodeIndex:       1,
+		providerHandler: nil,
+		serverConfig:    ng.configuration,
+	}
+
+	if ng.testConfig.InstanceExists(nodeName) {
+		node.providerHandler, _ = ng.testConfig.AttachInstance(nodeName, 1)
+	} else {
+		node.providerHandler, _ = ng.testConfig.CreateInstance(nodeName, 1)
 	}
 
 	if vmuuid := node.findInstanceUUID(); len(vmuuid) > 0 {
@@ -339,7 +345,7 @@ func (m *baseTest) ssh() {
 	}
 }
 
-func findInstanceID(config providers.ProviderHandler, nodeName string) string {
+func findInstanceID(config providers.ProviderConfiguration, nodeName string) string {
 	if vmUUID, err := config.UUID(nodeName); err == nil {
 		return vmUUID
 	}

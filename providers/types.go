@@ -49,6 +49,17 @@ type ProviderConfiguration interface {
 	NodeGroupName() string
 	GetAvailableGpuTypes() map[string]string
 	InstanceExists(name string) bool
+	UUID(name string) (string, error)
+}
+
+type InstanceCreateInput struct {
+	NodeName     string
+	NodeIndex    int
+	InstanceType string
+	UserName     string
+	AuthKey      string
+	CloudInit    interface{}
+	Machine      *MachineCharacteristic
 }
 
 type ProviderHandler interface {
@@ -59,7 +70,7 @@ type ProviderHandler interface {
 	UpdateMacAddressTable() error
 	GenerateProviderID() string
 	GetTopologyLabels() map[string]string
-	InstanceCreate(nodeName string, nodeIndex int, instanceType, userName, authKey string, cloudInit interface{}, machine *MachineCharacteristic) (string, error)
+	InstanceCreate(input *InstanceCreateInput) (string, error)
 	InstanceWaitReady(callback CallbackWaitSSHReady) (string, error)
 	InstanceID() (string, error)
 	InstanceAutoStart() error

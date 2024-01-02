@@ -298,7 +298,7 @@ func (g *AutoScalerServerNodeGroup) addManagedNode(crd *v1alpha1.ManagedNode) (*
 				ExtraLabels:      CreateLabelOrAnnotation(crd.Spec.Labels),
 				ExtraAnnotations: CreateLabelOrAnnotation(crd.Spec.Annotations),
 				CRDUID:           crd.GetUID(),
-				cloudConfig:      clonedConfig,
+				providerHandler:  clonedConfig,
 				serverConfig:     g.configuration,
 			}
 
@@ -375,7 +375,7 @@ func (g *AutoScalerServerNodeGroup) prepareNodes(c types.ClientGenerator, delta 
 				ExtraLabels:      extraLabels,
 				ControlPlaneNode: false,
 				AllowDeployment:  true,
-				cloudConfig:      clonedConfig,
+				providerHandler:  clonedConfig,
 				serverConfig:     g.configuration,
 			}
 
@@ -705,7 +705,7 @@ func (g *AutoScalerServerNodeGroup) autoDiscoveryNodes(client types.ClientGenera
 								Memory:           int(nodeInfo.Status.Capacity.Memory().Value() / (1024 * 1024)),
 								DiskSize:         int(nodeInfo.Status.Capacity.Storage().Value() / (1024 * 1024)),
 								IPAddress:        runningIP,
-								cloudConfig:      handler,
+								providerHandler:  handler,
 								serverConfig:     g.configuration,
 							}
 
@@ -731,7 +731,7 @@ func (g *AutoScalerServerNodeGroup) autoDiscoveryNodes(client types.ClientGenera
 								glog.Errorf(constantes.ErrLabelNodeReturnError, nodeInfo.Name, err)
 							}
 						} else {
-							node.cloudConfig = handler
+							node.providerHandler = handler
 							glog.Infof("Attach existing node:%s with IP:%s to nodegroup:%s", instanceName, runningIP, g.NodeGroupIdentifier)
 						}
 
@@ -807,14 +807,19 @@ func (g *AutoScalerServerNodeGroup) deleteNodeByName(c types.ClientGenerator, no
 	return fmt.Errorf(constantes.ErrNodeNotFoundInNodeGroup, nodeName, g.NodeGroupIdentifier)
 }
 
-func (g *AutoScalerServerNodeGroup) setConfiguration(config *types.AutoScalerServerConfig) {
+func (g *AutoScalerServerNodeGroup) setConfiguration(config *types.AutoScalerServerConfig) (err error) {
 	glog.Debugf("AutoScalerServerNodeGroup::setConfiguration, nodeGroupID:%s", g.NodeGroupIdentifier)
 
 	g.configuration = config
 
 	for _, node := range g.AllNodes() {
-		node.setServerConfiguration(config)
+		if err = node.setServerConfiguration(config); err != nil {
+			glog.Errorf("unable to set configuration to node: %s, %v", node.InstanceName, err)
+			return err
+		}
 	}
+
+	return err
 }
 
 func (g *AutoScalerServerNodeGroup) deleteNodeGroup(c types.ClientGenerator) error {

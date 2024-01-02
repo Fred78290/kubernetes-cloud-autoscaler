@@ -1474,7 +1474,9 @@ func (s *AutoScalerServerApp) Load(fileName string) error {
 	}
 
 	for _, ng := range s.Groups {
-		ng.setConfiguration(s.configuration)
+		if err = ng.setConfiguration(s.configuration); err != nil {
+			return err
+		}
 	}
 
 	if s.AutoProvision {

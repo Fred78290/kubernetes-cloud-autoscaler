@@ -6,7 +6,6 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/base64"
-	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -37,27 +36,6 @@ type VirtualMachine struct {
 // GuestInfos the guest infos
 // Must not start with `guestinfo.`
 type GuestInfos map[string]string
-
-func encodeMetadata(object interface{}) (string, error) {
-	var result string
-	out, err := json.Marshal(object)
-
-	if err == nil {
-		var stdout bytes.Buffer
-		var zw = gzip.NewWriter(&stdout)
-
-		zw.Name = "metadata"
-		zw.ModTime = time.Now()
-
-		if _, err = zw.Write(out); err == nil {
-			if err = zw.Close(); err == nil {
-				result = base64.StdEncoding.EncodeToString(stdout.Bytes())
-			}
-		}
-	}
-
-	return result, err
-}
 
 func encodeCloudInit(name string, object interface{}) (string, error) {
 	var result string
@@ -339,7 +317,7 @@ func (vm *VirtualMachine) addOrExpandHardDrive(ctx *context.Context, virtualMach
 }
 
 // Configure set characteristic of VM a virtual machine
-func (vm *VirtualMachine) Configure(ctx *context.Context, userName, authKey string, cloudInit interface{}, network *Network, annotation string, expandHardDrive bool, memory, cpus, disk, nodeIndex int, allowUpgrade bool) error {
+func (vm *VirtualMachine) Configure(ctx *context.Context, input *CreateInput) error {
 	var devices object.VirtualDeviceList
 	var err error
 	var task *object.Task
@@ -347,18 +325,18 @@ func (vm *VirtualMachine) Configure(ctx *context.Context, userName, authKey stri
 	virtualMachine := vm.VirtualMachine(ctx)
 
 	vmConfigSpec := types.VirtualMachineConfigSpec{
-		NumCPUs:      int32(cpus),
-		MemoryMB:     int64(memory),
-		Annotation:   annotation,
+		NumCPUs:      int32(input.Machine.Vcpu),
+		MemoryMB:     int64(input.Machine.Memory),
+		Annotation:   input.Annotation,
 		InstanceUuid: virtualMachine.UUID(ctx),
 		Uuid:         virtualMachine.UUID(ctx),
 	}
 
-	if devices, err = vm.addOrExpandHardDrive(ctx, virtualMachine, disk, expandHardDrive, devices); err != nil {
+	if devices, err = vm.addOrExpandHardDrive(ctx, virtualMachine, input.Machine.DiskSize, input.ExpandHardDrive, devices); err != nil {
 
 		err = fmt.Errorf(constantes.ErrUnableToAddHardDrive, vm.Name, err)
 
-	} else if devices, err = vm.addNetwork(ctx, network, devices, nodeIndex); err != nil {
+	} else if devices, err = vm.addNetwork(ctx, input.Network, devices, input.NodeIndex); err != nil {
 
 		err = fmt.Errorf(constantes.ErrUnableToAddNetworkCard, vm.Name, err)
 
@@ -366,7 +344,7 @@ func (vm *VirtualMachine) Configure(ctx *context.Context, userName, authKey stri
 
 		err = fmt.Errorf(constantes.ErrUnableToCreateDeviceChangeOp, vm.Name, err)
 
-	} else if vmConfigSpec.ExtraConfig, err = vm.cloudInit(ctx, vm.Name, userName, authKey, cloudInit, network, nodeIndex, allowUpgrade); err != nil {
+	} else if vmConfigSpec.ExtraConfig, err = vm.cloudInit(ctx, input); err != nil {
 
 		err = fmt.Errorf(constantes.ErrCloudInitFailCreation, vm.Name, err)
 
@@ -720,7 +698,7 @@ func (vm *VirtualMachine) SetGuestInfo(ctx *context.Context, guestInfos *GuestIn
 	return err
 }
 
-func (vm *VirtualMachine) cloudInit(ctx *context.Context, hostName string, userName, authKey string, cloudInit interface{}, network *Network, nodeIndex int, allowUpgrade bool) ([]types.BaseOptionValue, error) {
+func (vm *VirtualMachine) cloudInit(ctx *context.Context, input *CreateInput) ([]types.BaseOptionValue, error) {
 	var metadata, userdata, vendordata string
 	var err error
 	var guestInfos GuestInfos
@@ -728,18 +706,18 @@ func (vm *VirtualMachine) cloudInit(ctx *context.Context, hostName string, userN
 
 	v := vm.VirtualMachine(ctx)
 
-	if len(network.Domain) > 0 {
-		fqdn = fmt.Sprintf("%s.%s", hostName, network.Domain)
+	if input.Network != nil && len(input.Network.Domain) > 0 {
+		fqdn = fmt.Sprintf("%s.%s", input.NodeName, input.Network.Domain)
 	}
 
 	netconfig := &NetworkConfig{
 		InstanceID:    v.UUID(ctx),
-		LocalHostname: hostName,
+		LocalHostname: input.NodeName,
 		Hostname:      fqdn,
 	}
 
-	if network != nil && len(network.Interfaces) > 0 {
-		netconfig.Network = network.GetCloudInitNetwork(nodeIndex)
+	if input.Network != nil && len(input.Network.Interfaces) > 0 {
+		netconfig.Network = input.Network.GetCloudInitNetwork(input.NodeIndex)
 	}
 
 	if metadata, err = encodeObject("metadata", netconfig); err != nil {
@@ -747,29 +725,31 @@ func (vm *VirtualMachine) cloudInit(ctx *context.Context, hostName string, userN
 	}
 
 	if err == nil {
-		if cloudInit != nil {
-			if userdata, err = encodeCloudInit("userdata", cloudInit); err != nil {
+		if input.CloudInit != nil {
+			if userdata, err = encodeCloudInit("userdata", input.CloudInit); err != nil {
 				return nil, fmt.Errorf(constantes.ErrUnableToEncodeGuestInfo, "userdata", err)
 			}
 		} else if userdata, err = encodeCloudInit("userdata", map[string]string{}); err != nil {
 			return nil, fmt.Errorf(constantes.ErrUnableToEncodeGuestInfo, "userdata", err)
 		}
 
-		if len(userName) > 0 && len(authKey) > 0 {
-			if vendordata, err = encodeCloudInit("vendordata", buildVendorData(userName, authKey, allowUpgrade)); err != nil {
+		if len(input.UserName) > 0 && len(input.AuthKey) > 0 {
+			if vendordata, err = encodeCloudInit("vendordata", buildVendorData(input.UserName, input.AuthKey, input.AllowUpgrade)); err != nil {
 				return nil, fmt.Errorf(constantes.ErrUnableToEncodeGuestInfo, "vendordata", err)
 			}
 		} else if vendordata, err = encodeCloudInit("vendordata", map[string]string{}); err != nil {
 			return nil, fmt.Errorf(constantes.ErrUnableToEncodeGuestInfo, "vendordata", err)
 		}
 
+		const gzipBase64 = "gzip+base64"
+
 		guestInfos = GuestInfos{
 			"metadata":            metadata,
-			"metadata.encoding":   "gzip+base64",
+			"metadata.encoding":   gzipBase64,
 			"userdata":            userdata,
-			"userdata.encoding":   "gzip+base64",
+			"userdata.encoding":   gzipBase64,
 			"vendordata":          vendordata,
-			"vendordata.encoding": "gzip+base64",
+			"vendordata.encoding": gzipBase64,
 		}
 	}
 

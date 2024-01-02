@@ -19,8 +19,20 @@ import (
 // Key type for storing flag instances in a context.Context.
 type contextKey string
 
-var outputKey = contextKey("output")
-var datastoreKey = contextKey("datastore")
+type CreateVirtualMachineInput struct {
+	*CreateInput
+	Customization string
+	TemplateName  string
+	VMFolder      string
+	ResourceName  string
+	Template      bool
+	LinkedClone   bool
+}
+
+const (
+	outputKey    = contextKey("output")
+	datastoreKey = contextKey("datastore")
+)
 
 // Datastore datastore wrapper
 type Datastore struct {
@@ -175,7 +187,7 @@ func (ds *Datastore) output(ctx *context.Context) *flags.OutputFlag {
 }
 
 // CreateVirtualMachine create a new virtual machine
-func (ds *Datastore) CreateVirtualMachine(ctx *context.Context, name, templateName, vmFolder, resourceName string, template bool, linkedClone bool, network *Network, customization string, nodeIndex int) (*VirtualMachine, error) {
+func (ds *Datastore) CreateVirtualMachine(ctx *context.Context, input *CreateVirtualMachineInput) (*VirtualMachine, error) {
 	var templateVM *object.VirtualMachine
 	var folder *object.Folder
 	var resourcePool *object.ResourcePool
@@ -186,20 +198,20 @@ func (ds *Datastore) CreateVirtualMachine(ctx *context.Context, name, templateNa
 	//	config := ds.Datacenter.Client.Configuration
 	output := ds.output(ctx)
 
-	if templateVM, err = ds.findVM(ctx, templateName); err == nil {
+	if templateVM, err = ds.findVM(ctx, input.TemplateName); err == nil {
 
-		logger := output.ProgressLogger(fmt.Sprintf("Cloning %s to %s...", templateVM.InventoryPath, name))
+		logger := output.ProgressLogger(fmt.Sprintf("Cloning %s to %s...", templateVM.InventoryPath, input.NodeName))
 		defer logger.Wait()
 
-		if folder, err = ds.vmFolder(ctx, vmFolder); err == nil {
-			if resourcePool, err = ds.resourcePool(ctx, resourceName); err == nil {
+		if folder, err = ds.vmFolder(ctx, input.VMFolder); err == nil {
+			if resourcePool, err = ds.resourcePool(ctx, input.ResourceName); err == nil {
 				// prepare virtual device config spec for network card
 				configSpecs := []types.BaseVirtualDeviceConfigSpec{}
 
-				if network != nil {
+				if input.Network != nil {
 					if devices, err := templateVM.Device(ctx); err == nil {
-						for _, inf := range network.Interfaces {
-							if inf.NeedToReconfigure(nodeIndex) {
+						for _, inf := range input.Network.Interfaces {
+							if inf.NeedToReconfigure(input.NodeIndex) {
 								// In case we dont find the preconfigured net card, we add it
 								inf.Existing = false
 
@@ -211,7 +223,7 @@ func (ds *Datastore) CreateVirtualMachine(ctx *context.Context, name, templateNa
 										if match, err := inf.MatchInterface(ctx, ds.Datacenter, ethernet.GetVirtualEthernetCard()); match && err == nil {
 
 											// Change the mac address
-											if inf.ChangeAddress(ethernet.GetVirtualEthernetCard(), nodeIndex) {
+											if inf.ChangeAddress(ethernet.GetVirtualEthernetCard(), input.NodeIndex) {
 												configSpecs = append(configSpecs, &types.VirtualDeviceConfigSpec{
 													Operation: types.VirtualDeviceConfigSpecOperationEdit,
 													Device:    device,
@@ -239,7 +251,7 @@ func (ds *Datastore) CreateVirtualMachine(ctx *context.Context, name, templateNa
 
 				cloneSpec := &types.VirtualMachineCloneSpec{
 					PowerOn:  false,
-					Template: template,
+					Template: input.Template,
 				}
 
 				relocateSpec := types.VirtualMachineRelocateSpec{
@@ -248,7 +260,7 @@ func (ds *Datastore) CreateVirtualMachine(ctx *context.Context, name, templateNa
 					Pool:         &poolref,
 				}
 
-				if linkedClone {
+				if input.LinkedClone {
 					relocateSpec.DiskMoveType = string(types.VirtualMachineRelocateDiskMoveOptionsMoveAllDiskBackingsAndAllowSharing)
 				}
 
@@ -256,22 +268,22 @@ func (ds *Datastore) CreateVirtualMachine(ctx *context.Context, name, templateNa
 				cloneSpec.Location.Datastore = &ds.Ref
 
 				// check if customization specification requested
-				if len(customization) > 0 {
+				if len(input.Customization) > 0 {
 					// get the customization spec manager
 					customizationSpecManager := object.NewCustomizationSpecManager(ds.VimClient())
 					// check if customization specification exists
-					exists, err := customizationSpecManager.DoesCustomizationSpecExist(ctx, customization)
+					exists, err := customizationSpecManager.DoesCustomizationSpecExist(ctx, input.Customization)
 
 					if err != nil {
 						return nil, err
 					}
 
 					if !exists {
-						return nil, fmt.Errorf("customization specification %s does not exists", customization)
+						return nil, fmt.Errorf("customization specification %s does not exists", input.Customization)
 					}
 
 					// get the customization specification
-					customSpecItem, err := customizationSpecManager.GetCustomizationSpec(ctx, customization)
+					customSpecItem, err := customizationSpecManager.GetCustomizationSpec(ctx, input.Customization)
 					if err != nil {
 						return nil, err
 					}
@@ -280,13 +292,13 @@ func (ds *Datastore) CreateVirtualMachine(ctx *context.Context, name, templateNa
 					cloneSpec.Customization = &customSpec
 				}
 
-				if task, err = templateVM.Clone(ctx, folder, name, *cloneSpec); err == nil {
+				if task, err = templateVM.Clone(ctx, folder, input.NodeName, *cloneSpec); err == nil {
 					var info *types.TaskInfo
 
 					if info, err = task.WaitForResult(ctx, logger); err == nil {
 						vm = &VirtualMachine{
 							Ref:       info.Result.(types.ManagedObjectReference),
-							Name:      name,
+							Name:      input.NodeName,
 							Datastore: ds,
 						}
 					}

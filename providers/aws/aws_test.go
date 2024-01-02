@@ -19,12 +19,12 @@ import (
 )
 
 type ConfigurationTest struct {
-	aws.Configuration
-	SSH          types.AutoScalerServerSSH `json:"ssh"`
-	InstanceName string                    `json:"instanceName"`
-	InstanceType string                    `json:"instanceType"`
+	SSH          types.AutoScalerServerSSH        `json:"ssh"`
+	InstanceName string                           `json:"instanceName"`
+	InstanceType string                           `json:"instanceType"`
+	Machine      *providers.MachineCharacteristic `json:"machine"`
+	provider     providers.ProviderConfiguration
 	inited       bool
-	provider     providers.ProviderHandler
 }
 
 var testConfig ConfigurationTest
@@ -34,16 +34,26 @@ const (
 	cantGetStatus = "Can't get status on VM"
 )
 
-func getConfFile() string {
+func getAwsConfFile() string {
+	if config := os.Getenv("TEST_AWS_CONFIG"); config != "" {
+		return config
+	}
+
+	return "../test/config/aws.json"
+}
+
+func getTestFile() string {
 	if config := os.Getenv("TEST_CONFIG"); config != "" {
 		return config
 	}
 
-	return "../test/local_aws.json"
+	return "../test/aws.json"
 }
 
-func loadFromJson(fileName string) *ConfigurationTest {
+func loadFromJson() *ConfigurationTest {
 	if !testConfig.inited {
+		fileName := getTestFile()
+
 		if configStr, err := os.ReadFile(fileName); err != nil {
 			glog.Fatalf("failed to open config file:%s, error:%v", fileName, err)
 		} else {
@@ -53,7 +63,12 @@ func loadFromJson(fileName string) *ConfigurationTest {
 				glog.Fatalf("failed to decode config file:%s, error:%v", fileName, err)
 			}
 
-			testConfig.provider, _ = aws.NewAwsProviderConfiguration("kubeadm", &testConfig.Configuration)
+			fileName = getAwsConfFile()
+
+			if testConfig.provider, err = aws.NewAwsProviderConfiguration(fileName); err != nil {
+				glog.Fatalf("failed to open config file:%s, error:%v", fileName, err)
+			}
+
 			testConfig.inited = true
 		}
 	}
@@ -77,7 +92,7 @@ func (config *ConfigurationTest) WaitSSHReady(nodename, address string) error {
 
 func Test_AuthMethodKey(t *testing.T) {
 	if utils.ShouldTestFeature("Test_AuthMethodKey") {
-		config := loadFromJson(getConfFile())
+		config := loadFromJson()
 
 		_, err := utils.AuthMethodFromPrivateKeyFile(config.SSH.GetAuthKeys())
 
@@ -89,7 +104,7 @@ func Test_AuthMethodKey(t *testing.T) {
 
 func Test_Sudo(t *testing.T) {
 	if utils.ShouldTestFeature("Test_Sudo") {
-		config := loadFromJson(getConfFile())
+		config := loadFromJson()
 
 		out, err := utils.Sudo(&config.SSH, "localhost", 10, "ls")
 
@@ -101,7 +116,7 @@ func Test_Sudo(t *testing.T) {
 
 func Test_getInstanceID(t *testing.T) {
 	if utils.ShouldTestFeature("Test_getInstanceID") {
-		config := loadFromJson(getConfFile())
+		config := loadFromJson()
 
 		if instance, err := config.provider.AttachInstance(config.InstanceName, 0); err != nil {
 			if !strings.HasPrefix(err.Error(), "unable to find VM:") {
@@ -119,26 +134,30 @@ func Test_getInstanceID(t *testing.T) {
 
 func Test_createInstance(t *testing.T) {
 	if utils.ShouldTestFeature("Test_createInstance") {
-		config := loadFromJson(getConfFile())
+		config := loadFromJson()
 
-		machine := providers.MachineCharacteristic{
-			Memory:   0,
-			Vcpu:     0,
-			DiskSize: config.DiskSize,
-			DiskType: config.DiskType,
-		}
+		if handler, err := config.provider.CreateInstance(config.InstanceName, 0); assert.NoError(t, err, "Can't create VM") && err == nil {
 
-		_, err := config.provider.InstanceCreate(config.InstanceName, 0, config.InstanceType, "", "", nil, &machine)
+			createInput := &providers.InstanceCreateInput{
+				NodeName:     config.InstanceName,
+				NodeIndex:    0,
+				InstanceType: config.InstanceType,
+				UserName:     config.SSH.UserName,
+				AuthKey:      config.SSH.AuthKeys,
+				CloudInit:    nil,
+				Machine:      config.Machine,
+			}
 
-		if assert.NoError(t, err, "Can't create VM") {
-			t.Logf("VM created")
+			if vmuuid, err := handler.InstanceCreate(createInput); assert.NoError(t, err, "Can't create VM") {
+				t.Logf("VM created: %s", vmuuid)
+			}
 		}
 	}
 }
 
 func Test_statusInstance(t *testing.T) {
 	if utils.ShouldTestFeature("Test_statusInstance") {
-		config := loadFromJson(getConfFile())
+		config := loadFromJson()
 
 		if instance, err := config.provider.AttachInstance(config.InstanceName, 0); assert.NoError(t, err, fmt.Sprintf(cantFindEC2, config.InstanceName)) {
 			status, err := instance.InstanceStatus()
@@ -152,13 +171,11 @@ func Test_statusInstance(t *testing.T) {
 
 func Test_waitForPowered(t *testing.T) {
 	if utils.ShouldTestFeature("Test_waitForPowered") {
-		config := loadFromJson(getConfFile())
+		config := loadFromJson()
 
 		if instance, err := config.provider.AttachInstance(config.InstanceName, 0); assert.NoError(t, err, fmt.Sprintf(cantFindEC2, config.InstanceName)) {
 			if status, err := instance.InstanceStatus(); assert.NoError(t, err, cantGetStatus) && status.Powered() {
-				err := instance.InstanceWaitForPowered()
-
-				if assert.NoError(t, err, "Can't WaitForPowered") {
+				if err := instance.InstanceWaitForPowered(); assert.NoError(t, err, "Can't WaitForPowered") {
 					t.Log("VM powered")
 				}
 			} else {
@@ -170,13 +187,11 @@ func Test_waitForPowered(t *testing.T) {
 
 func Test_waitForIP(t *testing.T) {
 	if utils.ShouldTestFeature("Test_waitForIP") {
-		config := loadFromJson(getConfFile())
+		config := loadFromJson()
 
 		if instance, err := config.provider.AttachInstance(config.InstanceName, 0); assert.NoError(t, err, fmt.Sprintf(cantFindEC2, config.InstanceName)) {
 			if status, err := instance.InstanceStatus(); assert.NoError(t, err, cantGetStatus) && status.Powered() {
-				ipaddr, err := instance.InstanceWaitReady(config)
-
-				if assert.NoError(t, err, "Can't get IP") {
+				if ipaddr, err := instance.InstanceWaitReady(config); assert.NoError(t, err, "Can't get IP") {
 					t.Logf("VM powered with IP:%s", ipaddr)
 				}
 			} else {
@@ -188,14 +203,12 @@ func Test_waitForIP(t *testing.T) {
 
 func Test_powerOnInstance(t *testing.T) {
 	if utils.ShouldTestFeature("Test_powerOnInstance") {
-		config := loadFromJson(getConfFile())
+		config := loadFromJson()
 
 		if instance, err := config.provider.AttachInstance(config.InstanceName, 0); assert.NoError(t, err, fmt.Sprintf(cantFindEC2, config.InstanceName)) {
 			if status, err := instance.InstanceStatus(); assert.NoError(t, err, cantGetStatus) {
 				if status.Powered() == false {
-					err = instance.InstancePowerOn()
-
-					if assert.NoError(t, err, "Can't power on VM") {
+					if err = instance.InstancePowerOn(); assert.NoError(t, err, "Can't power on VM") {
 						ipaddr, err := instance.InstanceWaitReady(config)
 
 						if assert.NoError(t, err, "Can't get IP") {
@@ -212,13 +225,11 @@ func Test_powerOnInstance(t *testing.T) {
 
 func Test_powerOffInstance(t *testing.T) {
 	if utils.ShouldTestFeature("Test_powerOffInstance") {
-		config := loadFromJson(getConfFile())
+		config := loadFromJson()
 
 		if instance, err := config.provider.AttachInstance(config.InstanceName, 0); assert.NoError(t, err, fmt.Sprintf(cantFindEC2, config.InstanceName)) {
 			if status, err := instance.InstanceStatus(); assert.NoError(t, err, cantGetStatus) && status.Powered() {
-				err = instance.InstancePowerOff()
-
-				if assert.NoError(t, err, "Can't power off VM") {
+				if err = instance.InstancePowerOff(); assert.NoError(t, err, "Can't power off VM") {
 					t.Logf("VM shutdown")
 				}
 			}
@@ -228,13 +239,11 @@ func Test_powerOffInstance(t *testing.T) {
 
 func Test_shutdownInstance(t *testing.T) {
 	if utils.ShouldTestFeature("Test_shutdownInstance") {
-		config := loadFromJson(getConfFile())
+		config := loadFromJson()
 
 		if instance, err := config.provider.AttachInstance(config.InstanceName, 0); assert.NoError(t, err, fmt.Sprintf(cantFindEC2, config.InstanceName)) {
 			if status, err := instance.InstanceStatus(); assert.NoError(t, err, cantGetStatus) && status.Powered() {
-				err = instance.InstanceShutdownGuest()
-
-				if assert.NoError(t, err, "Can't power off VM") {
+				if err = instance.InstanceShutdownGuest(); assert.NoError(t, err, "Can't power off VM") {
 					t.Logf("VM shutdown")
 				}
 			}
@@ -244,13 +253,11 @@ func Test_shutdownInstance(t *testing.T) {
 
 func Test_deleteInstance(t *testing.T) {
 	if utils.ShouldTestFeature("Test_deleteInstance") {
-		config := loadFromJson(getConfFile())
+		config := loadFromJson()
 
 		if instance, err := config.provider.AttachInstance(config.InstanceName, 0); assert.NoError(t, err, fmt.Sprintf(cantFindEC2, config.InstanceName)) {
 			if assert.NotEmpty(t, instance) {
-				err := instance.InstanceDelete()
-
-				if assert.NoError(t, err, "Can't delete VM") {
+				if err := instance.InstanceDelete(); assert.NoError(t, err, "Can't delete VM") {
 					t.Logf("VM deleted")
 				}
 			}

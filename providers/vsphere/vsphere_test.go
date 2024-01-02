@@ -17,26 +17,16 @@ import (
 )
 
 type ConfigurationTest struct {
-	vsphere.Configuration
-	CloudInit interface{}               `json:"cloud-init"`
-	SSH       types.AutoScalerServerSSH `json:"ssh"`
-	VM        string                    `json:"old-vm"`
-	New       *NewVirtualMachineConf    `json:"new-vm"`
-	inited    bool
-	provider  providers.ProviderHandler
-}
-
-type NewVirtualMachineConf struct {
-	Name       string
-	Annotation string
-	Memory     int
-	CPUS       int
-	Disk       int
-	Network    *vsphere.Network
+	CloudInit    interface{}                      `json:"cloud-init"`
+	SSH          types.AutoScalerServerSSH        `json:"ssh"`
+	InstanceName string                           `json:"instanceName"`
+	InstanceType string                           `json:"instanceType"`
+	Machine      *providers.MachineCharacteristic `json:"machine"`
+	provider     providers.ProviderConfiguration
+	inited       bool
 }
 
 var testConfig ConfigurationTest
-var confName = "../test/vsphere.json"
 
 const (
 	cantFindInstanceName = "Can't find instance named:%s"
@@ -47,8 +37,26 @@ func (config *ConfigurationTest) WaitSSHReady(nodename, address string) error {
 	return nil
 }
 
-func loadFromJson(fileName string) *ConfigurationTest {
+func getAwsConfFile() string {
+	if config := os.Getenv("TEST_VSPHERE_CONFIG"); config != "" {
+		return config
+	}
+
+	return "../test/config/vsphere.json"
+}
+
+func getTestFile() string {
+	if config := os.Getenv("TEST_CONFIG"); config != "" {
+		return config
+	}
+
+	return "../test/vsphere.json"
+}
+
+func loadFromJson() *ConfigurationTest {
 	if !testConfig.inited {
+		fileName := getTestFile()
+
 		if configStr, err := os.ReadFile(fileName); err != nil {
 			glog.Fatalf("failed to open config file:%s, error:%v", fileName, err)
 		} else {
@@ -57,10 +65,16 @@ func loadFromJson(fileName string) *ConfigurationTest {
 			if err != nil {
 				glog.Fatalf("failed to decode config file:%s, error:%v", fileName, err)
 			}
+
+			fileName = getAwsConfFile()
+
+			if testConfig.provider, err = vsphere.NewVSphereProviderConfiguration(fileName); err != nil {
+				glog.Fatalf("failed to open config file:%s, error:%v", fileName, err)
+			}
+
+			testConfig.inited = true
 		}
 
-		testConfig.provider, _ = vsphere.NewVSphereProviderConfiguration("kubeadm", &testConfig.Configuration)
-		testConfig.inited = true
 	}
 
 	return &testConfig
@@ -68,11 +82,9 @@ func loadFromJson(fileName string) *ConfigurationTest {
 
 func Test_AuthMethodKey(t *testing.T) {
 	if utils.ShouldTestFeature("Test_AuthMethodKey") {
-		config := loadFromJson(confName)
+		config := loadFromJson()
 
-		_, err := utils.AuthMethodFromPrivateKeyFile(config.SSH.GetAuthKeys())
-
-		if assert.NoError(t, err) {
+		if _, err := utils.AuthMethodFromPrivateKeyFile(config.SSH.GetAuthKeys()); assert.NoError(t, err) {
 			t.Log("OK")
 		}
 	}
@@ -80,11 +92,9 @@ func Test_AuthMethodKey(t *testing.T) {
 
 func Test_Sudo(t *testing.T) {
 	if utils.ShouldTestFeature("Test_Sudo") {
-		config := loadFromJson(confName)
+		config := loadFromJson()
 
-		out, err := utils.Sudo(&config.SSH, "localhost", 30*time.Second, "ls")
-
-		if assert.NoError(t, err) {
+		if out, err := utils.Sudo(&config.SSH, "localhost", 30*time.Second, "ls"); assert.NoError(t, err) {
 			t.Log(out)
 		}
 	}
@@ -104,60 +114,59 @@ func Test_CIDR(t *testing.T) {
 
 func Test_getVM(t *testing.T) {
 	if utils.ShouldTestFeature("Test_getVM") {
-		config := loadFromJson(confName)
+		config := loadFromJson()
 
-		if _, err := config.provider.AttachInstance(config.New.Name, 0); err != nil {
-			assert.NoError(t, err, fmt.Sprintf(cantFindInstanceName, config.New.Name))
+		if _, err := config.provider.AttachInstance(config.InstanceName, 0); err != nil {
+			assert.NoError(t, err, fmt.Sprintf(cantFindInstanceName, config.InstanceName))
 		}
 	}
 }
 
 func Test_createVM(t *testing.T) {
 	if utils.ShouldTestFeature("Test_createVM") {
-		config := loadFromJson(confName)
+		config := loadFromJson()
 
-		machine := providers.MachineCharacteristic{
-			Memory:   config.New.Memory,
-			Vcpu:     config.New.CPUS,
-			DiskSize: config.New.Disk,
-		}
+		if handler, err := config.provider.CreateInstance(config.InstanceName, 0); assert.NoError(t, err, "Can't create VM") && err == nil {
 
-		_, err := config.provider.InstanceCreate(config.New.Name, 0, "", config.SSH.GetUserName(), config.SSH.GetAuthKeys(), config.CloudInit, &machine)
+			createInput := &providers.InstanceCreateInput{
+				NodeName:     config.InstanceName,
+				NodeIndex:    0,
+				InstanceType: config.InstanceType,
+				UserName:     config.SSH.UserName,
+				AuthKey:      config.SSH.AuthKeys,
+				CloudInit:    nil,
+				Machine:      config.Machine,
+			}
 
-		if assert.NoError(t, err, "Can't create VM") {
-			t.Logf("VM created")
+			if vmuuid, err := handler.InstanceCreate(createInput); assert.NoError(t, err, "Can't create VM") {
+				t.Logf("VM created: %s", vmuuid)
+			}
 		}
 	}
 }
 
 func Test_statusVM(t *testing.T) {
 	if utils.ShouldTestFeature("Test_statusVM") {
-		config := loadFromJson(confName)
+		config := loadFromJson()
 
-		if instance, err := config.provider.AttachInstance(config.New.Name, 0); err == nil {
-			status, err := instance.InstanceStatus()
-
-			if assert.NoError(t, err, "Can't get status VM") {
-				t.Logf("The power of vm %s is:%v", config.New.Name, status.Powered())
+		if instance, err := config.provider.AttachInstance(config.InstanceName, 0); err == nil {
+			if status, err := instance.InstanceStatus(); assert.NoError(t, err, "Can't get status VM") {
+				t.Logf("The power of vm %s is:%v", config.InstanceName, status.Powered())
 			}
 		} else {
-			assert.NoError(t, err, fmt.Sprintf(cantFindInstanceName, config.New.Name))
+			assert.NoError(t, err, fmt.Sprintf(cantFindInstanceName, config.InstanceName))
 		}
 	}
 }
 
 func Test_powerOnVM(t *testing.T) {
 	if utils.ShouldTestFeature("Test_powerOnVM") {
-		config := loadFromJson(confName)
+		config := loadFromJson()
 
-		if instance, err := config.provider.AttachInstance(config.New.Name, 0); assert.NoError(t, err, fmt.Sprintf(cantFindInstanceName, config.New.Name)) {
+		if instance, err := config.provider.AttachInstance(config.InstanceName, 0); assert.NoError(t, err, fmt.Sprintf(cantFindInstanceName, config.InstanceName)) {
 			if status, err := instance.InstanceStatus(); assert.NoError(t, err, cantGetStatus) && status.Powered() == false {
-				err = instance.InstancePowerOn()
-
-				if assert.NoError(t, err, "Can't power on VM") {
-					ipaddr, err := instance.InstanceWaitReady(config)
-
-					if assert.NoError(t, err, "Can't get IP") {
+				if err = instance.InstancePowerOn(); assert.NoError(t, err, "Can't power on VM") {
+					if ipaddr, err := instance.InstanceWaitReady(config); assert.NoError(t, err, "Can't get IP") {
 						t.Logf("VM powered with IP:%s", ipaddr)
 					}
 				}
@@ -168,13 +177,11 @@ func Test_powerOnVM(t *testing.T) {
 
 func Test_powerOffVM(t *testing.T) {
 	if utils.ShouldTestFeature("Test_powerOffVM") {
-		config := loadFromJson(confName)
+		config := loadFromJson()
 
-		if instance, err := config.provider.AttachInstance(config.New.Name, 0); assert.NoError(t, err, fmt.Sprintf(cantFindInstanceName, config.New.Name)) {
+		if instance, err := config.provider.AttachInstance(config.InstanceName, 0); assert.NoError(t, err, fmt.Sprintf(cantFindInstanceName, config.InstanceName)) {
 			if status, err := instance.InstanceStatus(); assert.NoError(t, err, cantGetStatus) && status.Powered() {
-				err = instance.InstancePowerOff()
-
-				if assert.NoError(t, err, "Can't power off VM") {
+				if err = instance.InstancePowerOff(); assert.NoError(t, err, "Can't power off VM") {
 					t.Logf("VM shutdown")
 				}
 			}
@@ -184,13 +191,11 @@ func Test_powerOffVM(t *testing.T) {
 
 func Test_shutdownGuest(t *testing.T) {
 	if utils.ShouldTestFeature("Test_shutdownGuest") {
-		config := loadFromJson(confName)
+		config := loadFromJson()
 
-		if instance, err := config.provider.AttachInstance(config.New.Name, 0); assert.NoError(t, err, fmt.Sprintf(cantFindInstanceName, config.New.Name)) {
+		if instance, err := config.provider.AttachInstance(config.InstanceName, 0); assert.NoError(t, err, fmt.Sprintf(cantFindInstanceName, config.InstanceName)) {
 			if status, err := instance.InstanceStatus(); assert.NoError(t, err, cantGetStatus) && status.Powered() {
-				err = instance.InstanceShutdownGuest()
-
-				if assert.NoError(t, err, "Can't power off VM") {
+				if err = instance.InstanceShutdownGuest(); assert.NoError(t, err, "Can't power off VM") {
 					t.Logf("VM shutdown")
 				}
 			}
@@ -200,12 +205,10 @@ func Test_shutdownGuest(t *testing.T) {
 
 func Test_deleteVM(t *testing.T) {
 	if utils.ShouldTestFeature("Test_deleteVM") {
-		config := loadFromJson(confName)
+		config := loadFromJson()
 
-		if instance, err := config.provider.AttachInstance(config.New.Name, 0); assert.NoError(t, err, fmt.Sprintf(cantFindInstanceName, config.New.Name)) {
-			err := instance.InstanceDelete()
-
-			if assert.NoError(t, err, "Can't delete VM") {
+		if instance, err := config.provider.AttachInstance(config.InstanceName, 0); assert.NoError(t, err, fmt.Sprintf(cantFindInstanceName, config.InstanceName)) {
+			if err := instance.InstanceDelete(); assert.NoError(t, err, "Can't delete VM") {
 				t.Logf("VM deleted")
 			}
 		}

@@ -11,8 +11,7 @@ import (
 
 // Client Client wrapper
 type Client struct {
-	Client        *govmomi.Client
-	Configuration *Configuration
+	Client *govmomi.Client
 }
 
 // GetClient return client
