@@ -20,8 +20,9 @@ import (
 
 type ConfigurationTest struct {
 	SSH          types.AutoScalerServerSSH                  `json:"ssh"`
-	InstanceName string                                     `json:"instanceName"`
-	InstanceType string                                     `json:"instanceType"`
+	InstanceName string                                     `json:"instance-name"`
+	InstanceType string                                     `json:"instance-type"`
+	DiskSize     int                                        `json:"disk-size"`
 	Machines     map[string]providers.MachineCharacteristic `json:"machines"`
 	provider     providers.ProviderConfiguration
 	inited       bool

@@ -8,4 +8,4 @@ test/*.json
 
 kubernetes-cloud-autoscaler
 
-test/local/
+test/local/config
