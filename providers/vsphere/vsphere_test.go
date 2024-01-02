@@ -17,11 +17,11 @@ import (
 )
 
 type ConfigurationTest struct {
-	CloudInit    interface{}                      `json:"cloud-init"`
-	SSH          types.AutoScalerServerSSH        `json:"ssh"`
-	InstanceName string                           `json:"instanceName"`
-	InstanceType string                           `json:"instanceType"`
-	Machine      *providers.MachineCharacteristic `json:"machine"`
+	CloudInit    interface{}                                `json:"cloud-init"`
+	SSH          types.AutoScalerServerSSH                  `json:"ssh"`
+	InstanceName string                                     `json:"instance-name"`
+	InstanceType string                                     `json:"instance-type"`
+	Machines     map[string]providers.MachineCharacteristic `json:"machines"`
 	provider     providers.ProviderConfiguration
 	inited       bool
 }
@@ -42,7 +42,7 @@ func getAwsConfFile() string {
 		return config
 	}
 
-	return "../test/config/vsphere.json"
+	return "../test/local/config/vsphere.json"
 }
 
 func getTestFile() string {
@@ -50,7 +50,7 @@ func getTestFile() string {
 		return config
 	}
 
-	return "../test/vsphere.json"
+	return "../test/local/vsphere.json"
 }
 
 func loadFromJson() *ConfigurationTest {
@@ -126,20 +126,22 @@ func Test_createVM(t *testing.T) {
 	if utils.ShouldTestFeature("Test_createVM") {
 		config := loadFromJson()
 
-		if handler, err := config.provider.CreateInstance(config.InstanceName, 0); assert.NoError(t, err, "Can't create VM") && err == nil {
+		if machine, found := config.Machines[config.InstanceType]; assert.True(t, found, fmt.Sprintf("machine: %s not found", config.InstanceType)) {
+			if handler, err := config.provider.CreateInstance(config.InstanceName, 0); assert.NoError(t, err, "Can't create VM") && err == nil {
 
-			createInput := &providers.InstanceCreateInput{
-				NodeName:     config.InstanceName,
-				NodeIndex:    0,
-				InstanceType: config.InstanceType,
-				UserName:     config.SSH.UserName,
-				AuthKey:      config.SSH.AuthKeys,
-				CloudInit:    nil,
-				Machine:      config.Machine,
-			}
+				createInput := &providers.InstanceCreateInput{
+					NodeName:     config.InstanceName,
+					NodeIndex:    0,
+					InstanceType: config.InstanceType,
+					UserName:     config.SSH.UserName,
+					AuthKey:      config.SSH.AuthKeys,
+					CloudInit:    nil,
+					Machine:      &machine,
+				}
 
-			if vmuuid, err := handler.InstanceCreate(createInput); assert.NoError(t, err, "Can't create VM") {
-				t.Logf("VM created: %s", vmuuid)
+				if vmuuid, err := handler.InstanceCreate(createInput); assert.NoError(t, err, "Can't create VM") {
+					t.Logf("VM created: %s", vmuuid)
+				}
 			}
 		}
 	}

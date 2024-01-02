@@ -26,6 +26,7 @@ type Configuration struct {
 	Resource          string            `json:"resource-pool"`
 	VMBasePath        string            `json:"vmFolder"`
 	Timeout           time.Duration     `json:"timeout"`
+	Annotation        string            `json:"annotation"`
 	TemplateName      string            `json:"template-name"`
 	Template          bool              `json:"template"`
 	LinkedClone       bool              `json:"linked"`
@@ -164,7 +165,7 @@ func (handler *vsphereHandler) InstanceCreate(input *providers.InstanceCreateInp
 		InstanceCreateInput: input,
 		AllowUpgrade:        handler.AllowUpgrade,
 		ExpandHardDrive:     true,
-		Annotation:          "",
+		Annotation:          handler.Annotation,
 		Network:             &handler.network,
 	}
 

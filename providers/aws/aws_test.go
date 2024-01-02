@@ -19,10 +19,10 @@ import (
 )
 
 type ConfigurationTest struct {
-	SSH          types.AutoScalerServerSSH        `json:"ssh"`
-	InstanceName string                           `json:"instanceName"`
-	InstanceType string                           `json:"instanceType"`
-	Machine      *providers.MachineCharacteristic `json:"machine"`
+	SSH          types.AutoScalerServerSSH                  `json:"ssh"`
+	InstanceName string                                     `json:"instanceName"`
+	InstanceType string                                     `json:"instanceType"`
+	Machines     map[string]providers.MachineCharacteristic `json:"machines"`
 	provider     providers.ProviderConfiguration
 	inited       bool
 }
@@ -39,7 +39,7 @@ func getAwsConfFile() string {
 		return config
 	}
 
-	return "../test/config/aws.json"
+	return "../test/local/config/aws.json"
 }
 
 func getTestFile() string {
@@ -47,7 +47,7 @@ func getTestFile() string {
 		return config
 	}
 
-	return "../test/aws.json"
+	return "../test/local/aws.json"
 }
 
 func loadFromJson() *ConfigurationTest {
