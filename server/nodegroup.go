@@ -280,7 +280,7 @@ func (g *AutoScalerServerNodeGroup) addManagedNode(crd *v1alpha1.ManagedNode) (*
 
 			resLimit := g.configuration.ManagedNodeResourceLimiter
 
-			diskSize := utils.MaxInt(utils.MinInt(crd.Spec.DiskSize, resLimit.GetMaxValue(constantes.ResourceNameManagedNodeDisk, types.ManagedNodeMaxDiskSize)),
+			diskSize := utils.MaxInt(utils.MinInt(crd.Spec.DiskSizeInMB, resLimit.GetMaxValue(constantes.ResourceNameManagedNodeDisk, types.ManagedNodeMaxDiskSize)),
 				resLimit.GetMinValue(constantes.ResourceNameManagedNodeDisk, types.ManagedNodeMinDiskSize))
 
 			node := &AutoScalerServerNode{

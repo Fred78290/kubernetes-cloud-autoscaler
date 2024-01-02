@@ -233,7 +233,7 @@ func (c *Controller) CreateCRD() error {
 												Raw: []byte("2"),
 											},
 										},
-										"diskSizeInGB": {
+										"diskSizeInMB": {
 											Type: "integer",
 											Default: &apiextensionv1.JSON{
 												Raw: []byte("10"),

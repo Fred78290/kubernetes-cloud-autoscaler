@@ -127,6 +127,10 @@ func NewAwsProviderConfiguration(fileName string) (providers.ProviderConfigurati
 		return nil, err
 	}
 
+	if !wrapper.AmiExists(wrapper.ImageID) {
+		return nil, fmt.Errorf("ami: %s not found", wrapper.ImageID)
+	}
+
 	return &wrapper, nil
 }
 
@@ -438,6 +442,25 @@ func (wrapper *awsWrapper) Exists(name string) bool {
 	}
 
 	return false
+}
+
+func (wrapper *awsWrapper) AmiExists(ami string) bool {
+	if client, err := wrapper.createClient(); err != nil {
+		return false
+	} else {
+		input := ec2.DescribeImagesInput{
+			MaxResults: aws.Int64(1),
+			ImageIds: []*string{
+				aws.String(ami),
+			},
+		}
+
+		if _, err = client.DescribeImages(&input); err != nil {
+			return false
+		}
+	}
+
+	return true
 }
 
 // GetEc2Instance return an existing instance from name

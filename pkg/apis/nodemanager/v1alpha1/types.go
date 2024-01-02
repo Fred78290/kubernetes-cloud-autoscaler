@@ -56,7 +56,7 @@ type ManagedNodeSpec struct {
 	ControlPlane    bool                 `json:"controlPlane,omitempty"`
 	AllowDeployment bool                 `json:"allowDeployment,omitempty"`
 	InstanceType    string               `default:"t2.micro" json:"instanceType"`
-	DiskSize        int                  `default:"10" json:"diskSizeInGb"`
+	DiskSizeInMB    int                  `default:"10" json:"diskSizeInMB"`
 	DiskType        int                  `default:"gp3" json:"diskType"`
 	Labels          []string             `json:"labels,omitempty"`
 	Annotations     []string             `json:"annotations,omitempty"`

@@ -22,7 +22,8 @@ type ConfigurationTest struct {
 	SSH          types.AutoScalerServerSSH                  `json:"ssh"`
 	InstanceName string                                     `json:"instance-name"`
 	InstanceType string                                     `json:"instance-type"`
-	DiskSize     int                                        `json:"disk-size"`
+	DiskSize     int                                        `default:"10240" json:"disk-size"`
+	DiskType     string                                     `default:"gp3" json:"disk-type"`
 	Machines     map[string]providers.MachineCharacteristic `json:"machines"`
 	provider     providers.ProviderConfiguration
 	inited       bool
@@ -137,20 +138,25 @@ func Test_createInstance(t *testing.T) {
 	if utils.ShouldTestFeature("Test_createInstance") {
 		config := loadFromJson()
 
-		if handler, err := config.provider.CreateInstance(config.InstanceName, 0); assert.NoError(t, err, "Can't create VM") && err == nil {
+		if machine, found := config.Machines[config.InstanceType]; assert.True(t, found, fmt.Sprintf("machine: %s not found", config.InstanceType)) {
+			if handler, err := config.provider.CreateInstance(config.InstanceName, 0); assert.NoError(t, err, "Can't create VM") && err == nil {
 
-			createInput := &providers.InstanceCreateInput{
-				NodeName:     config.InstanceName,
-				NodeIndex:    0,
-				InstanceType: config.InstanceType,
-				UserName:     config.SSH.UserName,
-				AuthKey:      config.SSH.AuthKeys,
-				CloudInit:    nil,
-				Machine:      config.Machine,
-			}
+				machine.DiskSize = config.DiskSize
+				machine.DiskType = config.DiskType
 
-			if vmuuid, err := handler.InstanceCreate(createInput); assert.NoError(t, err, "Can't create VM") {
-				t.Logf("VM created: %s", vmuuid)
+				createInput := &providers.InstanceCreateInput{
+					NodeName:     config.InstanceName,
+					NodeIndex:    0,
+					InstanceType: config.InstanceType,
+					UserName:     config.SSH.UserName,
+					AuthKey:      config.SSH.AuthKeys,
+					CloudInit:    nil,
+					Machine:      &machine,
+				}
+
+				if vmuuid, err := handler.InstanceCreate(createInput); assert.NoError(t, err, "Can't create VM") {
+					t.Logf("VM created: %s", vmuuid)
+				}
 			}
 		}
 	}
