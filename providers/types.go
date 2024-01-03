@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha1"
-	glog "github.com/sirupsen/logrus"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/sshutils"
+	"github.com/drone/envsubst"
 )
 
 const (
@@ -23,6 +25,17 @@ const (
 	VMWareWorkstationProviderName = "desktop"
 )
 
+type BasicConfiguration struct {
+	CloudInit    interface{}                      `json:"cloud-init"`
+	SSH          sshutils.AutoScalerServerSSH     `json:"ssh"`
+	NodeGroup    string                           `json:"nodegroup"`
+	InstanceName string                           `json:"instance-name"`
+	InstanceType string                           `json:"instance-type"`
+	DiskSize     int                              `default:"10240" json:"disk-size"`
+	DiskType     string                           `default:"gp3" json:"disk-type"`
+	Machines     map[string]MachineCharacteristic `json:"machines"`
+}
+
 // CallbackWaitSSHReady callback to test if ssh become ready or return timeout error
 type CallbackWaitSSHReady interface {
 	WaitSSHReady(name, address string) error
@@ -35,36 +48,34 @@ type InstanceStatus interface {
 
 // MachineCharacteristic defines VM kind
 type MachineCharacteristic struct {
-	Memory   int    `json:"memsize"`                // VM Memory size in megabytes
-	Vcpu     int    `json:"vcpus"`                  // VM number of cpus
-	DiskSize int    `json:"disksize"`               // VM disk size in megabytes
-	DiskType string `default:"gp2" json:"diskType"` // VM disk type
+	Price  float64 `json:"price"`   // VM price in usd
+	Memory int     `json:"memsize"` // VM Memory size in megabytes
+	Vcpu   int     `json:"vcpus"`   // VM number of cpus
 }
 
 type MachineCharacteristics map[string]*MachineCharacteristic
 
 type ProviderConfiguration interface {
 	AttachInstance(instanceName string, nodeIndex int) (ProviderHandler, error)
-	CreateInstance(instanceName string, nodeIndex int) (ProviderHandler, error)
-	NodeGroupName() string
+	CreateInstance(instanceName, instanceType string, nodeIndex int) (ProviderHandler, error)
 	GetAvailableGpuTypes() map[string]string
 	InstanceExists(name string) bool
 	UUID(name string) (string, error)
 }
 
 type InstanceCreateInput struct {
-	NodeName     string
-	NodeIndex    int
-	InstanceType string
-	UserName     string
-	AuthKey      string
-	CloudInit    interface{}
-	Machine      *MachineCharacteristic
+	NodeGroup string
+	//	NodeName  string
+	//	NodeIndex int
+	DiskSize  int
+	UserName  string
+	AuthKey   string
+	CloudInit interface{}
+	Machine   *MachineCharacteristic
 }
 
 type ProviderHandler interface {
 	GetTimeout() time.Duration
-	NodeGroupName() string
 	ConfigureNetwork(network v1alpha1.ManagedNetworkConfig)
 	RetrieveNetworkInfos() error
 	UpdateMacAddressTable() error
@@ -81,7 +92,7 @@ type ProviderHandler interface {
 	InstanceStatus() (InstanceStatus, error)
 	InstanceWaitForPowered() error
 	InstanceWaitForToolsRunning() (bool, error)
-	InstanceMaxPods(instanceType string, desiredMaxPods int) (int, error)
+	InstanceMaxPods(desiredMaxPods int) (int, error)
 	RegisterDNS(address string) error
 	UnregisterDNS(address string) error
 	UUID(name string) (string, error)
@@ -112,24 +123,20 @@ func Copy(dst interface{}, src interface{}) error {
 	return nil
 }
 
+func LoadTextEnvSubst(fileName string) (string, error) {
+	if buf, err := os.ReadFile(fileName); err != nil {
+		return "", err
+	} else {
+		return envsubst.EvalEnv(string(buf))
+	}
+}
+
 func LoadConfig(fileName string, config any) error {
-	file, err := os.Open(fileName)
-
-	if err != nil {
-		glog.Errorf("Failed to open file:%s, error:%v", fileName, err)
-
+	if content, err := LoadTextEnvSubst(fileName); err != nil {
 		return err
+	} else {
+		reader := strings.NewReader(content)
+
+		return json.NewDecoder(reader).Decode(config)
 	}
-
-	defer file.Close()
-
-	decoder := json.NewDecoder(file)
-	err = decoder.Decode(config)
-
-	if err != nil {
-		glog.Errorf("failed to decode AutoScalerServerApp file:%s, error:%v", fileName, err)
-		return err
-	}
-
-	return nil
 }

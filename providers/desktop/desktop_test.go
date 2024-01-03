@@ -1,4 +1,4 @@
-package vsphere_test
+package desktop_test
 
 import (
 	"encoding/json"
@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers/desktop"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers/vsphere"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/utils"
 	"github.com/joho/godotenv"
@@ -35,11 +36,11 @@ func (config *ConfigurationTest) WaitSSHReady(nodename, address string) error {
 }
 
 func getProviderConfFile() string {
-	if config := os.Getenv("TEST_VSPHERE_CONFIG"); config != "" {
+	if config := os.Getenv("TEST_DESKTOP_CONFIG"); config != "" {
 		return config
 	}
 
-	return "../test/providers/vsphere.json"
+	return "../test/providers/dekstop.json"
 }
 
 func getTestFile() string {
@@ -47,7 +48,7 @@ func getTestFile() string {
 		return config
 	}
 
-	return "../test/vsphere.json"
+	return "../test/desktop.json"
 }
 
 func loadFromJson() *ConfigurationTest {
@@ -58,7 +59,7 @@ func loadFromJson() *ConfigurationTest {
 			glog.Fatalf("failed to open config file:%s, error:%v", getTestFile(), err)
 		} else if json.NewDecoder(strings.NewReader(content)).Decode(&testConfig.BasicConfiguration); err != nil {
 			glog.Fatalf("failed to decode config file:%s, error:%v", getTestFile(), err)
-		} else if testConfig.provider, err = vsphere.NewVSphereProviderConfiguration(getProviderConfFile()); err != nil {
+		} else if testConfig.provider, err = desktop.NewDesktopProviderConfiguration(getProviderConfFile()); err != nil {
 			glog.Fatalf("failed to open config file:%s, error:%v", getProviderConfFile(), err)
 		} else {
 			testConfig.inited = true

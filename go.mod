@@ -7,6 +7,8 @@ toolchain go1.21.5
 require (
 	github.com/alecthomas/kingpin v2.2.6+incompatible
 	github.com/aws/aws-sdk-go v1.49.12
+	github.com/drone/envsubst v1.0.3
+	github.com/joho/godotenv v1.5.1
 	github.com/linki/instrumented_http v0.3.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.8.4

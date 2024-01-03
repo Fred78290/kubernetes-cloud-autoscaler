@@ -57,6 +57,7 @@ type AutoScalerServerNodeGroup struct {
 	ManagedNodeNamePrefix      string                           `default:"worker" json:"managed-name-prefix"`
 	ControlPlaneNamePrefix     string                           `default:"master" json:"controlplane-name-prefix"`
 	InstanceType               string                           `json:"instance-type"`
+	DiskSize                   int                              `default:"10240" json:"disk-size"`
 	Status                     NodeGroupState                   `json:"status"`
 	MinNodeSize                int                              `json:"minSize"`
 	MaxNodeSize                int                              `json:"maxSize"`
@@ -266,16 +267,15 @@ func (g *AutoScalerServerNodeGroup) deleteNodes(c types.ClientGenerator, delta i
 func (g *AutoScalerServerNodeGroup) addManagedNode(crd *v1alpha1.ManagedNode) (*AutoScalerServerNode, error) {
 	controlPlane := crd.Spec.ControlPlane
 	nodeName, nodeIndex := g.nodeName(g.findNextNodeIndex(true), controlPlane, true)
+	instanceType := crd.Spec.InstanceType
 
-	// Clone the config to allow increment IP address for vmware
-	if clonedConfig, err := g.configuration.GetCloudConfiguration().CreateInstance(nodeName, nodeIndex); err == nil {
-		var instanceType = crd.Spec.InstanceType
+	if len(instanceType) == 0 {
+		instanceType = g.InstanceType
+	}
 
-		if len(instanceType) == 0 {
-			instanceType = g.InstanceType
-		}
-
-		if machine, found := g.configuration.Machines[instanceType]; found {
+	if machine, found := g.configuration.Machines[instanceType]; found {
+		// Clone the config to allow increment IP address for vmware
+		if providerHandler, err := g.configuration.GetCloudConfiguration().CreateInstance(nodeName, instanceType, nodeIndex); err == nil {
 			g.RunningNodes[nodeIndex] = ServerNodeStateCreating
 
 			resLimit := g.configuration.ManagedNodeResourceLimiter
@@ -284,11 +284,10 @@ func (g *AutoScalerServerNodeGroup) addManagedNode(crd *v1alpha1.ManagedNode) (*
 				resLimit.GetMinValue(constantes.ResourceNameManagedNodeDisk, types.ManagedNodeMinDiskSize))
 
 			node := &AutoScalerServerNode{
-				NodeGroupID:      g.NodeGroupIdentifier,
+				NodeGroup:        g.NodeGroupIdentifier,
 				NodeName:         nodeName,
-				InstanceName:     nodeName,
-				InstanceType:     instanceType,
 				NodeIndex:        nodeIndex,
+				InstanceName:     nodeName,
 				Memory:           machine.Memory,
 				CPU:              machine.Vcpu,
 				DiskSize:         diskSize,
@@ -298,12 +297,12 @@ func (g *AutoScalerServerNodeGroup) addManagedNode(crd *v1alpha1.ManagedNode) (*
 				ExtraLabels:      CreateLabelOrAnnotation(crd.Spec.Labels),
 				ExtraAnnotations: CreateLabelOrAnnotation(crd.Spec.Annotations),
 				CRDUID:           crd.GetUID(),
-				providerHandler:  clonedConfig,
+				providerHandler:  providerHandler,
 				serverConfig:     g.configuration,
 			}
 
 			// Change network if asked
-			clonedConfig.ConfigureNetwork(crd.Spec.Networking)
+			providerHandler.ConfigureNetwork(crd.Spec.Networking)
 
 			annoteMaster := ""
 
@@ -325,10 +324,10 @@ func (g *AutoScalerServerNodeGroup) addManagedNode(crd *v1alpha1.ManagedNode) (*
 
 			return node, nil
 		} else {
-			return nil, fmt.Errorf(constantes.ErrMachineTypeNotFound, instanceType)
+			return nil, err
 		}
 	} else {
-		return nil, err
+		return nil, fmt.Errorf(constantes.ErrMachineTypeNotFound, instanceType)
 	}
 }
 
@@ -351,7 +350,7 @@ func (g *AutoScalerServerNodeGroup) prepareNodes(c types.ClientGenerator, delta 
 		nodeName, nodeIndex := g.nodeName(g.findNextNodeIndex(false), false, false)
 
 		// Clone the vsphere config to allow increment IP address
-		if clonedConfig, err := config.CreateInstance(nodeName, nodeIndex); err == nil {
+		if providerHandler, err := config.CreateInstance(nodeName, g.InstanceType, nodeIndex); err == nil {
 
 			g.RunningNodes[nodeIndex] = ServerNodeStateCreating
 
@@ -362,20 +361,19 @@ func (g *AutoScalerServerNodeGroup) prepareNodes(c types.ClientGenerator, delta 
 			}
 
 			node := &AutoScalerServerNode{
-				NodeGroupID:      g.NodeGroupIdentifier,
-				InstanceName:     nodeName,
+				NodeGroup:        g.NodeGroupIdentifier,
 				NodeName:         nodeName,
 				NodeIndex:        nodeIndex,
+				InstanceName:     nodeName,
 				Memory:           machine.Memory,
 				CPU:              machine.Vcpu,
-				DiskSize:         machine.DiskSize,
-				DiskType:         machine.DiskType,
+				DiskSize:         g.configuration.DiskSizeInMB,
 				NodeType:         AutoScalerServerNodeAutoscaled,
 				ExtraAnnotations: extraAnnotations,
 				ExtraLabels:      extraLabels,
 				ControlPlaneNode: false,
 				AllowDeployment:  true,
-				providerHandler:  clonedConfig,
+				providerHandler:  providerHandler,
 				serverConfig:     g.configuration,
 			}
 
@@ -691,10 +689,10 @@ func (g *AutoScalerServerNodeGroup) autoDiscoveryNodes(client types.ClientGenera
 							glog.Infof("Add node:%s with IP:%s to nodegroup:%s", instanceName, runningIP, g.NodeGroupIdentifier)
 
 							node = &AutoScalerServerNode{
-								NodeGroupID:      g.NodeGroupIdentifier,
-								InstanceName:     instanceName,
+								NodeGroup:        g.NodeGroupIdentifier,
 								NodeName:         nodeInfo.Name,
 								NodeIndex:        lastNodeIndex,
+								InstanceName:     instanceName,
 								State:            AutoScalerServerNodeStateRunning,
 								NodeType:         nodeType,
 								VMUUID:           vmUUID,

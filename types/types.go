@@ -2,9 +2,7 @@ package types
 
 import (
 	"fmt"
-	"os/user"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
@@ -13,6 +11,7 @@ import (
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers/aws"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers/desktop"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers/vsphere"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/sshutils"
 	"github.com/alecthomas/kingpin"
 	glog "github.com/sirupsen/logrus"
 
@@ -189,45 +188,6 @@ type AutoScalerServerOptionals struct {
 	Delete                   bool `json:"delete"`
 }
 
-// AutoScalerServerSSH contains ssh client infos
-type AutoScalerServerSSH struct {
-	UserName              string `json:"user"`
-	Password              string `json:"password"`
-	AuthKeys              string `json:"ssh-private-key"`
-	WaitSshReadyInSeconds int    `default:"180" json:"wait-ssh-ready-seconds"`
-	TestMode              bool   `json:"-"`
-}
-
-// GetUserName returns user name from config or the real current username is empty or equal to ~
-func (ssh *AutoScalerServerSSH) GetUserName() string {
-	if ssh.UserName == "" || ssh.UserName == "~" {
-		u, err := user.Current()
-
-		if err != nil {
-			glog.Fatalf("Can't find current user! - %v", err)
-		}
-
-		return u.Username
-	}
-
-	return ssh.UserName
-}
-
-// GetAuthKeys returns the path to key file, subsistute ~
-func (ssh *AutoScalerServerSSH) GetAuthKeys() string {
-	if strings.Index(ssh.AuthKeys, "~") == 0 {
-		u, err := user.Current()
-
-		if err != nil {
-			glog.Fatalf("Can't find current user! - %v", err)
-		}
-
-		return strings.Replace(ssh.AuthKeys, "~", u.HomeDir, 1)
-	}
-
-	return ssh.AuthKeys
-}
-
 type NodeGroupAutoscalingOptions struct {
 	// ScaleDownUtilizationThreshold sets threshold for nodes to be considered for scale down
 	// if cpu or memory utilization is over threshold.
@@ -263,6 +223,7 @@ type AutoScalerServerConfig struct {
 	CertPublicKey              string                           `json:"cert-public-key,omitempty"`                 // Optional to secure grcp channel
 	CertCA                     string                           `json:"cert-ca,omitempty"`                         // Optional to secure grcp channel
 	ServiceIdentifier          string                           `json:"secret"`                                    // Mandatory, secret Identifier, client must match this
+	NodeGroup                  string                           `json:"nodegroup"`                                 // Mandatory, the nodegroup
 	MinNode                    int                              `json:"minNode"`                                   // Mandatory, Min AutoScaler VM
 	MaxNode                    int                              `json:"maxNode"`                                   // Mandatory, Max AutoScaler VM
 	MaxPods                    int                              `default:"110" json:"maxPods"`                     // Mandatory, Max pod per node
@@ -277,12 +238,13 @@ type AutoScalerServerConfig struct {
 	RKE2                       *RKE2JoinConfig                  `json:"rke2,omitempty"`
 	External                   *ExternalJoinConfig              `json:"external,omitempty"`
 	DefaultMachineType         string                           `default:"standard" json:"default-machine"`
+	DiskSizeInMB               int                              `default:"10240" json:"disk-size"`
 	NodeLabels                 KubernetesLabel                  `json:"nodeLabels"`
 	Machines                   providers.MachineCharacteristics `default:"{\"standard\": {}}" json:"machines"` // Mandatory, Available machines
 	CloudInit                  interface{}                      `json:"cloud-init"`                            // Optional, The cloud init conf file
 	Optionals                  *AutoScalerServerOptionals       `json:"optionals"`
 	ManagedNodeResourceLimiter *ResourceLimiter                 `json:"managednodes-limits"`
-	SSH                        *AutoScalerServerSSH             `json:"ssh-infos"`
+	SSH                        *sshutils.AutoScalerServerSSH    `json:"ssh-infos"`
 	AutoScalingOptions         *NodeGroupAutoscalingOptions     `json:"autoscaling-options,omitempty"`
 	DebugMode                  *bool                            `json:"debug,omitempty"`
 	providerConfiguration      providers.ProviderConfiguration  `json:"-"`

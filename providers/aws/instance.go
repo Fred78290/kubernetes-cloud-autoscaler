@@ -26,6 +26,12 @@ const (
 	route53_DeleteCmd = "DELETE"
 )
 
+// instanceStatus shortened vm status
+type instanceStatus struct {
+	address string
+	powered bool
+}
+
 // Ec2Instance Running instance
 type Ec2Instance struct {
 	*awsWrapper
@@ -85,6 +91,14 @@ func newSessionWithOptions(accessKey, secretKey, token, filename, profile, regio
 	}
 
 	return session.NewSession(&config)
+}
+
+func (status *instanceStatus) Address() string {
+	return status.address
+}
+
+func (status *instanceStatus) Powered() bool {
+	return status.powered
 }
 
 func (instance *Ec2Instance) getInstanceID() string {
@@ -538,7 +552,7 @@ func (instance *Ec2Instance) ShutdownGuest() error {
 }
 
 // Status return the current status of VM by name
-func (instance *Ec2Instance) Status() (*Status, error) {
+func (instance *Ec2Instance) Status() (providers.InstanceStatus, error) {
 
 	glog.Debugf("Status: instance %s id (%s)", instance.InstanceName, instance.getInstanceID())
 
@@ -561,12 +575,12 @@ func (instance *Ec2Instance) Status() (*Status, error) {
 				address = ec2Instance.PrivateIpAddress
 			}
 
-			return &Status{
+			return &instanceStatus{
 				address: *address,
 				powered: *code == 16 || *code == 0,
 			}, nil
 		} else {
-			return &Status{}, nil
+			return &instanceStatus{}, nil
 		}
 	}
 }

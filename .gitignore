@@ -9,3 +9,4 @@ test/*.json
 kubernetes-cloud-autoscaler
 
 test/local/config
+*.env

@@ -40,8 +40,8 @@ type NetworkInterface struct {
 	Primary        bool                     `json:"primary,omitempty" yaml:"primary,omitempty"`
 	Existing       bool                     `json:"exists,omitempty" yaml:"exists,omitempty"`
 	ConnectionType string                   `default:"nat" json:"type,omitempty" yaml:"type,omitempty"`
-	VNet           string                   `json:"vnet,omitempty" yaml:"vnet,omitempty"`
-	VirtualDev     string                   `default:"vmxnet3" json:"device,omitempty" yaml:"device,omitempty"`
+	VNet           string                   `json:"vnet,omitempty" yaml:"network,omitempty"`
+	VirtualDev     string                   `default:"vmxnet3" json:"adapter,omitempty" yaml:"device,omitempty"`
 	BsdName        string                   `json:"bsd-name,omitempty" yaml:"bsd-name,omitempty"`
 	DisplayName    string                   `json:"display-name,omitempty" yaml:"display-name,omitempty"`
 	MacAddress     string                   `json:"mac-address,omitempty" yaml:"mac-address,omitempty"`

@@ -9,6 +9,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
@@ -77,43 +78,55 @@ func (s *AutoScalerServerApp) getNodeGroup(nodegroupName string) (*AutoScalerSer
 	return nil, fmt.Errorf(constantes.ErrNodeGroupNotFound, nodegroupName)
 }
 
-func (s *AutoScalerServerApp) newNodeGroup(nodeGroupID string, minNodeSize, maxNodeSize int32, machineType string, labels, systemLabels types.KubernetesLabel, autoProvision bool) (*AutoScalerServerNodeGroup, error) {
+type nodegroupCreateInput struct {
+	nodeGroupID   string
+	minNodeSize   int
+	maxNodeSize   int
+	machineType   string
+	diskSizeInMB  int
+	labels        types.KubernetesLabel
+	systemLabels  types.KubernetesLabel
+	autoProvision bool
+}
 
-	machine := s.configuration.Machines[machineType]
+func (s *AutoScalerServerApp) newNodeGroup(intput *nodegroupCreateInput) (*AutoScalerServerNodeGroup, error) {
+
+	machine := s.configuration.Machines[intput.machineType]
 
 	if machine == nil {
-		return nil, fmt.Errorf(constantes.ErrMachineTypeNotFound, machineType)
+		return nil, fmt.Errorf(constantes.ErrMachineTypeNotFound, intput.machineType)
 	}
 
-	if nodeGroup := s.Groups[nodeGroupID]; nodeGroup != nil {
-		glog.Errorf(constantes.ErrNodeGroupAlreadyExists, nodeGroupID)
+	if nodeGroup := s.Groups[intput.nodeGroupID]; nodeGroup != nil {
+		glog.Errorf(constantes.ErrNodeGroupAlreadyExists, intput.nodeGroupID)
 
-		return nil, fmt.Errorf(constantes.ErrNodeGroupAlreadyExists, nodeGroupID)
+		return nil, fmt.Errorf(constantes.ErrNodeGroupAlreadyExists, intput.nodeGroupID)
 	}
 
-	labels = types.MergeKubernetesLabel(s.configuration.NodeLabels, labels)
+	intput.labels = types.MergeKubernetesLabel(s.configuration.NodeLabels, intput.labels)
 
-	glog.Infof("New node group, ID:%s minSize:%d, maxSize:%d, machineType:%s, node labels:%v, %v", nodeGroupID, minNodeSize, maxNodeSize, machineType, labels, systemLabels)
+	glog.Infof("New node group, ID:%s minSize:%d, maxSize:%d, machineType:%s, diskeSize:%d, node labels:%v, %v", intput.nodeGroupID, intput.minNodeSize, intput.maxNodeSize, intput.machineType, intput.diskSizeInMB, intput.labels, intput.systemLabels)
 
 	nodeGroup := &AutoScalerServerNodeGroup{
 		ServiceIdentifier:          s.configuration.ServiceIdentifier,
 		ProvisionnedNodeNamePrefix: s.configuration.ProvisionnedNodeNamePrefix,
 		ManagedNodeNamePrefix:      s.configuration.ManagedNodeNamePrefix,
 		ControlPlaneNamePrefix:     s.configuration.ControlPlaneNamePrefix,
-		NodeGroupIdentifier:        nodeGroupID,
-		InstanceType:               machineType,
+		NodeGroupIdentifier:        intput.nodeGroupID,
+		InstanceType:               intput.machineType,
+		DiskSize:                   intput.diskSizeInMB,
 		Status:                     NodegroupNotCreated,
 		pendingNodes:               make(map[string]*AutoScalerServerNode),
 		Nodes:                      make(map[string]*AutoScalerServerNode),
-		MinNodeSize:                int(minNodeSize),
-		MaxNodeSize:                int(maxNodeSize),
-		NodeLabels:                 labels,
-		SystemLabels:               systemLabels,
-		AutoProvision:              autoProvision,
+		MinNodeSize:                intput.minNodeSize,
+		MaxNodeSize:                intput.maxNodeSize,
+		NodeLabels:                 intput.labels,
+		SystemLabels:               intput.systemLabels,
+		AutoProvision:              intput.autoProvision,
 		configuration:              s.configuration,
 	}
 
-	s.Groups[nodeGroupID] = nodeGroup
+	s.Groups[intput.nodeGroupID] = nodeGroup
 
 	return nodeGroup, nil
 }
@@ -196,7 +209,18 @@ func (s *AutoScalerServerApp) doAutoProvision() error {
 
 				glog.Infof("Auto provision for nodegroup:%s, minSize:%d, maxSize:%d", nodeGroupIdentifier, nodeGroupDef.MinSize, nodeGroupDef.MaxSize)
 
-				if _, err = s.newNodeGroup(nodeGroupIdentifier, nodeGroupDef.MinSize, nodeGroupDef.MaxSize, s.configuration.DefaultMachineType, labels, systemLabels, true); err != nil {
+				input := nodegroupCreateInput{
+					nodeGroupID:   nodeGroupIdentifier,
+					minNodeSize:   int(nodeGroupDef.MinSize),
+					maxNodeSize:   int(nodeGroupDef.MaxSize),
+					machineType:   s.configuration.DefaultMachineType,
+					diskSizeInMB:  s.configuration.DiskSizeInMB,
+					labels:        labels,
+					systemLabels:  systemLabels,
+					autoProvision: true,
+				}
+
+				if _, err = s.newNodeGroup(&input); err != nil {
 					break
 				}
 
@@ -523,7 +547,13 @@ func (s *AutoScalerServerApp) NewNodeGroup(ctx context.Context, request *apigrpc
 		return nil, fmt.Errorf(constantes.ErrMismatchingProvider)
 	}
 
-	machineType := s.configuration.Machines[request.GetMachineType()]
+	instanceType := request.GetMachineType()
+
+	if len(instanceType) == 0 {
+		instanceType = s.configuration.DefaultMachineType
+	}
+
+	machineType := s.configuration.Machines[instanceType]
 
 	if machineType == nil {
 		glog.Errorf(constantes.ErrMachineTypeNotFound, request.GetMachineType())
@@ -542,6 +572,7 @@ func (s *AutoScalerServerApp) NewNodeGroup(ctx context.Context, request *apigrpc
 
 	labels := make(types.KubernetesLabel)
 	systemLabels := make(types.KubernetesLabel)
+	diskSize := s.configuration.DiskSizeInMB
 
 	if reqLabels := request.GetLabels(); reqLabels != nil {
 		for k2, v2 := range reqLabels {
@@ -561,7 +592,18 @@ func (s *AutoScalerServerApp) NewNodeGroup(ctx context.Context, request *apigrpc
 		nodeGroupIdentifier = request.GetNodeGroupID()
 	}
 
-	nodeGroup, err := s.newNodeGroup(nodeGroupIdentifier, request.GetMinNodeSize(), request.GetMaxNodeSize(), request.GetMachineType(), labels, systemLabels, false)
+	input := nodegroupCreateInput{
+		nodeGroupID:   nodeGroupIdentifier,
+		minNodeSize:   int(request.GetMinNodeSize()),
+		maxNodeSize:   int(request.GetMaxNodeSize()),
+		machineType:   instanceType,
+		diskSizeInMB:  diskSize,
+		labels:        labels,
+		systemLabels:  systemLabels,
+		autoProvision: false,
+	}
+
+	nodeGroup, err := s.newNodeGroup(&input)
 
 	if err != nil {
 		glog.Errorf(constantes.ErrUnableToCreateNodeGroup, nodeGroupIdentifier, err)
@@ -1632,12 +1674,12 @@ func StartServer(kubeClient types.ClientGenerator, c *types.Config) {
 		phSaveState = true
 	}
 
-	file, err := os.Open(configFileName)
+	content, err := providers.LoadTextEnvSubst(configFileName)
 	if err != nil {
 		glog.Fatalf("failed to open config file:%s, error:%v", configFileName, err)
 	}
 
-	decoder := json.NewDecoder(file)
+	decoder := json.NewDecoder(strings.NewReader(content))
 	err = decoder.Decode(&config)
 	if err != nil {
 		glog.Fatalf("failed to decode config file:%s, error:%v", configFileName, err)

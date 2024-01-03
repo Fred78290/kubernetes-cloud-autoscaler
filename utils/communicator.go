@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Fred78290/kubernetes-cloud-autoscaler/types"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/sshutils"
 	glog "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 )
@@ -48,7 +48,7 @@ func AuthMethodFromPrivateKey(key string) (ssh.AuthMethod, error) {
 }
 
 // Shell execute local command ignore output
-func Shell(args ...string) error {
+func Shell(args ...string) (string, error) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
@@ -58,20 +58,20 @@ func Shell(args ...string) error {
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("%s, %s", err.Error(), strings.TrimSpace(stderr.String()))
+		return stderr.String(), fmt.Errorf("%s, %s", err.Error(), strings.TrimSpace(stderr.String()))
 	}
 
-	return nil
+	return stdout.String(), nil
 }
 
 // Scp copy file
-func Scp(connect *types.AutoScalerServerSSH, host, src, dst string) error {
+func Scp(connect *sshutils.AutoScalerServerSSH, host, src, dst string) error {
 
 	if connect.TestMode {
 		return nil
 	}
 
-	return Shell("scp",
+	_, err := Shell("scp",
 		"-i", connect.GetAuthKeys(),
 		"-o", "StrictHostKeyChecking=no",
 		"-o", "UserKnownHostsFile=/dev/null",
@@ -79,10 +79,11 @@ func Scp(connect *types.AutoScalerServerSSH, host, src, dst string) error {
 		"-r",
 		src,
 		fmt.Sprintf("%s@%s:%s", connect.GetUserName(), host, dst))
+	return err
 }
 
 // Sudo exec ssh command as sudo
-func Sudo(connect *types.AutoScalerServerSSH, host string, timeoutInSeconds time.Duration, command ...string) (string, error) {
+func Sudo(connect *sshutils.AutoScalerServerSSH, host string, timeoutInSeconds time.Duration, command ...string) (string, error) {
 	var sshConfig *ssh.ClientConfig
 	var err error
 	var method ssh.AuthMethod

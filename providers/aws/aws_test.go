@@ -14,19 +14,14 @@ import (
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/context"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers/aws"
-	"github.com/Fred78290/kubernetes-cloud-autoscaler/types"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/utils"
+	"github.com/joho/godotenv"
 )
 
 type ConfigurationTest struct {
-	SSH          types.AutoScalerServerSSH                  `json:"ssh"`
-	InstanceName string                                     `json:"instance-name"`
-	InstanceType string                                     `json:"instance-type"`
-	DiskSize     int                                        `default:"10240" json:"disk-size"`
-	DiskType     string                                     `default:"gp3" json:"disk-type"`
-	Machines     map[string]providers.MachineCharacteristic `json:"machines"`
-	provider     providers.ProviderConfiguration
-	inited       bool
+	providers.BasicConfiguration
+	provider providers.ProviderConfiguration
+	inited   bool
 }
 
 var testConfig ConfigurationTest
@@ -36,12 +31,12 @@ const (
 	cantGetStatus = "Can't get status on VM"
 )
 
-func getAwsConfFile() string {
+func getProviderConfFile() string {
 	if config := os.Getenv("TEST_AWS_CONFIG"); config != "" {
 		return config
 	}
 
-	return "../test/local/config/aws.json"
+	return "../test/providers/aws.json"
 }
 
 func getTestFile() string {
@@ -49,28 +44,20 @@ func getTestFile() string {
 		return config
 	}
 
-	return "../test/local/aws.json"
+	return "../test/aws.json"
 }
 
 func loadFromJson() *ConfigurationTest {
 	if !testConfig.inited {
-		fileName := getTestFile()
+		godotenv.Overload("../.env")
 
-		if configStr, err := os.ReadFile(fileName); err != nil {
-			glog.Fatalf("failed to open config file:%s, error:%v", fileName, err)
+		if content, err := providers.LoadTextEnvSubst(getTestFile()); err != nil {
+			glog.Fatalf("failed to open config file:%s, error:%v", getTestFile(), err)
+		} else if json.NewDecoder(strings.NewReader(content)).Decode(&testConfig.BasicConfiguration); err != nil {
+			glog.Fatalf("failed to decode config file:%s, error:%v", getTestFile(), err)
+		} else if testConfig.provider, err = aws.NewAwsProviderConfiguration(getProviderConfFile()); err != nil {
+			glog.Fatalf("failed to open config file:%s, error:%v", getProviderConfFile(), err)
 		} else {
-			err = json.Unmarshal(configStr, &testConfig)
-
-			if err != nil {
-				glog.Fatalf("failed to decode config file:%s, error:%v", fileName, err)
-			}
-
-			fileName = getAwsConfFile()
-
-			if testConfig.provider, err = aws.NewAwsProviderConfiguration(fileName); err != nil {
-				glog.Fatalf("failed to open config file:%s, error:%v", fileName, err)
-			}
-
 			testConfig.inited = true
 		}
 	}
@@ -139,19 +126,15 @@ func Test_createInstance(t *testing.T) {
 		config := loadFromJson()
 
 		if machine, found := config.Machines[config.InstanceType]; assert.True(t, found, fmt.Sprintf("machine: %s not found", config.InstanceType)) {
-			if handler, err := config.provider.CreateInstance(config.InstanceName, 0); assert.NoError(t, err, "Can't create VM") && err == nil {
-
-				machine.DiskSize = config.DiskSize
-				machine.DiskType = config.DiskType
+			if handler, err := config.provider.CreateInstance(config.InstanceName, config.InstanceType, 0); assert.NoError(t, err, "Can't create VM") && err == nil {
 
 				createInput := &providers.InstanceCreateInput{
-					NodeName:     config.InstanceName,
-					NodeIndex:    0,
-					InstanceType: config.InstanceType,
-					UserName:     config.SSH.UserName,
-					AuthKey:      config.SSH.AuthKeys,
-					CloudInit:    nil,
-					Machine:      &machine,
+					NodeGroup: config.NodeGroup,
+					UserName:  config.SSH.UserName,
+					AuthKey:   config.SSH.AuthKeys,
+					DiskSize:  config.DiskSize,
+					CloudInit: nil,
+					Machine:   &machine,
 				}
 
 				if vmuuid, err := handler.InstanceCreate(createInput); assert.NoError(t, err, "Can't create VM") {

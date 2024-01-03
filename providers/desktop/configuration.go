@@ -13,32 +13,19 @@ import (
 )
 
 // Configuration declares desktop connection info
-type VMWareDesktopConfiguration struct {
-	NodeGroup    string        `json:"nodegroup"`
-	Timeout      time.Duration `json:"timeout"`
-	TimeZone     string        `json:"time-zone"`
-	TemplateName string        `json:"template-name"`
-	LinkedClone  bool          `json:"linked"`
-	Autostart    bool          `json:"autostart"`
-	Network      *Network      `json:"network"`
-	AllowUpgrade bool          `json:"allow-upgrade"`
-	TestMode     bool          `json:"test-mode"`
-}
-
 type Configuration struct {
 	Address           string            `json:"address"` // external cluster autoscaler provider address of the form "host:port", "host%zone:port", "[host]:port" or "[host%zone]:port"
 	Key               string            `json:"key"`     // path to file containing the tls key
 	Cert              string            `json:"cert"`    // path to file containing the tls certificate
 	Cacert            string            `json:"cacert"`  // path to file containing the CA certificate
-	NodeGroup         string            `json:"nodegroup"`
 	Timeout           time.Duration     `json:"timeout"`
-	TimeZone          string            `json:"time-zone"`
+	TimeZone          string            `default:"UTC" json:"time-zone"`
 	TemplateName      string            `json:"template-name"`
 	LinkedClone       bool              `json:"linked"`
 	Autostart         bool              `json:"autostart"`
 	Network           *Network          `json:"network"`
 	AvailableGPUTypes map[string]string `json:"gpu-types"`
-	AllowUpgrade      bool              `json:"allow-upgrade"`
+	AllowUpgrade      bool              `default:"true" json:"allow-upgrade"`
 	TestMode          bool              `json:"test-mode"`
 }
 
@@ -52,6 +39,7 @@ type desktopWrapper struct {
 type desktopHandler struct {
 	*desktopWrapper
 	network      Network
+	instanceType string
 	instanceName string
 	instanceID   string
 	nodeIndex    int
@@ -59,7 +47,8 @@ type desktopHandler struct {
 
 type CreateInput struct {
 	*providers.InstanceCreateInput
-
+	NodeName     string
+	NodeIndex    int
 	AllowUpgrade bool
 	TimeZone     string
 	Network      *Network
@@ -96,10 +85,6 @@ func (status *VmStatus) Powered() bool {
 
 func (handler *desktopHandler) GetTimeout() time.Duration {
 	return handler.Timeout
-}
-
-func (handler *desktopHandler) NodeGroupName() string {
-	return handler.NodeGroup
 }
 
 func (handler *desktopHandler) ConfigureNetwork(network v1alpha1.ManagedNetworkConfig) {
@@ -158,6 +143,8 @@ func (handler *desktopHandler) InstanceCreate(input *providers.InstanceCreateInp
 
 	createInput := &CreateInput{
 		InstanceCreateInput: input,
+		NodeName:            handler.instanceName,
+		NodeIndex:           handler.nodeIndex,
 		AllowUpgrade:        handler.AllowUpgrade,
 		TimeZone:            handler.TimeZone,
 		Network:             &handler.network,
@@ -166,8 +153,6 @@ func (handler *desktopHandler) InstanceCreate(input *providers.InstanceCreateInp
 	if vmuuid, err := handler.Create(createInput); err != nil {
 		return "", err
 	} else {
-		handler.instanceName = input.NodeName
-		handler.nodeIndex = input.NodeIndex
 		handler.instanceID = vmuuid
 
 		return vmuuid, err
@@ -273,7 +258,7 @@ func (handler *desktopHandler) InstanceWaitForToolsRunning() (bool, error) {
 	return true, handler.WaitForPowerState(handler.instanceID, true)
 }
 
-func (handler *desktopHandler) InstanceMaxPods(instanceType string, desiredMaxPods int) (int, error) {
+func (handler *desktopHandler) InstanceMaxPods(desiredMaxPods int) (int, error) {
 	if desiredMaxPods == 0 {
 		desiredMaxPods = 110
 	}
@@ -345,7 +330,7 @@ func (wrapper *desktopWrapper) AttachInstance(instanceName string, nodeIndex int
 	}
 }
 
-func (wrapper *desktopWrapper) CreateInstance(instanceName string, nodeIndex int) (providers.ProviderHandler, error) {
+func (wrapper *desktopWrapper) CreateInstance(instanceName, instanceType string, nodeIndex int) (providers.ProviderHandler, error) {
 	if wrapper.InstanceExists(instanceName) {
 		glog.Warnf(constantes.ErrVMAlreadyExists, instanceName)
 		return nil, fmt.Errorf(constantes.ErrVMAlreadyExists, instanceName)
@@ -358,6 +343,7 @@ func (wrapper *desktopWrapper) CreateInstance(instanceName string, nodeIndex int
 	return &desktopHandler{
 		desktopWrapper: wrapper,
 		network:        network,
+		instanceType:   instanceType,
 		instanceName:   instanceName,
 		nodeIndex:      nodeIndex,
 	}, nil
@@ -365,10 +351,6 @@ func (wrapper *desktopWrapper) CreateInstance(instanceName string, nodeIndex int
 
 func (wrapper *desktopWrapper) InstanceExists(name string) bool {
 	return wrapper.Exists(name)
-}
-
-func (wrapper *desktopWrapper) NodeGroupName() string {
-	return wrapper.NodeGroup
 }
 
 func (wrapper *desktopWrapper) GetAvailableGpuTypes() map[string]string {
@@ -417,7 +399,7 @@ func (wrapper *desktopWrapper) CreateWithContext(ctx *context.Context, input *Cr
 		Name:         input.NodeName,
 		Vcpus:        int32(input.Machine.Vcpu),
 		Memory:       int64(input.Machine.Memory),
-		DiskSizeInMb: int32(input.Machine.DiskSize),
+		DiskSizeInMb: int32(input.DiskSize),
 		Linked:       wrapper.LinkedClone,
 		Networks:     BuildNetworkInterface(input.Network.Interfaces, input.NodeIndex),
 		Register:     false,

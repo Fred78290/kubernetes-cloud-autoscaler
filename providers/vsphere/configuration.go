@@ -16,7 +16,7 @@ import (
 
 // Configuration declares vsphere connection info
 type Configuration struct {
-	NodeGroup         string            `json:"nodegroup"`
+	//	NodeGroup         string            `json:"nodegroup"`
 	URL               string            `json:"url"`
 	UserName          string            `json:"uid"`
 	Password          string            `json:"password"`
@@ -30,7 +30,7 @@ type Configuration struct {
 	TemplateName      string            `json:"template-name"`
 	Template          bool              `json:"template"`
 	LinkedClone       bool              `json:"linked"`
-	AllowUpgrade      bool              `json:"allow-upgrade"`
+	AllowUpgrade      bool              `default:"true" json:"allow-upgrade"`
 	Customization     string            `json:"customization"`
 	Network           Network           `json:"network"`
 	AvailableGPUTypes map[string]string `json:"gpu-types"`
@@ -46,6 +46,7 @@ type vsphereWrapper struct {
 type vsphereHandler struct {
 	*vsphereWrapper
 	network      Network
+	instanceType string
 	instanceName string
 	instanceID   string
 	nodeIndex    int
@@ -78,6 +79,8 @@ type VmStatus struct {
 
 type CreateInput struct {
 	*providers.InstanceCreateInput
+	NodeName        string
+	NodeIndex       int
 	AllowUpgrade    bool
 	ExpandHardDrive bool
 	Annotation      string
@@ -94,10 +97,6 @@ func (status *VmStatus) Powered() bool {
 
 func (handler *vsphereHandler) GetTimeout() time.Duration {
 	return handler.Timeout
-}
-
-func (handler *vsphereHandler) NodeGroupName() string {
-	return handler.NodeGroup
 }
 
 func (handler *vsphereHandler) ConfigureNetwork(network v1alpha1.ManagedNetworkConfig) {
@@ -163,6 +162,8 @@ func (handler *vsphereHandler) GetTopologyLabels() map[string]string {
 func (handler *vsphereHandler) InstanceCreate(input *providers.InstanceCreateInput) (string, error) {
 	createInput := &CreateInput{
 		InstanceCreateInput: input,
+		NodeName:            handler.instanceName,
+		NodeIndex:           handler.nodeIndex,
 		AllowUpgrade:        handler.AllowUpgrade,
 		ExpandHardDrive:     true,
 		Annotation:          handler.Annotation,
@@ -175,8 +176,6 @@ func (handler *vsphereHandler) InstanceCreate(input *providers.InstanceCreateInp
 		ctx := context.NewContext(handler.Timeout)
 		defer ctx.Cancel()
 
-		handler.instanceName = input.NodeName
-		handler.nodeIndex = input.NodeIndex
 		handler.instanceID = vm.UUID(ctx)
 
 		return handler.instanceID, err
@@ -296,7 +295,7 @@ func (handler *vsphereHandler) InstanceWaitForToolsRunning() (bool, error) {
 	return handler.WaitForToolsRunning(handler.instanceName)
 }
 
-func (handler *vsphereHandler) InstanceMaxPods(instanceType string, desiredMaxPods int) (int, error) {
+func (handler *vsphereHandler) InstanceMaxPods(desiredMaxPods int) (int, error) {
 	if desiredMaxPods == 0 {
 		desiredMaxPods = 110
 	}
@@ -354,7 +353,7 @@ func (wrapper *vsphereWrapper) AttachInstance(instanceName string, nodeIndex int
 	}
 }
 
-func (wrapper *vsphereWrapper) CreateInstance(instanceName string, nodeIndex int) (providers.ProviderHandler, error) {
+func (wrapper *vsphereWrapper) CreateInstance(instanceName, instanceType string, nodeIndex int) (providers.ProviderHandler, error) {
 	if wrapper.InstanceExists(instanceName) {
 		glog.Warnf(constantes.ErrVMAlreadyExists, instanceName)
 		return nil, fmt.Errorf(constantes.ErrVMAlreadyExists, instanceName)
@@ -367,6 +366,7 @@ func (wrapper *vsphereWrapper) CreateInstance(instanceName string, nodeIndex int
 	return &vsphereHandler{
 		vsphereWrapper: wrapper,
 		network:        network,
+		instanceType:   instanceType,
 		instanceName:   instanceName,
 		nodeIndex:      nodeIndex,
 	}, nil
@@ -374,10 +374,6 @@ func (wrapper *vsphereWrapper) CreateInstance(instanceName string, nodeIndex int
 
 func (wrapper *vsphereWrapper) InstanceExists(name string) bool {
 	return wrapper.Exists(name)
-}
-
-func (wrapper *vsphereWrapper) NodeGroupName() string {
-	return wrapper.NodeGroup
 }
 
 func (wrapper *vsphereWrapper) GetAvailableGpuTypes() map[string]string {

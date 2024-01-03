@@ -33,7 +33,6 @@ const (
 
 // Configuration declares aws connection info
 type Configuration struct {
-	NodeGroup         string            `json:"nodegroup"`
 	AccessKey         string            `json:"accessKey,omitempty"`
 	SecretKey         string            `json:"secretKey,omitempty"`
 	Token             string            `json:"token,omitempty"`
@@ -44,6 +43,7 @@ type Configuration struct {
 	ImageID           string            `json:"ami"`
 	IamRole           string            `json:"iam-role-arn"`
 	KeyName           string            `json:"keyName"`
+	DiskType          string            `default:"gp2" json:"disk-type"`
 	Tags              []Tag             `json:"tags,omitempty"`
 	Network           Network           `json:"network"`
 	AvailableGPUTypes map[string]string `json:"gpu-types"`
@@ -98,12 +98,6 @@ type UserDefinedNetworkInterface struct {
 	PublicIP           bool   `json:"publicIP"`
 }
 
-// Status shortened vm status
-type Status struct {
-	address string
-	powered bool
-}
-
 type CreateInput struct {
 	*providers.InstanceCreateInput
 }
@@ -113,6 +107,8 @@ type awsWrapper struct {
 
 type awsHandler struct {
 	*awsWrapper
+	instanceName    string
+	instanceType    string
 	nodeIndex       int
 	runningInstance *Ec2Instance
 	desiredENI      *UserDefinedNetworkInterface
@@ -134,24 +130,12 @@ func NewAwsProviderConfiguration(fileName string) (providers.ProviderConfigurati
 	return &wrapper, nil
 }
 
-func (status *Status) Address() string {
-	return status.address
-}
-
-func (status *Status) Powered() bool {
-	return status.powered
-}
-
 func isNullOrEmpty(s string) bool {
 	return len(strings.TrimSpace(s)) == 0
 }
 
 func (handler *awsHandler) GetTimeout() time.Duration {
 	return handler.Timeout
-}
-
-func (handler *awsHandler) NodeGroupName() string {
-	return handler.NodeGroup
 }
 
 func (handler *awsHandler) ConfigureNetwork(network v1alpha1.ManagedNetworkConfig) {
@@ -221,11 +205,11 @@ func (handler *awsHandler) InstanceCreate(input *providers.InstanceCreateInput) 
 		return "", err
 	}
 
-	if handler.runningInstance, err = handler.newEc2Instance(input.NodeName); err != nil {
+	if handler.runningInstance, err = handler.newEc2Instance(handler.instanceName); err != nil {
 		return "", err
 	}
 
-	if err = handler.runningInstance.Create(input.NodeIndex, handler.NodeGroupName(), input.InstanceType, userData, input.Machine.DiskType, input.Machine.DiskSize, handler.desiredENI); err != nil {
+	if err = handler.runningInstance.Create(handler.nodeIndex, input.NodeGroup, handler.instanceType, userData, handler.DiskType, input.DiskSize, handler.desiredENI); err != nil {
 		return "", err
 	}
 
@@ -246,10 +230,6 @@ func (handler *awsHandler) InstanceID() (string, error) {
 	}
 
 	return *handler.runningInstance.InstanceID, nil
-}
-
-func (handler *awsHandler) InstanceExists(name string) bool {
-	return handler.Exists(name)
 }
 
 func (handler *awsHandler) InstanceAutoStart() error {
@@ -308,13 +288,13 @@ func (handler *awsHandler) InstanceWaitForToolsRunning() (bool, error) {
 	return true, nil
 }
 
-func (handler *awsHandler) InstanceMaxPods(instanceType string, desiredMaxPods int) (int, error) {
+func (handler *awsHandler) InstanceMaxPods(desiredMaxPods int) (int, error) {
 	if client, err := handler.createClient(); err != nil {
 		return 0, err
 	} else {
 		input := ec2.DescribeInstanceTypesInput{
 			InstanceTypes: []*string{
-				aws.String(instanceType),
+				aws.String(handler.instanceType),
 			},
 		}
 
@@ -335,7 +315,7 @@ func (handler *awsHandler) RegisterDNS(address string) error {
 		vm := handler.runningInstance
 		hostname := fmt.Sprintf("%s.%s", vm.InstanceName, handler.Network.PrivateZoneName)
 
-		glog.Infof("Register route53 entry for instance %s, node group: %s, hostname: %s with IP:%s", vm.InstanceName, handler.NodeGroup, hostname, address)
+		glog.Infof("Register route53 entry for instance %s, hostname: %s with IP:%s", vm.InstanceName, hostname, address)
 
 		err = vm.RegisterDNS(hostname, address, handler.TestMode)
 	}
@@ -351,7 +331,7 @@ func (handler *awsHandler) UnregisterDNS(address string) error {
 		vm := handler.runningInstance
 		hostname := fmt.Sprintf("%s.%s", vm.InstanceName, handler.Network.PrivateZoneName)
 
-		glog.Infof("Unregister route53 entry for instance %s, node group: %s, hostname: %s with IP:%s", vm.InstanceName, handler.NodeGroup, hostname, address)
+		glog.Infof("Unregister route53 entry for instance %s, hostname: %s with IP:%s", vm.InstanceName, hostname, address)
 
 		err = vm.UnRegisterDNS(hostname, false)
 	}
@@ -378,29 +358,28 @@ func (wrapper *awsWrapper) AttachInstance(instanceName string, nodeIndex int) (p
 		return &awsHandler{
 			awsWrapper:      wrapper,
 			runningInstance: instance,
+			instanceName:    instanceName,
 			nodeIndex:       nodeIndex,
 		}, nil
 	}
 }
 
-func (wrapper *awsWrapper) CreateInstance(instanceName string, nodeIndex int) (providers.ProviderHandler, error) {
+func (wrapper *awsWrapper) CreateInstance(instanceName, instanceType string, nodeIndex int) (providers.ProviderHandler, error) {
 	if wrapper.InstanceExists(instanceName) {
 		glog.Warnf(constantes.ErrVMAlreadyExists, instanceName)
 		return nil, fmt.Errorf(constantes.ErrVMAlreadyExists, instanceName)
 	}
 
 	return &awsHandler{
-		awsWrapper: wrapper,
-		nodeIndex:  nodeIndex,
+		awsWrapper:   wrapper,
+		instanceType: instanceType,
+		instanceName: instanceName,
+		nodeIndex:    nodeIndex,
 	}, nil
 }
 
 func (wrapper *awsWrapper) InstanceExists(name string) bool {
 	return wrapper.Exists(name)
-}
-
-func (wrapper *awsWrapper) NodeGroupName() string {
-	return wrapper.NodeGroup
 }
 
 func (wrapper *awsWrapper) GetAvailableGpuTypes() map[string]string {

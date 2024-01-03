@@ -1,0 +1,52 @@
+{
+	"address": "127.0.0.1:5323",
+	"key": "${VMWARE_UTILITY_KEY}",
+	"cert": "${VMWARE_UTILITY_CERT}",
+	"cacert": "${VMWARE_UTILITY_CACERT}",
+	"nodegroup": "${NODEGROUP_NAME}",
+	"timeout": 300,
+	"template-name": "${VMWARE_TEMPLATE_NAME}",
+	"linked": false,
+	"autostart": false,
+	"time-zone": "Europe/Paris",
+	"allow-upgrade": true,
+	"network": {
+		"domain": "${DOMAIN_NAME}",
+		"dns": {
+			"search": [
+				"${DOMAIN_NAME}"
+			],
+			"nameserver": [
+				"${DOMAIN_RESOLVER}"
+			]
+		},
+		"interfaces": [
+			{
+				"primary": false,
+				"exists": true,
+				"network": "vmnet4",
+				"type": "custom",
+				"bsd-name": "en0",
+				"adapter": "e1000e",
+				"mac-address": "generate",
+				"nic": "eth0",
+				"dhcp": true,
+				"use-dhcp-routes": true
+			},
+			{
+				"primary": true,
+				"exists": true,
+				"network": "vmnet2",
+				"type": "custom",
+				"adapter": "e1000e",
+				"mac-address": "generate",
+				"nic": "eth1",
+				"dhcp": false,
+				"use-dhcp-routes": false,
+                "address": "192.168.1.27",
+                "gateway": "192.168.1.1",
+                "netmask": "255.255.255.0"
+			}
+		]
+	}
+}

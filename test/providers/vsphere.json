@@ -1,32 +1,32 @@
 {
-    "url": "https://127.0.0.1:8989/sdk",
-    "uid": "user",
-    "password": "pass",
+    "url": "${GOVC_URL}",
+    "uid": "${GOVC_USERNAME}",
+    "password": "${GOVC_PASSWORD}",
     "insecure": true,
-    "dc": "DC0",
-    "datastore": "LocalDS_0",
-    "resource-pool": "/DC0/host/DC0_H0/Resources",
-    "vmFolder": "",
+    "dc": "${GOVC_DATACENTER}",
+    "datastore": "${GOVC_DATASTORE}",
+    "resource-pool": "${GOVC_RESOURCE_POOL}",
+    "vmFolder": "${GOVC_FOLDER}",
     "timeout": 300,
-    "template-name": "DC0_H0_VM0",
+    "template-name": "${GOVC_TEMPLATE_NAME}",
     "template": false,
     "linked": false,
     "customization": "",
     "network": {
-        "domain": "sample.com",
+        "domain": "${DOMAIN_NAME}",
         "dns": {
             "search": [
-                "sample.com"
+                "${DOMAIN_NAME}"
             ],
             "nameserver": [
-                "8.8.8.8"
+                "${DOMAIN_RESOLVER}"
             ]
         },
         "interfaces": [
             {
                 "primary": false,
                 "exists": true,
-                "network": "VM Network",
+                "network": "${GOVC_NETWORK_PUBLIC}",
                 "adapter": "vmxnet3",
                 "mac-address": "generate",
                 "nic": "eth0",
@@ -36,7 +36,7 @@
             {
                 "primary": true,
                 "exists": true,
-                "network": "DC0_DVPG0",
+                "network": "${GOVC_NETWORK_PRIVATE}",
                 "adapter": "vmxnet3",
                 "mac-address": "generate",
                 "nic": "eth1",

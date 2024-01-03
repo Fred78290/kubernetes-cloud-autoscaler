@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
@@ -10,6 +11,8 @@ import (
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/types"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/utils"
+	"github.com/joho/godotenv"
+	glog "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	apiv1 "k8s.io/api/core/v1"
 	apiextension "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -41,13 +44,13 @@ func (ng *autoScalerServerNodeGroupTest) createTestNode(nodeName string, desired
 	machine := ng.Machine()
 
 	node := &AutoScalerServerNode{
-		NodeGroupID:     testGroupID,
+		NodeGroup:       testGroupID,
 		NodeName:        nodeName,
 		VMUUID:          testVMUUID,
 		CRDUID:          testCRDUID,
 		Memory:          machine.Memory,
 		CPU:             machine.Vcpu,
-		DiskSize:        machine.DiskSize,
+		DiskSize:        ng.configuration.DiskSizeInMB,
 		IPAddress:       "127.0.0.1",
 		State:           state,
 		NodeType:        AutoScalerServerNodeAutoscaled,
@@ -59,7 +62,7 @@ func (ng *autoScalerServerNodeGroupTest) createTestNode(nodeName string, desired
 	if ng.testConfig.InstanceExists(nodeName) {
 		node.providerHandler, _ = ng.testConfig.AttachInstance(nodeName, 1)
 	} else {
-		node.providerHandler, _ = ng.testConfig.CreateInstance(nodeName, 1)
+		node.providerHandler, _ = ng.testConfig.CreateInstance(nodeName, "small", 1)
 	}
 
 	if vmuuid := node.findInstanceUUID(); len(vmuuid) > 0 {
@@ -300,6 +303,7 @@ func (m *baseTest) newTestNodeGroup() (*autoScalerServerNodeGroupTest, error) {
 					configuration:              config,
 					NodeLabels:                 config.NodeLabels,
 					InstanceType:               config.DefaultMachineType,
+					DiskSize:                   config.DiskSizeInMB,
 				},
 			}
 
@@ -313,23 +317,30 @@ func (m *baseTest) newTestNodeGroup() (*autoScalerServerNodeGroupTest, error) {
 }
 
 func (m *baseTest) getConfFile() string {
-	if config := os.Getenv("TEST_CONFIG"); config != "" {
+	if config := os.Getenv("TEST_SERVER_CONFIG"); config != "" {
 		return config
 	}
 
-	return "../test/config.json"
+	return "../test/server.json"
 }
 
 func (m *baseTest) newTestConfig() (*types.AutoScalerServerConfig, error) {
 	var config types.AutoScalerServerConfig
+	fileName := m.getConfFile()
 
-	if configStr, err := os.ReadFile(m.getConfFile()); err != nil {
+	godotenv.Overload("../.env")
+
+	if content, err := providers.LoadTextEnvSubst(fileName); err != nil {
+		glog.Errorf("failed to open config file:%s, error:%v", fileName, err)
+
+		return nil, err
+	} else if json.NewDecoder(strings.NewReader(content)).Decode(&config); err != nil {
+		glog.Errorf("failed to decode config file:%s, error:%v", fileName, err)
+
 		return nil, err
 	} else {
-		if err = json.Unmarshal(configStr, &config); err == nil {
-			m.testConfig = config.GetCloudConfiguration()
-			config.SSH.TestMode = true
-		}
+		m.testConfig = config.GetCloudConfiguration()
+		config.SSH.TestMode = true
 
 		return &config, err
 	}

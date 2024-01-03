@@ -81,17 +81,16 @@ const (
 // AutoScalerServerNode Describe a AutoScaler VM
 // Node name and instance name could be differ when using AWS cloud provider
 type AutoScalerServerNode struct {
-	NodeGroupID      string                    `json:"group"`
-	InstanceName     string                    `json:"instance-name"`
-	NodeName         string                    `json:"node-name"`
-	NodeIndex        int                       `json:"index"`
-	VMUUID           string                    `json:"vm-uuid"`
-	CRDUID           uid.UID                   `json:"crd-uid"`
-	Memory           int                       `json:"memory"`
-	CPU              int                       `json:"cpu"`
-	DiskSize         int                       `json:"diskSize"`
-	DiskType         string                    `default:"standard" json:"diskType"`
-	InstanceType     string                    `json:"instance-Type"`
+	NodeGroup    string  `json:"group"`
+	NodeName     string  `json:"node-name"`
+	NodeIndex    int     `json:"index"`
+	InstanceName string  `json:"instance-name"`
+	VMUUID       string  `json:"vm-uuid"`
+	CRDUID       uid.UID `json:"crd-uid"`
+	Memory       int     `json:"memory"`
+	CPU          int     `json:"cpu"`
+	DiskSize     int     `json:"diskSize"`
+	//InstanceType     string                    `json:"instance-Type"`
 	IPAddress        string                    `json:"address"`
 	State            AutoScalerServerNodeState `json:"state"`
 	NodeType         AutoScalerServerNodeType  `json:"type"`
@@ -117,7 +116,7 @@ func (vm *AutoScalerServerNode) recopyEtcdSslFilesIfNeeded() error {
 	var err error
 
 	if (vm.serverConfig.Distribution == nil || *vm.serverConfig.Distribution != providers.RKE2DistributionName) && (vm.ControlPlaneNode || *vm.serverConfig.UseExternalEtdc) {
-		glog.Infof("Recopy Etcd ssl files for instance: %s in node group: %s", vm.InstanceName, vm.NodeGroupID)
+		glog.Infof("Recopy Etcd ssl files for instance: %s in node group: %s", vm.InstanceName, vm.NodeGroup)
 
 		timeout := vm.providerHandler.GetTimeout()
 
@@ -139,7 +138,7 @@ func (vm *AutoScalerServerNode) recopyKubernetesPKIIfNeeded() error {
 	var err error
 
 	if (vm.serverConfig.Distribution == nil || *vm.serverConfig.Distribution != providers.RKE2DistributionName) && vm.ControlPlaneNode {
-		glog.Infof("Recopy PKI for instance: %s in node group: %s", vm.InstanceName, vm.NodeGroupID)
+		glog.Infof("Recopy PKI for instance: %s in node group: %s", vm.InstanceName, vm.NodeGroup)
 
 		timeout := vm.providerHandler.GetTimeout()
 
@@ -158,7 +157,7 @@ func (vm *AutoScalerServerNode) recopyKubernetesPKIIfNeeded() error {
 }
 
 func (vm *AutoScalerServerNode) executeCommands(args []string, restartKubelet bool, c types.ClientGenerator) error {
-	glog.Infof(joinClusterInfo, vm.NodeName, vm.NodeGroupID)
+	glog.Infof(joinClusterInfo, vm.NodeName, vm.NodeGroup)
 
 	command := fmt.Sprintf("sh -c \"%s\"", strings.Join(args, " && "))
 
@@ -179,7 +178,7 @@ func (vm *AutoScalerServerNode) executeCommands(args []string, restartKubelet bo
 			}
 
 			if restartKubelet {
-				glog.Infof("Restart kubelet for node:%s for nodegroup: %s", vm.NodeName, vm.NodeGroupID)
+				glog.Infof("Restart kubelet for node:%s for nodegroup: %s", vm.NodeName, vm.NodeGroup)
 
 				if out, err := utils.Sudo(vm.serverConfig.SSH, vm.IPAddress, timeout, "systemctl restart kubelet"); err != nil {
 					return false, fmt.Errorf("unable to restart kubelet, output: %s, reason:%v", out, err)
@@ -448,7 +447,7 @@ func (vm *AutoScalerServerNode) k3sAgentJoin(c types.ClientGenerator, maxPods in
 }
 
 func (vm *AutoScalerServerNode) joinCluster(c types.ClientGenerator, maxPods int) error {
-	glog.Infof("Register node in cluster for instance: %s in node group: %s", vm.InstanceName, vm.NodeGroupID)
+	glog.Infof("Register node in cluster for instance: %s in node group: %s", vm.InstanceName, vm.NodeGroup)
 
 	if vm.serverConfig.Distribution != nil {
 		if *vm.serverConfig.Distribution == providers.K3SDistributionName {
@@ -472,7 +471,7 @@ func (vm *AutoScalerServerNode) setNodeLabels(c types.ClientGenerator, nodeLabel
 	}
 
 	annotations := types.KubernetesLabel{
-		constantes.AnnotationNodeGroupName:        vm.NodeGroupID,
+		constantes.AnnotationNodeGroupName:        vm.NodeGroup,
 		constantes.AnnotationScaleDownDisabled:    strconv.FormatBool(vm.NodeType != AutoScalerServerNodeAutoscaled),
 		constantes.AnnotationNodeAutoProvisionned: strconv.FormatBool(vm.NodeType == AutoScalerServerNodeAutoscaled),
 		constantes.AnnotationNodeManaged:          strconv.FormatBool(vm.NodeType == AutoScalerServerNodeManaged),
@@ -540,7 +539,7 @@ func (vm *AutoScalerServerNode) WaitSSHReady(nodename, address string) error {
 }
 
 func (vm *AutoScalerServerNode) WaitForIP() (string, error) {
-	glog.Infof("Wait IP ready for instance: %s in node group: %s", vm.InstanceName, vm.NodeGroupID)
+	glog.Infof("Wait IP ready for instance: %s in node group: %s", vm.InstanceName, vm.NodeGroup)
 
 	return vm.providerHandler.InstanceWaitReady(vm)
 }
@@ -554,7 +553,7 @@ func (vm *AutoScalerServerNode) launchVM(c types.ClientGenerator, nodeLabels, sy
 
 	providerHandler := vm.providerHandler
 	userInfo := vm.serverConfig.SSH
-	glog.Infof("Launch VM:%s for nodegroup: %s", vm.InstanceName, vm.NodeGroupID)
+	glog.Infof("Launch VM:%s for nodegroup: %s", vm.InstanceName, vm.NodeGroup)
 
 	if vm.State != AutoScalerServerNodeStateNotCreated {
 		return fmt.Errorf(constantes.ErrVMAlreadyCreated, vm.InstanceName)
@@ -563,29 +562,26 @@ func (vm *AutoScalerServerNode) launchVM(c types.ClientGenerator, nodeLabels, sy
 	vm.State = AutoScalerServerNodeStateCreating
 
 	desiredMachine := &providers.MachineCharacteristic{
-		Memory:   vm.Memory,
-		Vcpu:     vm.CPU,
-		DiskSize: vm.DiskSize,
-		DiskType: vm.DiskType,
+		Memory: vm.Memory,
+		Vcpu:   vm.CPU,
 	}
 
 	createInput := &providers.InstanceCreateInput{
-		NodeName:     vm.InstanceName,
-		NodeIndex:    vm.NodeIndex,
-		InstanceType: vm.InstanceType,
-		UserName:     userInfo.GetUserName(),
-		AuthKey:      userInfo.GetAuthKeys(),
-		CloudInit:    vm.serverConfig.CloudInit,
-		Machine:      desiredMachine,
+		NodeGroup: vm.NodeGroup,
+		DiskSize:  vm.DiskSize,
+		UserName:  userInfo.GetUserName(),
+		AuthKey:   userInfo.GetAuthKeys(),
+		CloudInit: vm.serverConfig.CloudInit,
+		Machine:   desiredMachine,
 	}
 
 	if vm.NodeType != AutoScalerServerNodeAutoscaled && vm.NodeType != AutoScalerServerNodeManaged {
 
 		err = fmt.Errorf(constantes.ErrVMNotProvisionnedByMe, vm.InstanceName)
 
-	} else if maxPods, err = providerHandler.InstanceMaxPods(vm.InstanceType, vm.serverConfig.MaxPods); err != nil {
+	} else if maxPods, err = providerHandler.InstanceMaxPods(vm.serverConfig.MaxPods); err != nil {
 
-		err = fmt.Errorf(constantes.ErrUnableToRetrieveMaxPodsForInstanceType, vm.InstanceType, err)
+		err = fmt.Errorf(constantes.ErrUnableToRetrieveMaxPodsForInstanceType, vm.InstanceName, err)
 
 	} else if vm.VMUUID, err = providerHandler.InstanceCreate(createInput); err != nil {
 
@@ -652,9 +648,9 @@ func (vm *AutoScalerServerNode) launchVM(c types.ClientGenerator, nodeLabels, sy
 	}
 
 	if err == nil {
-		glog.Infof("Launched VM:%s nodename:%s for nodegroup: %s", vm.InstanceName, vm.NodeName, vm.NodeGroupID)
+		glog.Infof("Launched VM:%s nodename:%s for nodegroup: %s", vm.InstanceName, vm.NodeName, vm.NodeGroup)
 	} else {
-		glog.Errorf("Unable to launch VM:%s for nodegroup: %s. Reason: %v", vm.InstanceName, vm.NodeGroupID, err.Error())
+		glog.Errorf("Unable to launch VM:%s for nodegroup: %s. Reason: %v", vm.InstanceName, vm.NodeGroup, err.Error())
 	}
 
 	return err

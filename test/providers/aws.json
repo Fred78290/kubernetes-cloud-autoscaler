@@ -1,0 +1,28 @@
+{
+	"accessKey": "${AWS_ACCESSKEY}",
+	"secretKey": "${AWS_SECRETKEY}",
+	"profile": "${AWS_PROFILE}",
+	"region" : "${AWS_REGION}",
+	"keyName": "${AWS_SSH_KEYNAME}",
+	"ami": "${AWS_SEED_IMAGE}",
+	"iam-role-arn": "${AWS_IAM_ROLE_ARN}",
+	"timeout": 600,
+	"tags": [
+		{
+			"key": "CustomTag",
+			"value": "CustomValue"
+		}
+	],
+	"network": {
+		"usePublicIP": true,
+		"eni": [
+			{
+				"subnets": [
+					"${AWS_VPC_SUBNET_ID}"
+				],
+				"securityGroup": "${AWS_VPC_SECURITY_GROUPID}",
+				"publicIP": true
+			}
+		]
+	}
+}
