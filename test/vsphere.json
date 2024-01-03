@@ -1,0 +1,44 @@
+{
+    "ssh": {
+		"user": "${SEED_USER}",
+        "wait-ssh-ready-seconds": 180,
+		"ssh-private-key": "${HOME}/.ssh/id_rsa"
+    },
+    "cloud-init": {
+        "package_update": false,
+        "package_upgrade": false
+    },
+    "instance-name": "vm-autoscaled-test-${GITHUB_RUN_ID}",
+    "instance-type": "tiny",
+	"disk-size": 20480,
+	"machines": {
+		"tiny": {
+			"memsize": 2048,
+			"vcpus": 2
+		},
+		"small": {
+			"memsize": 4096,
+			"vcpus": 2
+		},
+		"medium": {
+			"memsize": 4096,
+			"vcpus": 4
+		},
+		"large": {
+			"memsize": 8192,
+			"vcpus": 4
+		},
+		"xlarge": {
+			"memsize": 16384,
+			"vcpus": 4
+		},
+		"2xlarge": {
+			"memsize": 16384,
+			"vcpus": 8
+		},
+		"4xlarge": {
+			"memsize": 32768,
+			"vcpus": 8
+		}
+	}
+}
