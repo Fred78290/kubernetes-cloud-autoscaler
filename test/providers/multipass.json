@@ -1,0 +1,9 @@
+{
+	"address": "127.0.0.1:5700",
+	"key": "${VMWARE_UTILITY_KEY}",
+	"cert": "${VMWARE_UTILITY_CERT}",
+	"cacert": "${VMWARE_UTILITY_CACERT}",
+	"nodegroup": "${NODEGROUP_NAME}",
+	"timeout": 300,
+	"template-name": "${MULTIPASS_TEMPLATE_NAME}"
+}

@@ -80,8 +80,6 @@ type ProviderConfiguration interface {
 
 type InstanceCreateInput struct {
 	NodeGroup string
-	//	NodeName  string
-	//	NodeIndex int
 	DiskSize  int
 	UserName  string
 	AuthKey   string

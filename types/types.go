@@ -10,6 +10,7 @@ import (
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers/aws"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers/desktop"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers/multipass"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers/vsphere"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/sshutils"
 	"github.com/alecthomas/kingpin"
@@ -363,6 +364,8 @@ func (conf *AutoScalerServerConfig) SetupCloudConfiguration(configFile string) e
 				conf.providerConfiguration, err = vsphere.NewVSphereProviderConfiguration(configFile)
 			case providers.VMWareWorkstationProviderName:
 				conf.providerConfiguration, err = desktop.NewDesktopProviderConfiguration(configFile)
+			case providers.MultipassProviderName:
+				conf.providerConfiguration, err = multipass.NewMultipassProviderConfiguration(configFile)
 			default:
 				glog.Fatalf("Unsupported cloud provider: %s", *conf.CloudProvider)
 			}

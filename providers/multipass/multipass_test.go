@@ -1,4 +1,4 @@
-package desktop_test
+package multipass_test
 
 import (
 	"encoding/json"
@@ -8,14 +8,14 @@ import (
 	"testing"
 	"time"
 
-	glog "github.com/sirupsen/logrus"
-	"github.com/stretchr/testify/assert"
-
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
-	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers/desktop"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers/multipass"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers/vsphere"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/utils"
 	"github.com/joho/godotenv"
+	"github.com/stretchr/testify/assert"
+
+	glog "github.com/sirupsen/logrus"
 )
 
 type ConfigurationTest struct {
@@ -59,7 +59,7 @@ func loadFromJson() *ConfigurationTest {
 			glog.Fatalf("failed to open config file:%s, error:%v", getTestFile(), err)
 		} else if json.NewDecoder(strings.NewReader(content)).Decode(&testConfig.BasicConfiguration); err != nil {
 			glog.Fatalf("failed to decode config file:%s, error:%v", getTestFile(), err)
-		} else if testConfig.provider, err = desktop.NewDesktopProviderConfiguration(getProviderConfFile()); err != nil {
+		} else if testConfig.provider, err = multipass.NewMultipassProviderConfiguration(getProviderConfFile()); err != nil {
 			glog.Fatalf("failed to open config file:%s, error:%v", getProviderConfFile(), err)
 		} else {
 			testConfig.inited = true
