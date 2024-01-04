@@ -26,6 +26,13 @@ const (
 	DefaultMaxRequestTimeout time.Duration = 120 * time.Second
 	DefaultMaxDeletionPeriod time.Duration = 300 * time.Second
 	DefaultNodeReadyTimeout  time.Duration = 300 * time.Second
+	DefaultMinNodes                        = 0
+	DefaultMaxNodes                        = 24
+	DefaultMaxPods                         = 110
+	DefaultMinCpus                         = 2
+	DefaultMaxCpus                         = 24
+	DefaultMinMemoryInMB                   = 1024
+	DefaultMaxMemoryInMB                   = 24 * 1024
 )
 
 const (
@@ -76,6 +83,9 @@ type Config struct {
 	DebugMode                bool
 	LogFormat                string
 	LogLevel                 string
+	MinNode                  int64
+	MaxNode                  int64
+	MaxPods                  int64
 	MinCpus                  int64
 	MinMemory                int64
 	MaxCpus                  int64
@@ -93,10 +103,12 @@ func (c *Config) GetResourceLimiter() *ResourceLimiter {
 		MinLimits: map[string]int64{
 			constantes.ResourceNameCores:  c.MinCpus,
 			constantes.ResourceNameMemory: c.MinMemory * 1024 * 1024,
+			constantes.ResourceNameNodes:  int64(c.MinNode),
 		},
 		MaxLimits: map[string]int64{
 			constantes.ResourceNameCores:  c.MaxCpus,
 			constantes.ResourceNameMemory: c.MaxMemory * 1024 * 1024,
+			constantes.ResourceNameNodes:  int64(c.MaxNode),
 		},
 	}
 }
@@ -224,9 +236,9 @@ type AutoScalerServerConfig struct {
 	CertCA                     string                           `json:"cert-ca,omitempty"`                         // Optional to secure grcp channel
 	ServiceIdentifier          string                           `json:"secret"`                                    // Mandatory, secret Identifier, client must match this
 	NodeGroup                  string                           `json:"nodegroup"`                                 // Mandatory, the nodegroup
-	MinNode                    int                              `json:"minNode"`                                   // Mandatory, Min AutoScaler VM
-	MaxNode                    int                              `json:"maxNode"`                                   // Mandatory, Max AutoScaler VM
-	MaxPods                    int                              `default:"110" json:"maxPods"`                     // Mandatory, Max pod per node
+	MinNode                    *int64                           `json:"minNode"`                                   // Mandatory, Min AutoScaler VM
+	MaxNode                    *int64                           `json:"maxNode"`                                   // Mandatory, Max AutoScaler VM
+	MaxPods                    *int64                           `default:"110" json:"maxPods"`                     // Mandatory, Max pod per node
 	MaxCreatedNodePerCycle     int                              `json:"maxNode-per-cycle" default:"2"`             // Optional, the max number VM to create in //
 	ProvisionnedNodeNamePrefix string                           `default:"autoscaled" json:"node-name-prefix"`     // Optional, the created node name prefix
 	ManagedNodeNamePrefix      string                           `default:"worker" json:"managed-name-prefix"`      // Optional, the created node name prefix
@@ -385,10 +397,13 @@ func NewConfig() *Config {
 		CloudProvider:            "vsphere",
 		DisplayVersion:           false,
 		Config:                   "/etc/cluster/config-autoscaler.json",
-		MinCpus:                  2,
-		MinMemory:                1024,
-		MaxCpus:                  24,
-		MaxMemory:                1024 * 24,
+		MinNode:                  DefaultMinNodes,
+		MaxNode:                  DefaultMaxNodes,
+		MaxPods:                  DefaultMaxPods,
+		MinCpus:                  DefaultMinCpus,
+		MinMemory:                DefaultMinMemoryInMB,
+		MaxCpus:                  DefaultMaxCpus,
+		MaxMemory:                DefaultMaxMemoryInMB,
 		ManagedNodeMinCpus:       ManagedNodeMinCores,
 		ManagedNodeMaxCpus:       ManagedNodeMaxCores,
 		ManagedNodeMinMemory:     ManagedNodeMinMemory,
@@ -421,10 +436,10 @@ func (cfg *Config) ParseFlags(args []string, version string) error {
 
 	app.Flag("debug", "Debug mode").Default("false").BoolVar(&cfg.DebugMode)
 
-	app.Flag("cloud-provider", "Which cloud provider used: vsphere, aws, desktop").Default(providers.VSphereCloudProviderName).EnumVar(&cfg.CloudProvider, providers.AwsCloudProviderName, providers.VSphereCloudProviderName, providers.VMWareWorkstationProviderName)
+	app.Flag("cloud-provider", "Which cloud provider used: vsphere, aws, desktop, multipass").Default(providers.VSphereCloudProviderName).EnumVar(&cfg.CloudProvider, providers.SupportedCloudProviders...)
 	app.Flag("cloud-provider-config", "Cloud provider config file").Default(cfg.ProviderConfig).StringVar(&cfg.ProviderConfig)
 
-	app.Flag("distribution", "Which kubernetes distribution to use: kubeadm, k3s, rke2, external").Default(providers.K3SDistributionName).EnumVar(&cfg.Distribution, providers.KubeAdmDistributionName, providers.K3SDistributionName, providers.RKE2DistributionName, providers.ExternalDistributionName)
+	app.Flag("distribution", "Which kubernetes distribution to use: kubeadm, k3s, rke2, external").Default(providers.K3SDistributionName).EnumVar(&cfg.Distribution, providers.SupportedKubernetesDistribution...)
 	app.Flag("use-vanilla-grpc", "Tell we use vanilla autoscaler externalgrpc cloudprovider").Default("false").BoolVar(&cfg.UseVanillaGrpcProvider)
 	app.Flag("use-controller-manager", "Tell we use vsphere controller manager").Default("true").BoolVar(&cfg.UseControllerManager)
 
@@ -444,6 +459,8 @@ func (cfg *Config) ParseFlags(args []string, version string) error {
 	app.Flag("node-ready-timeout", "Node ready timeout to wait for a node to be ready. 0s means no timeout").Default(DefaultNodeReadyTimeout.String()).DurationVar(&cfg.NodeReadyTimeout)
 	app.Flag("max-grace-period", "Maximum time evicted pods will be given to terminate gracefully.").Default(DefaultMaxGracePeriod.String()).DurationVar(&cfg.MaxGracePeriod)
 
+	app.Flag("min-nodes", "Limits: minimum nodes (default: 0)").Default(strconv.FormatInt(cfg.MinNode, 10)).Int64Var(&cfg.MinNode)
+	app.Flag("max-nodes", "Limits: max nodes (default: 24)").Default(strconv.FormatInt(cfg.MaxCpus, 10)).Int64Var(&cfg.MaxCpus)
 	app.Flag("min-cpus", "Limits: minimum cpu (default: 1)").Default(strconv.FormatInt(cfg.MinCpus, 10)).Int64Var(&cfg.MinCpus)
 	app.Flag("max-cpus", "Limits: max cpu (default: 24)").Default(strconv.FormatInt(cfg.MaxCpus, 10)).Int64Var(&cfg.MaxCpus)
 	app.Flag("min-memory", "Limits: minimum memory in MB (default: 1G)").Default(strconv.FormatInt(cfg.MinMemory, 10)).Int64Var(&cfg.MinMemory)

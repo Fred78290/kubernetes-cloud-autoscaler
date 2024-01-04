@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/api"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/context"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha1"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
-	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers/desktop/api"
 	glog "github.com/sirupsen/logrus"
 )
 
@@ -32,7 +32,7 @@ type Configuration struct {
 type desktopWrapper struct {
 	Configuration
 
-	client       api.VMWareDesktopAutoscalerServiceClient
+	client       api.DesktopAutoscalerServiceClient
 	templateUUID string
 }
 
@@ -358,7 +358,7 @@ func (wrapper *desktopWrapper) GetAvailableGpuTypes() map[string]string {
 }
 
 func (wrapper *desktopWrapper) FindVNetWithContext(ctx *context.Context, name string) (*NetworkDevice, error) {
-	if response, err := wrapper.client.ListNetwork(ctx, &api.NetworkRequest{}); err != nil {
+	if response, err := wrapper.client.VMWareListNetwork(ctx, &api.NetworkRequest{}); err != nil {
 		return nil, err
 	} else if response.GetError() != nil {
 		return nil, api.NewApiError(response.GetError())
@@ -408,7 +408,7 @@ func (wrapper *desktopWrapper) CreateWithContext(ctx *context.Context, input *Cr
 
 	if request.GuestInfos, err = BuildCloudInit(input.NodeName, input.UserName, input.AuthKey, wrapper.TimeZone, input.CloudInit, input.Network, input.NodeIndex, wrapper.AllowUpgrade); err != nil {
 		return "", fmt.Errorf(constantes.ErrCloudInitFailCreation, input.NodeName, err)
-	} else if response, err := wrapper.client.Create(ctx, request); err != nil {
+	} else if response, err := wrapper.client.VMWareCreate(ctx, request); err != nil {
 		return "", err
 	} else if response.GetError() != nil {
 		return "", api.NewApiError(response.GetError())
@@ -428,7 +428,7 @@ func (wrapper *desktopWrapper) Create(input *CreateInput) (string, error) {
 
 // DeleteWithContext a VM by UUID
 func (wrapper *desktopWrapper) DeleteWithContext(ctx *context.Context, vmuuid string) error {
-	if response, err := wrapper.client.Delete(ctx, &api.VirtualMachineRequest{Identifier: vmuuid}); err != nil {
+	if response, err := wrapper.client.VMWareDelete(ctx, &api.VirtualMachineRequest{Identifier: vmuuid}); err != nil {
 		return err
 	} else if response.GetError() != nil {
 		return api.NewApiError(response.GetError())
@@ -447,7 +447,7 @@ func (wrapper *desktopWrapper) Delete(vmuuid string) error {
 
 // VirtualMachineWithContext  Retrieve VM by name
 func (wrapper *desktopWrapper) VirtualMachineByNameWithContext(ctx *context.Context, name string) (*VirtualMachine, error) {
-	if response, err := wrapper.client.VirtualMachineByName(ctx, &api.VirtualMachineRequest{Identifier: name}); err != nil {
+	if response, err := wrapper.client.VMWareVirtualMachineByName(ctx, &api.VirtualMachineRequest{Identifier: name}); err != nil {
 		return nil, err
 	} else if response.GetError() != nil {
 		return nil, api.NewApiError(response.GetError())
@@ -474,7 +474,7 @@ func (wrapper *desktopWrapper) VirtualMachineByName(name string) (*VirtualMachin
 
 // VirtualMachineWithContext  Retrieve VM by vmuuid
 func (wrapper *desktopWrapper) VirtualMachineByUUIDWithContext(ctx *context.Context, vmuuid string) (*VirtualMachine, error) {
-	if response, err := wrapper.client.VirtualMachineByUUID(ctx, &api.VirtualMachineRequest{Identifier: vmuuid}); err != nil {
+	if response, err := wrapper.client.VMWareVirtualMachineByUUID(ctx, &api.VirtualMachineRequest{Identifier: vmuuid}); err != nil {
 		return nil, err
 	} else if response.GetError() != nil {
 		return nil, api.NewApiError(response.GetError())
@@ -501,7 +501,7 @@ func (wrapper *desktopWrapper) VirtualMachineByUUID(vmuuid string) (*VirtualMach
 
 // VirtualMachineListWithContext return all VM for the current datastore
 func (wrapper *desktopWrapper) VirtualMachineListWithContext(ctx *context.Context) ([]*VirtualMachine, error) {
-	if response, err := wrapper.client.ListVirtualMachines(ctx, &api.VirtualMachinesRequest{}); err != nil {
+	if response, err := wrapper.client.VMWareListVirtualMachines(ctx, &api.VirtualMachinesRequest{}); err != nil {
 		return nil, err
 	} else if response.GetError() != nil {
 		return nil, api.NewApiError(response.GetError())
@@ -566,7 +566,7 @@ func (wrapper *desktopWrapper) Name(vmuuid string) (string, error) {
 
 // WaitForIPWithContext wait ip a VM by vmuuid
 func (wrapper *desktopWrapper) WaitForIPWithContext(ctx *context.Context, vmuuid string, timeout time.Duration) (string, error) {
-	if response, err := wrapper.client.WaitForIP(ctx, &api.WaitForIPRequest{Identifier: vmuuid, TimeoutInSeconds: int32(timeout / time.Second)}); err != nil {
+	if response, err := wrapper.client.VMWareWaitForIP(ctx, &api.WaitForIPRequest{Identifier: vmuuid, TimeoutInSeconds: int32(timeout / time.Second)}); err != nil {
 		return "", err
 	} else if response.GetError() != nil {
 		return "", api.NewApiError(response.GetError())
@@ -585,7 +585,7 @@ func (wrapper *desktopWrapper) WaitForIP(vmuuid string, timeout time.Duration) (
 
 // SetAutoStartWithContext set autostart for the VM
 func (wrapper *desktopWrapper) SetAutoStartWithContext(ctx *context.Context, vmuuid string, autostart bool) error {
-	if response, err := wrapper.client.SetAutoStart(ctx, &api.AutoStartRequest{Uuid: vmuuid, Autostart: autostart}); err != nil {
+	if response, err := wrapper.client.VMWareSetAutoStart(ctx, &api.AutoStartRequest{Uuid: vmuuid, Autostart: autostart}); err != nil {
 		return err
 	} else if response.GetError() != nil {
 		return api.NewApiError(response.GetError())
@@ -604,7 +604,7 @@ func (wrapper *desktopWrapper) SetAutoStart(vmuuid string, autostart bool) error
 
 // WaitForToolsRunningWithContext wait vmware tools is running a VM by vmuuid
 func (wrapper *desktopWrapper) WaitForToolsRunningWithContext(ctx *context.Context, vmuuid string, timeout time.Duration) (bool, error) {
-	if response, err := wrapper.client.WaitForToolsRunning(ctx, &api.WaitForToolsRunningRequest{Identifier: vmuuid, TimeoutInSeconds: int32(timeout / time.Second)}); err != nil {
+	if response, err := wrapper.client.VMWareWaitForToolsRunning(ctx, &api.WaitForToolsRunningRequest{Identifier: vmuuid, TimeoutInSeconds: int32(timeout / time.Second)}); err != nil {
 		return false, err
 	} else if response.GetError() != nil {
 		return false, api.NewApiError(response.GetError())
@@ -623,7 +623,7 @@ func (wrapper *desktopWrapper) WaitForToolsRunning(vmuuid string, timeout time.D
 
 // PowerOnWithContext power on a VM by vmuuid
 func (wrapper *desktopWrapper) PowerOnWithContext(ctx *context.Context, vmuuid string) error {
-	if response, err := wrapper.client.PowerOn(ctx, &api.VirtualMachineRequest{Identifier: vmuuid}); err != nil {
+	if response, err := wrapper.client.VMWarePowerOn(ctx, &api.VirtualMachineRequest{Identifier: vmuuid}); err != nil {
 		return err
 	} else if response.GetError() != nil {
 		return api.NewApiError(response.GetError())
@@ -642,7 +642,7 @@ func (wrapper *desktopWrapper) PowerOn(vmuuid string) error {
 
 // PowerOffWithContext power off a VM by vmuuid
 func (wrapper *desktopWrapper) PowerOffWithContext(ctx *context.Context, vmuuid, mode string) error {
-	if response, err := wrapper.client.PowerOff(ctx, &api.PowerOffRequest{Identifier: vmuuid, Mode: mode}); err != nil {
+	if response, err := wrapper.client.VMWarePowerOff(ctx, &api.PowerOffRequest{Identifier: vmuuid, Mode: mode}); err != nil {
 		return err
 	} else if response.GetError() != nil {
 		return api.NewApiError(response.GetError())
@@ -653,7 +653,7 @@ func (wrapper *desktopWrapper) PowerOffWithContext(ctx *context.Context, vmuuid,
 
 func (wrapper *desktopWrapper) WaitForPowerStateWithContenxt(ctx *context.Context, vmuuid string, wanted bool) error {
 	return context.PollImmediate(time.Second, wrapper.Timeout, func() (bool, error) {
-		if response, err := wrapper.client.PowerState(ctx, &api.VirtualMachineRequest{Identifier: vmuuid}); err != nil {
+		if response, err := wrapper.client.VMWarePowerState(ctx, &api.VirtualMachineRequest{Identifier: vmuuid}); err != nil {
 			return false, err
 		} else if response.GetError() != nil {
 			return false, api.NewApiError(response.GetError())
@@ -680,7 +680,7 @@ func (wrapper *desktopWrapper) PowerOff(vmuuid, mode string) error {
 
 // ShutdownGuestWithContext power off a VM by vmuuid
 func (wrapper *desktopWrapper) ShutdownGuestWithContext(ctx *context.Context, vmuuid string) error {
-	if response, err := wrapper.client.ShutdownGuest(ctx, &api.VirtualMachineRequest{Identifier: vmuuid}); err != nil {
+	if response, err := wrapper.client.VMWareShutdownGuest(ctx, &api.VirtualMachineRequest{Identifier: vmuuid}); err != nil {
 		return err
 	} else if response.GetError() != nil {
 		return api.NewApiError(response.GetError())
@@ -699,7 +699,7 @@ func (wrapper *desktopWrapper) ShutdownGuest(vmuuid string) error {
 
 // StatusWithContext return the current status of VM by vmuuid
 func (wrapper *desktopWrapper) StatusWithContext(ctx *context.Context, vmuuid string) (*Status, error) {
-	if response, err := wrapper.client.Status(ctx, &api.VirtualMachineRequest{Identifier: vmuuid}); err != nil {
+	if response, err := wrapper.client.VMWareStatus(ctx, &api.VirtualMachineRequest{Identifier: vmuuid}); err != nil {
 		return nil, err
 	} else if response.GetError() != nil {
 		return nil, api.NewApiError(response.GetError())
@@ -739,7 +739,7 @@ func (wrapper *desktopWrapper) Status(vmuuid string) (*Status, error) {
 }
 
 func (wrapper *desktopWrapper) RetrieveNetworkInfosWithContext(ctx *context.Context, vmuuid string, nodeIndex int, network *Network) error {
-	if response, err := wrapper.client.Status(ctx, &api.VirtualMachineRequest{Identifier: vmuuid}); err != nil {
+	if response, err := wrapper.client.VMWareStatus(ctx, &api.VirtualMachineRequest{Identifier: vmuuid}); err != nil {
 		return err
 	} else if response.GetError() != nil {
 		return api.NewApiError(response.GetError())

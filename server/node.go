@@ -579,7 +579,7 @@ func (vm *AutoScalerServerNode) launchVM(c types.ClientGenerator, nodeLabels, sy
 
 		err = fmt.Errorf(constantes.ErrVMNotProvisionnedByMe, vm.InstanceName)
 
-	} else if maxPods, err = providerHandler.InstanceMaxPods(vm.serverConfig.MaxPods); err != nil {
+	} else if maxPods, err = providerHandler.InstanceMaxPods(int(*vm.serverConfig.MaxPods)); err != nil {
 
 		err = fmt.Errorf(constantes.ErrUnableToRetrieveMaxPodsForInstanceType, vm.InstanceName, err)
 

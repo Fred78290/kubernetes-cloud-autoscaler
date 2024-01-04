@@ -268,8 +268,8 @@ func (s *AutoScalerServerApp) Connect(ctx context.Context, request *apigrpc.Conn
 				MaxLimits: request.ResourceLimiter.MaxLimits,
 			}
 
-			s.ResourceLimiter.SetMaxValue(constantes.ResourceNameNodes, s.configuration.MaxNode)
-			s.ResourceLimiter.SetMinValue(constantes.ResourceNameNodes, s.configuration.MinNode)
+			s.ResourceLimiter.SetMaxValue64(constantes.ResourceNameNodes, *s.configuration.MaxNode)
+			s.ResourceLimiter.SetMinValue64(constantes.ResourceNameNodes, *s.configuration.MinNode)
 		}
 	}
 
@@ -1733,6 +1733,18 @@ func StartServer(kubeClient types.ClientGenerator, c *types.Config) {
 		glog.Fatalf("Unsupported kubernetes distribution: %s", *config.Distribution)
 	}
 
+	if config.MinNode == nil {
+		config.MinNode = &c.MinNode
+	}
+
+	if config.MaxNode == nil {
+		config.MaxNode = &c.MaxNode
+	}
+
+	if config.MaxPods == nil {
+		config.MaxPods = &c.MaxPods
+	}
+
 	if config.DebugMode == nil {
 		config.DebugMode = &c.DebugMode
 	}
@@ -1776,8 +1788,8 @@ func StartServer(kubeClient types.ClientGenerator, c *types.Config) {
 			Groups:          make(map[string]*AutoScalerServerNodeGroup),
 		}
 
-		autoScalerServer.ResourceLimiter.SetMaxValue(constantes.ResourceNameNodes, config.MaxNode)
-		autoScalerServer.ResourceLimiter.SetMinValue(constantes.ResourceNameNodes, config.MinNode)
+		autoScalerServer.ResourceLimiter.SetMaxValue64(constantes.ResourceNameNodes, *config.MaxNode)
+		autoScalerServer.ResourceLimiter.SetMinValue64(constantes.ResourceNameNodes, *config.MinNode)
 
 		if phSaveState {
 			if err = autoScalerServer.Save(phSavedState); err != nil {

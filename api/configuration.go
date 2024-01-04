@@ -12,7 +12,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-func NewApiClient(address string, key string, cert string, cacert string) (VMWareDesktopAutoscalerServiceClient, error) {
+func NewApiClient(address string, key string, cert string, cacert string) (DesktopAutoscalerServiceClient, error) {
 	var dialOpt grpc.DialOption
 
 	certPool := x509.NewCertPool()
@@ -42,9 +42,9 @@ func NewApiClient(address string, key string, cert string, cacert string) (VMWar
 	if conn, err := grpc.Dial(address, dialOpt); err != nil {
 		return nil, fmt.Errorf("failed to dial server: %v", err)
 	} else {
-		client := NewVMWareDesktopAutoscalerServiceClient(conn)
+		client := NewDesktopAutoscalerServiceClient(conn)
 
-		if _, err = client.ListVirtualMachines(context.Background(), &VirtualMachinesRequest{}); err != nil {
+		if _, err = client.VMWareListVirtualMachines(context.Background(), &VirtualMachinesRequest{}); err != nil {
 			return client, err
 		}
 

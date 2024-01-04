@@ -1,28 +1,31 @@
 syntax = "proto3";
 
-option java_multiple_files = true;
-option java_package = "com.aldunelabs.vmware.desktop.autoscaler.utility";
-option java_outer_classname = "VMWareDesktopAutoscalerUtility";
-
 package api;
 
 option go_package = "api/";
 
-service VMWareDesktopAutoscalerService {
-	rpc Create(CreateRequest)returns (CreateResponse) {}
-	rpc Delete(VirtualMachineRequest) returns (DeleteResponse) {}
-	rpc PowerOn(VirtualMachineRequest) returns (PowerOnResponse) {}
-	rpc PowerOff(PowerOffRequest) returns (PowerOffResponse) {}
-	rpc PowerState(VirtualMachineRequest) returns (PowerStateResponse) {}
-	rpc ShutdownGuest(VirtualMachineRequest) returns (ShutdownGuestResponse) {}
-	rpc Status(VirtualMachineRequest) returns (StatusResponse) {}
-	rpc WaitForIP(WaitForIPRequest) returns (WaitForIPResponse) {}
-	rpc WaitForToolsRunning(WaitForToolsRunningRequest) returns (WaitForToolsRunningResponse) {}
-	rpc SetAutoStart(AutoStartRequest) returns (AutoStartResponse) {}
-	rpc VirtualMachineByName(VirtualMachineRequest) returns (VirtualMachineResponse) {}
-	rpc VirtualMachineByUUID(VirtualMachineRequest) returns (VirtualMachineResponse) {}
-	rpc ListVirtualMachines(VirtualMachinesRequest) returns (VirtualMachinesResponse) {}
-	rpc ListNetwork(NetworkRequest) returns (NetworkResponse) {}
+service DesktopAutoscalerService {
+	rpc VMWareCreate(CreateRequest)returns (CreateResponse) {}
+	rpc VMWareDelete(VirtualMachineRequest) returns (DeleteResponse) {}
+	rpc VMWarePowerOn(VirtualMachineRequest) returns (PowerOnResponse) {}
+	rpc VMWarePowerOff(PowerOffRequest) returns (PowerOffResponse) {}
+	rpc VMWarePowerState(VirtualMachineRequest) returns (PowerStateResponse) {}
+	rpc VMWareShutdownGuest(VirtualMachineRequest) returns (ShutdownGuestResponse) {}
+	rpc VMWareStatus(VirtualMachineRequest) returns (StatusResponse) {}
+	rpc VMWareWaitForIP(WaitForIPRequest) returns (WaitForIPResponse) {}
+	rpc VMWareWaitForToolsRunning(WaitForToolsRunningRequest) returns (WaitForToolsRunningResponse) {}
+	rpc VMWareSetAutoStart(AutoStartRequest) returns (AutoStartResponse) {}
+	rpc VMWareVirtualMachineByName(VirtualMachineRequest) returns (VirtualMachineResponse) {}
+	rpc VMWareVirtualMachineByUUID(VirtualMachineRequest) returns (VirtualMachineResponse) {}
+	rpc VMWareListVirtualMachines(VirtualMachinesRequest) returns (VirtualMachinesResponse) {}
+	rpc VMWareListNetwork(NetworkRequest) returns (NetworkResponse) {}
+
+	rpc HostListInstance(HostInstanceRequest) returns (HostInstanceResponse) {}
+	rpc HostStartInstance(HostInstanceRequest) returns (HostInstanceResponse) {}
+	rpc HostStopInstance(HostInstanceRequest) returns (HostInstanceResponse) {}
+	rpc HostDeleteInstance(HostInstanceRequest) returns (HostInstanceResponse) {}
+	rpc HostInfoInstance(HostInstanceRequest) returns (HostInstanceResponse) {}
+	rpc HostCreateInstance(HostCreateInstanceRequest) returns (HostInstanceResponse) {}
 }
 
 message ClientError {
@@ -272,4 +275,30 @@ message NetworkResponse {
 		ClientError error = 1;
 		NetworkReply result = 2;
 	}
+}
+
+message HostInstanceRequest {
+	string driver = 1;
+	string instanceName = 2;
+}
+
+message DriverResponse {
+	string output = 1;
+}
+
+message HostInstanceResponse {
+	oneof response {
+		api.ClientError error = 1;
+		DriverResponse result = 2;
+	}
+}
+
+message HostCreateInstanceRequest {
+	string driver = 1;
+	string instanceName = 2;
+	string instanceType = 3;
+	int32 memory = 4;
+	int32 vcpu  = 5;
+	int32 diskSize = 6;
+	bytes cloudInit = 7;
 }

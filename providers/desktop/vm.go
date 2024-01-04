@@ -14,8 +14,8 @@ import (
 	glog "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/api"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
-	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers/desktop/api"
 	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/util/uuid"
 )

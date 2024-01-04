@@ -244,7 +244,7 @@ func (m *serverTest) MaxSize() {
 
 		if got, err := s.MaxSize(context.TODO(), request); err != nil {
 			m.t.Errorf("AutoScalerServerApp.MaxSize() error = %v", err)
-		} else if got.GetMaxSize() != int32(s.configuration.MaxNode) {
+		} else if got.GetMaxSize() != int32(*s.configuration.MaxNode) {
 			m.t.Errorf("AutoScalerServerApp.MaxSize() = %v, want %v", got.GetMaxSize(), s.configuration.MaxNode)
 		}
 	}
@@ -261,7 +261,7 @@ func (m *serverTest) MinSize() {
 
 		if got, err := s.MinSize(context.TODO(), request); err != nil {
 			m.t.Errorf("AutoScalerServerApp.MinSize() error = %v", err)
-		} else if got.GetMinSize() != int32(s.configuration.MinNode) {
+		} else if got.GetMinSize() != int32(*s.configuration.MinNode) {
 			m.t.Errorf("AutoScalerServerApp.MinSize() = %v, want %v", got.GetMinSize(), s.configuration.MinNode)
 		}
 	}

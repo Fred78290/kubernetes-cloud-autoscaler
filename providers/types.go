@@ -23,7 +23,22 @@ const (
 	AwsCloudProviderName          = "aws"
 	VSphereCloudProviderName      = "vsphere"
 	VMWareWorkstationProviderName = "desktop"
+	MultipassProviderName         = "multipass"
 )
+
+var SupportedKubernetesDistribution = []string{
+	RKE2DistributionName,
+	K3SDistributionName,
+	KubeAdmDistributionName,
+	ExternalDistributionName,
+}
+
+var SupportedCloudProviders = []string{
+	AwsCloudProviderName,
+	VSphereCloudProviderName,
+	VMWareWorkstationProviderName,
+	MultipassProviderName,
+}
 
 type BasicConfiguration struct {
 	CloudInit    interface{}                      `json:"cloud-init"`
