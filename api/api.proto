@@ -293,6 +293,18 @@ message HostInstanceResponse {
 	}
 }
 
+message HostMountPoint {
+	string localPath = 1;
+	string instancePath = 2;
+}
+
+message HostNetworkInterface {
+	string name = 1;
+	string nic = 2;
+	string macaddress = 3;
+	string mode = 4;
+}
+
 message HostCreateInstanceRequest {
 	string driver = 1;
 	string instanceName = 2;
@@ -301,4 +313,6 @@ message HostCreateInstanceRequest {
 	int32 vcpu  = 5;
 	int32 diskSize = 6;
 	bytes cloudInit = 7;
+	repeated HostMountPoint mounts = 8;
+	repeated HostNetworkInterface networks = 9;
 }

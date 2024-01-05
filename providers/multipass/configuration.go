@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/api"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/cloudinit"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/context"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha1"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
@@ -24,14 +25,42 @@ const (
 	errTempFile               = "can't create temp file, reason: %v"
 )
 
+type NetworkInterface struct {
+	Primary    bool                     `json:"primary,omitempty" yaml:"primary,omitempty"`
+	Existing   bool                     `json:"exists,omitempty" yaml:"exists,omitempty"`
+	VNet       string                   `json:"vnet,omitempty" yaml:"network,omitempty"`
+	NicName    string                   `json:"nic,omitempty" yaml:"nic,omitempty"`
+	MacAddress string                   `json:"mac-address,omitempty" yaml:"mac-address,omitempty"`
+	DHCP       bool                     `json:"dhcp,omitempty" yaml:"dhcp,omitempty"`
+	UseRoutes  bool                     `default:"true" json:"use-dhcp-routes,omitempty" yaml:"use-dhcp-routes,omitempty"`
+	IPAddress  string                   `json:"address,omitempty" yaml:"address,omitempty"`
+	Netmask    string                   `json:"netmask,omitempty" yaml:"netmask,omitempty"`
+	Gateway    string                   `json:"gateway,omitempty" yaml:"gateway,omitempty"`
+	Routes     []v1alpha1.NetworkRoutes `json:"routes,omitempty" yaml:"routes,omitempty"`
+}
+
+type Network struct {
+	Domain     string                   `json:"domain,omitempty" yaml:"domain,omitempty"`
+	Interfaces []*NetworkInterface      `json:"interfaces,omitempty" yaml:"interfaces,omitempty"`
+	DNS        *cloudinit.NetworkResolv `json:"dns,omitempty" yaml:"dns,omitempty"`
+}
+
+type MountPoint struct {
+	LocalPath    string
+	InstancePath string
+}
+
 // Configuration declares multipass connection info
 type Configuration struct {
-	Address      string        `json:"address"` // external cluster autoscaler provider address of the form "host:port", "host%zone:port", "[host]:port" or "[host%zone]:port"
-	Key          string        `json:"key"`     // path to file containing the tls key
-	Cert         string        `json:"cert"`    // path to file containing the tls certificate
-	Cacert       string        `json:"cacert"`  // path to file containing the CA certificate
-	Timeout      time.Duration `json:"timeout"`
-	TemplateName string        `json:"template-name"`
+	Address           string            `json:"address"` // external cluster autoscaler provider address of the form "host:port", "host%zone:port", "[host]:port" or "[host%zone]:port"
+	Key               string            `json:"key"`     // path to file containing the tls key
+	Cert              string            `json:"cert"`    // path to file containing the tls certificate
+	Cacert            string            `json:"cacert"`  // path to file containing the CA certificate
+	Timeout           time.Duration     `json:"timeout"`
+	TemplateName      string            `json:"template-name"`
+	AvailableGPUTypes map[string]string `json:"gpu-types"`
+	Network           *Network          `json:"network"`
+	Mounts            []MountPoint      `json:"mounts"`
 }
 
 type createInstanceInput struct {

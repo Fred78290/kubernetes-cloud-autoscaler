@@ -40,7 +40,7 @@ func getProviderConfFile() string {
 		return config
 	}
 
-	return "../test/providers/desktop.json"
+	return "../test/providers/multipass.json"
 }
 
 func getTestFile() string {
@@ -48,7 +48,7 @@ func getTestFile() string {
 		return config
 	}
 
-	return "../test/desktop.json"
+	return "../test/multipass.json"
 }
 
 func loadFromJson() *ConfigurationTest {
