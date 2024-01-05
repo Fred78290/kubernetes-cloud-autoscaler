@@ -1,26 +1,18 @@
 package vsphere
 
 import (
-	"bytes"
-	"compress/gzip"
-	"crypto/rsa"
-	"crypto/x509"
-	"encoding/base64"
-	"encoding/pem"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/cloudinit"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/context"
 	glog "github.com/sirupsen/logrus"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/property"
 	"github.com/vmware/govmomi/vim25"
-	"golang.org/x/crypto/ssh"
-	"gopkg.in/yaml.v2"
 
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
@@ -31,127 +23,6 @@ type VirtualMachine struct {
 	Ref       types.ManagedObjectReference
 	Name      string
 	Datastore *Datastore
-}
-
-// GuestInfos the guest infos
-// Must not start with `guestinfo.`
-type GuestInfos map[string]string
-
-func encodeCloudInit(name string, object interface{}) (string, error) {
-	var result string
-	var out bytes.Buffer
-	var err error
-
-	fmt.Fprintln(&out, "#cloud-config")
-
-	wr := yaml.NewEncoder(&out)
-	err = wr.Encode(object)
-
-	wr.Close()
-
-	if err == nil {
-		var stdout bytes.Buffer
-		var zw = gzip.NewWriter(&stdout)
-
-		zw.Name = name
-		zw.ModTime = time.Now()
-
-		if _, err = zw.Write(out.Bytes()); err == nil {
-			if err = zw.Close(); err == nil {
-				result = base64.StdEncoding.EncodeToString(stdout.Bytes())
-			}
-		}
-	}
-
-	return result, err
-}
-
-func encodeObject(name string, object interface{}) (string, error) {
-	var result string
-	out, err := yaml.Marshal(object)
-
-	if err == nil {
-		var stdout bytes.Buffer
-		var zw = gzip.NewWriter(&stdout)
-
-		zw.Name = name
-		zw.ModTime = time.Now()
-
-		if _, err = zw.Write(out); err == nil {
-			if err = zw.Close(); err == nil {
-				result = base64.StdEncoding.EncodeToString(stdout.Bytes())
-			}
-		}
-	}
-
-	return result, err
-}
-
-func generatePublicKey(authKey string) (publicKey string, err error) {
-	var priv []byte
-	var key *rsa.PrivateKey
-	var publicRsaKey ssh.PublicKey
-
-	if priv, err = os.ReadFile(authKey); err != nil {
-		glog.Errorf("unable to read:%s, reason: %v", authKey, err)
-	} else {
-		block, _ := pem.Decode([]byte(priv))
-
-		if block == nil || block.Type != "RSA PRIVATE KEY" {
-			glog.Errorf("failed to decode PEM block containing public key")
-		} else if key, err = x509.ParsePKCS1PrivateKey(block.Bytes); err != nil {
-			glog.Errorf("unable to parse private key:%s, reason: %v", authKey, err)
-		} else if publicRsaKey, err = ssh.NewPublicKey(&key.PublicKey); err != nil {
-			glog.Errorf("unable to generate public key:%s, reason: %v", authKey, err)
-		} else {
-			publicKey = string(ssh.MarshalAuthorizedKey(publicRsaKey))
-		}
-	}
-
-	return
-}
-
-func buildVendorData(userName, authKey string, allowUpgrade bool) interface{} {
-	tz, _ := time.Now().Zone()
-	vendorData := map[string]interface{}{
-		"package_update":  allowUpgrade,
-		"package_upgrade": allowUpgrade,
-		"timezone":        tz,
-		"users": []string{
-			"default",
-		},
-		"system_info": map[string]interface{}{
-			"default_user": map[string]string{
-				"name": userName,
-			},
-		},
-	}
-
-	if pubKey, err := generatePublicKey(authKey); err == nil {
-		vendorData["ssh_authorized_keys"] = []string{
-			pubKey,
-		}
-	}
-
-	return vendorData
-}
-
-func (g GuestInfos) isEmpty() bool {
-	return len(g) == 0
-}
-
-func (g GuestInfos) toExtraConfig() []types.BaseOptionValue {
-	extraConfig := make([]types.BaseOptionValue, len(g))
-
-	for k, v := range g {
-		extraConfig = append(extraConfig,
-			&types.OptionValue{
-				Key:   fmt.Sprintf("guestinfo.%s", k),
-				Value: v,
-			})
-	}
-
-	return extraConfig
 }
 
 func (vm *VirtualMachine) UUID(ctx *context.Context) string {
@@ -678,15 +549,15 @@ func (vm *VirtualMachine) Status(ctx *context.Context) (*Status, error) {
 }
 
 // SetGuestInfo change guest ingos
-func (vm *VirtualMachine) SetGuestInfo(ctx *context.Context, guestInfos *GuestInfos) error {
+func (vm *VirtualMachine) SetGuestInfo(ctx *context.Context, guestInfos *cloudinit.GuestInfos) error {
 	var task *object.Task
 	var err error
 
 	vmConfigSpec := types.VirtualMachineConfigSpec{}
 	v := vm.VirtualMachine(ctx)
 
-	if guestInfos != nil && !guestInfos.isEmpty() {
-		vmConfigSpec.ExtraConfig = guestInfos.toExtraConfig()
+	if guestInfos != nil && !guestInfos.IsEmpty() {
+		vmConfigSpec.ExtraConfig = guestInfos.ToExtraConfig()
 	} else {
 		vmConfigSpec.ExtraConfig = []types.BaseOptionValue{}
 	}
@@ -699,59 +570,29 @@ func (vm *VirtualMachine) SetGuestInfo(ctx *context.Context, guestInfos *GuestIn
 }
 
 func (vm *VirtualMachine) cloudInit(ctx *context.Context, input *CreateInput) ([]types.BaseOptionValue, error) {
-	var metadata, userdata, vendordata string
-	var err error
-	var guestInfos GuestInfos
-	var fqdn string
-
+	tz, _ := time.Now().Zone()
 	v := vm.VirtualMachine(ctx)
 
-	if input.Network != nil && len(input.Network.Domain) > 0 {
-		fqdn = fmt.Sprintf("%s.%s", input.NodeName, input.Network.Domain)
-	}
-
-	netconfig := &NetworkConfig{
-		InstanceID:    v.UUID(ctx),
-		LocalHostname: input.NodeName,
-		Hostname:      fqdn,
+	cloundInitInput := cloudinit.CloudInitInput{
+		InstanceName: input.NodeName,
+		InstanceID:   v.UUID(ctx),
+		UserName:     input.UserName,
+		AuthKey:      input.AuthKey,
+		DomainName:   input.Network.Domain,
+		CloudInit:    input.CloudInit,
+		AllowUpgrade: input.AllowUpgrade,
+		TimeZone:     tz,
+		Network:      nil,
 	}
 
 	if input.Network != nil && len(input.Network.Interfaces) > 0 {
-		netconfig.Network = input.Network.GetCloudInitNetwork(input.NodeIndex)
+		cloundInitInput.Network = input.Network.GetCloudInitNetwork(input.NodeIndex)
 	}
 
-	if metadata, err = encodeObject("metadata", netconfig); err != nil {
-		err = fmt.Errorf(constantes.ErrUnableToEncodeGuestInfo, "metadata", err)
+	if guestInfos, err := cloudinit.BuildCloudInit(&cloundInitInput); err != nil {
+		return nil, err
+	} else {
+		return guestInfos.ToExtraConfig(), nil
 	}
 
-	if err == nil {
-		if input.CloudInit != nil {
-			if userdata, err = encodeCloudInit("userdata", input.CloudInit); err != nil {
-				return nil, fmt.Errorf(constantes.ErrUnableToEncodeGuestInfo, "userdata", err)
-			}
-		} else if userdata, err = encodeCloudInit("userdata", map[string]string{}); err != nil {
-			return nil, fmt.Errorf(constantes.ErrUnableToEncodeGuestInfo, "userdata", err)
-		}
-
-		if len(input.UserName) > 0 && len(input.AuthKey) > 0 {
-			if vendordata, err = encodeCloudInit("vendordata", buildVendorData(input.UserName, input.AuthKey, input.AllowUpgrade)); err != nil {
-				return nil, fmt.Errorf(constantes.ErrUnableToEncodeGuestInfo, "vendordata", err)
-			}
-		} else if vendordata, err = encodeCloudInit("vendordata", map[string]string{}); err != nil {
-			return nil, fmt.Errorf(constantes.ErrUnableToEncodeGuestInfo, "vendordata", err)
-		}
-
-		const gzipBase64 = "gzip+base64"
-
-		guestInfos = GuestInfos{
-			"metadata":            metadata,
-			"metadata.encoding":   gzipBase64,
-			"userdata":            userdata,
-			"userdata.encoding":   gzipBase64,
-			"vendordata":          vendordata,
-			"vendordata.encoding": gzipBase64,
-		}
-	}
-
-	return guestInfos.toExtraConfig(), nil
 }

@@ -1,15 +1,12 @@
 package desktop
 
 import (
-	"bytes"
 	"crypto/rand"
-	"encoding/binary"
 	"fmt"
-	"net"
-	"strconv"
 	"strings"
 	"sync"
 
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/cloudinit"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha1"
 )
 
@@ -62,74 +59,11 @@ type NetworkDevice struct {
 	Mask   string `json:"mask,omitempty" yaml:"mask,omitempty"`
 }
 
-// NetworkResolv /etc/resolv.conf
-type NetworkResolv struct {
-	Search     []string `json:"search,omitempty" yaml:"search,omitempty"`
-	Nameserver []string `json:"nameserver,omitempty" yaml:"nameserver,omitempty"`
-}
-
 // Network describes a card adapter
 type Network struct {
-	Domain     string              `json:"domain,omitempty" yaml:"domain,omitempty"`
-	Interfaces []*NetworkInterface `json:"interfaces,omitempty" yaml:"interfaces,omitempty"`
-	DNS        *NetworkResolv      `json:"dns,omitempty" yaml:"dns,omitempty"`
-}
-
-// Nameserver declaration
-type Nameserver struct {
-	Search    []string `json:"search,omitempty" yaml:"search,omitempty"`
-	Addresses []string `json:"addresses,omitempty" yaml:"addresses,omitempty"`
-}
-
-// NetworkAdapter wrapper
-type NetworkAdapter struct {
-	DHCP4         bool                      `json:"dhcp4,omitempty" yaml:"dhcp4,omitempty"`
-	NicName       *string                   `json:"set-name,omitempty" yaml:"set-name,omitempty"`
-	Match         *map[string]string        `json:"match,omitempty" yaml:"match,omitempty"`
-	Gateway4      *string                   `json:"gateway4,omitempty" yaml:"gateway4,omitempty"`
-	Addresses     *[]string                 `json:"addresses,omitempty" yaml:"addresses,omitempty"`
-	Nameservers   *Nameserver               `json:"nameservers,omitempty" yaml:"nameservers,omitempty"`
-	DHCPOverrides *map[string]interface{}   `json:"dhcp4-overrides,omitempty" yaml:"dhcp4-overrides,omitempty"`
-	Routes        *[]v1alpha1.NetworkRoutes `json:"routes,omitempty" yaml:"routes,omitempty"`
-}
-
-// NetworkDeclare wrapper
-type NetworkDeclare struct {
-	Version   int                        `json:"version,omitempty" yaml:"version,omitempty"`
-	Ethernets map[string]*NetworkAdapter `json:"ethernets,omitempty" yaml:"ethernets,omitempty"`
-}
-
-// NetworkConfig wrapper
-type NetworkConfig struct {
-	InstanceID    string          `json:"instance-id,omitempty" yaml:"instance-id,omitempty"`
-	LocalHostname string          `json:"local-hostname,omitempty" yaml:"local-hostname,omitempty"`
-	Hostname      string          `json:"hostname,omitempty" yaml:"hostname,omitempty"`
-	Network       *NetworkDeclare `json:"network,omitempty" yaml:"network,omitempty"`
-}
-
-// Converts IP mask to 16 bit unsigned integer.
-func addressToInteger(mask net.IP) uint32 {
-	var i uint32
-
-	buf := bytes.NewReader(mask)
-
-	_ = binary.Read(buf, binary.BigEndian, &i)
-
-	return i
-}
-
-// ToCIDR returns address in cidr format ww.xx.yy.zz/NN
-func ToCIDR(address, netmask string) string {
-
-	if len(netmask) == 0 {
-		mask := net.ParseIP(address).DefaultMask()
-		netmask = net.IPv4(mask[0], mask[1], mask[2], mask[3]).To4().String()
-	}
-
-	mask := net.ParseIP(netmask)
-	netmask = strconv.FormatUint(uint64(addressToInteger(mask.To4())), 2)
-
-	return fmt.Sprintf("%s/%d", address, strings.Count(netmask, "1"))
+	Domain     string                   `json:"domain,omitempty" yaml:"domain,omitempty"`
+	Interfaces []*NetworkInterface      `json:"interfaces,omitempty" yaml:"interfaces,omitempty"`
+	DNS        *cloudinit.NetworkResolv `json:"dns,omitempty" yaml:"dns,omitempty"`
 }
 
 func (inf *NetworkInterface) Same(connectionType, vnet string) bool {
@@ -141,20 +75,20 @@ func (inf *NetworkInterface) Same(connectionType, vnet string) bool {
 }
 
 // GetCloudInitNetwork create cloud-init object
-func (net *Network) GetCloudInitNetwork(nodeIndex int) *NetworkDeclare {
+func (net *Network) GetCloudInitNetwork(nodeIndex int) *cloudinit.NetworkDeclare {
 
-	declare := &NetworkDeclare{
+	declare := &cloudinit.NetworkDeclare{
 		Version:   2,
-		Ethernets: make(map[string]*NetworkAdapter, len(net.Interfaces)),
+		Ethernets: make(map[string]*cloudinit.NetworkAdapter, len(net.Interfaces)),
 	}
 
 	for _, n := range net.Interfaces {
 		if len(n.NicName) > 0 {
-			var ethernet *NetworkAdapter
+			var ethernet *cloudinit.NetworkAdapter
 			var macAddress = n.GetMacAddress(nodeIndex)
 
 			if n.DHCP || len(n.IPAddress) == 0 {
-				ethernet = &NetworkAdapter{
+				ethernet = &cloudinit.NetworkAdapter{
 					DHCP4: n.DHCP,
 				}
 
@@ -168,9 +102,9 @@ func (net *Network) GetCloudInitNetwork(nodeIndex int) *NetworkDeclare {
 				}
 
 			} else {
-				ethernet = &NetworkAdapter{
+				ethernet = &cloudinit.NetworkAdapter{
 					Addresses: &[]string{
-						ToCIDR(n.IPAddress, n.Netmask),
+						cloudinit.ToCIDR(n.IPAddress, n.Netmask),
 					},
 				}
 
@@ -196,7 +130,7 @@ func (net *Network) GetCloudInitNetwork(nodeIndex int) *NetworkDeclare {
 			}
 
 			if net.DNS != nil {
-				ethernet.Nameservers = &Nameserver{
+				ethernet.Nameservers = &cloudinit.Nameserver{
 					Addresses: net.DNS.Nameserver,
 					Search:    net.DNS.Search,
 				}

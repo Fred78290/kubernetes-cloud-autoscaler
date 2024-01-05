@@ -5,11 +5,13 @@ import (
 	"time"
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/api"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/cloudinit"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/context"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha1"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
 	glog "github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/util/uuid"
 )
 
 // Configuration declares desktop connection info
@@ -406,7 +408,23 @@ func (wrapper *desktopWrapper) CreateWithContext(ctx *context.Context, input *Cr
 		Autostart:    wrapper.Autostart,
 	}
 
-	if request.GuestInfos, err = BuildCloudInit(input.NodeName, input.UserName, input.AuthKey, wrapper.TimeZone, input.CloudInit, input.Network, input.NodeIndex, wrapper.AllowUpgrade); err != nil {
+	cloundInitInput := cloudinit.CloudInitInput{
+		InstanceName: input.NodeName,
+		InstanceID:   string(uuid.NewUUID()),
+		UserName:     input.UserName,
+		AuthKey:      input.AuthKey,
+		DomainName:   input.Network.Domain,
+		CloudInit:    input.CloudInit,
+		AllowUpgrade: input.AllowUpgrade,
+		TimeZone:     wrapper.TimeZone,
+		Network:      nil,
+	}
+
+	if input.Network != nil && len(input.Network.Interfaces) > 0 {
+		cloundInitInput.Network = input.Network.GetCloudInitNetwork(input.NodeIndex)
+	}
+
+	if request.GuestInfos, err = cloudinit.BuildCloudInit(&cloundInitInput); err != nil {
 		return "", fmt.Errorf(constantes.ErrCloudInitFailCreation, input.NodeName, err)
 	} else if response, err := wrapper.client.VMWareCreate(ctx, request); err != nil {
 		return "", err

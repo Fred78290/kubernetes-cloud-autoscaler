@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/cloudinit"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers/multipass"
-	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers/vsphere"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/utils"
 	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
@@ -92,10 +92,10 @@ func Test_Sudo(t *testing.T) {
 func Test_CIDR(t *testing.T) {
 	if utils.ShouldTestFeature("Test_CIDR") {
 
-		cidr := vsphere.ToCIDR("10.65.4.201", "255.255.255.0")
+		cidr := cloudinit.ToCIDR("10.65.4.201", "255.255.255.0")
 
 		if assert.Equal(t, cidr, "10.65.4.201/24") {
-			cidr := vsphere.ToCIDR("10.65.4.201", "")
+			cidr := cloudinit.ToCIDR("10.65.4.201", "")
 			assert.Equal(t, cidr, "10.65.4.201/8")
 		}
 	}
