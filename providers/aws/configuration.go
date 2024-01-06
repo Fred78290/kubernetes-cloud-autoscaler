@@ -172,7 +172,7 @@ func (handler *awsHandler) GetTopologyLabels() map[string]string {
 	}
 }
 
-func (handler *awsHandler) encodeCloudInit(object interface{}) (*string, error) {
+func (handler *awsHandler) encodeCloudInit(object any) (*string, error) {
 	if object == nil {
 		return nil, nil
 	}
@@ -407,7 +407,7 @@ func (wrapper *awsWrapper) createClient() (*ec2.EC2, error) {
 }
 
 // Log logging
-func (wrapper *awsWrapper) Log(args ...interface{}) {
+func (wrapper *awsWrapper) Log(args ...any) {
 	glog.Infoln(args...)
 }
 

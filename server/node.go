@@ -273,7 +273,7 @@ func (vm *AutoScalerServerNode) externalAgentJoin(c types.ClientGenerator, maxPo
 	var result error
 
 	external := vm.serverConfig.External
-	config := map[string]interface{}{
+	config := map[string]any{
 		"provider-id":              vm.generateProviderID(),
 		"max-pods":                 maxPods,
 		"node-name":                vm.NodeName,
@@ -334,7 +334,7 @@ func (vm *AutoScalerServerNode) rke2AgentJoin(c types.ClientGenerator, maxPods i
 		kubeletArgs = append(kubeletArgs, "cloud-provider=external")
 	}
 
-	config := map[string]interface{}{
+	config := map[string]any{
 		"kubelet-arg": kubeletArgs,
 		"node-name":   vm.NodeName,
 		"server":      fmt.Sprintf("https://%s", rke2.Address),

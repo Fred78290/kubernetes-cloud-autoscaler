@@ -9,6 +9,7 @@ import (
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/cloudinit"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/context"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
 	glog "github.com/sirupsen/logrus"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/property"
@@ -71,7 +72,7 @@ func (vm *VirtualMachine) VimClient() *vim25.Client {
 	return vm.Datastore.VimClient()
 }
 
-func (vm *VirtualMachine) collectNetworkInfos(ctx *context.Context, network *Network, nodeIndex int) error {
+func (vm *VirtualMachine) collectNetworkInfos(ctx *context.Context, network *vsphereNetwork, nodeIndex int) error {
 	virtualMachine := vm.VirtualMachine(ctx)
 	devices, err := virtualMachine.Device(ctx)
 
@@ -80,7 +81,7 @@ func (vm *VirtualMachine) collectNetworkInfos(ctx *context.Context, network *Net
 			// It's an ether device?
 			if ethernet, ok := device.(types.BaseVirtualEthernetCard); ok {
 				// Match my network?
-				for _, inf := range network.Interfaces {
+				for _, inf := range network.VSphereInterfaces {
 					card := ethernet.GetVirtualEthernetCard()
 					if match, err := inf.MatchInterface(ctx, vm.Datastore.Datacenter, card); match && err == nil {
 						inf.AttachMacAddress(card.MacAddress, nodeIndex)
@@ -93,10 +94,10 @@ func (vm *VirtualMachine) collectNetworkInfos(ctx *context.Context, network *Net
 	return err
 }
 
-func (vm *VirtualMachine) addNetwork(ctx *context.Context, network *Network, devices object.VirtualDeviceList, nodeIndex int) (object.VirtualDeviceList, error) {
+func (vm *VirtualMachine) addNetwork(ctx *context.Context, network *vsphereNetwork, devices object.VirtualDeviceList, nodeIndex int) (object.VirtualDeviceList, error) {
 	var err error
 
-	if network != nil && len(network.Interfaces) > 0 {
+	if network != nil && len(network.VSphereInterfaces) > 0 {
 		devices, err = network.Devices(ctx, devices, vm.Datastore.Datacenter, nodeIndex)
 	}
 
@@ -207,7 +208,7 @@ func (vm *VirtualMachine) Configure(ctx *context.Context, input *CreateInput) er
 
 		err = fmt.Errorf(constantes.ErrUnableToAddHardDrive, vm.Name, err)
 
-	} else if devices, err = vm.addNetwork(ctx, input.Network, devices, input.NodeIndex); err != nil {
+	} else if devices, err = vm.addNetwork(ctx, input.VSphereNetwork, devices, input.NodeIndex); err != nil {
 
 		err = fmt.Errorf(constantes.ErrUnableToAddNetworkCard, vm.Name, err)
 
@@ -215,7 +216,7 @@ func (vm *VirtualMachine) Configure(ctx *context.Context, input *CreateInput) er
 
 		err = fmt.Errorf(constantes.ErrUnableToCreateDeviceChangeOp, vm.Name, err)
 
-	} else if vmConfigSpec.ExtraConfig, err = vm.cloudInit(ctx, input); err != nil {
+	} else if vmConfigSpec.ExtraConfig, err = vm.SetGuestInfo(ctx, input); err != nil {
 
 		err = fmt.Errorf(constantes.ErrCloudInitFailCreation, vm.Name, err)
 
@@ -347,7 +348,7 @@ func (vm *VirtualMachine) waitForToolsRunning(ctx *context.Context, v *object.Vi
 	return running, nil
 }
 
-func (vm *VirtualMachine) ListAddresses(ctx *context.Context) ([]NetworkInterface, error) {
+func (vm *VirtualMachine) ListAddresses(ctx *context.Context) ([]providers.NetworkInterface, error) {
 	var o mo.VirtualMachine
 
 	v := vm.VirtualMachine(ctx)
@@ -356,7 +357,7 @@ func (vm *VirtualMachine) ListAddresses(ctx *context.Context) ([]NetworkInterfac
 		return nil, err
 	}
 
-	addresses := make([]NetworkInterface, 0, len(o.Guest.Net))
+	addresses := make([]providers.NetworkInterface, 0, len(o.Guest.Net))
 
 	for _, net := range o.Guest.Net {
 		if net.Connected {
@@ -367,7 +368,7 @@ func (vm *VirtualMachine) ListAddresses(ctx *context.Context) ([]NetworkInterfac
 				ip = net.IpAddress[0]
 			}
 
-			addresses = append(addresses, NetworkInterface{
+			addresses = append(addresses, providers.NetworkInterface{
 				NetworkName: net.Network,
 				MacAddress:  net.MacAddress,
 				IPAddress:   ip,
@@ -535,7 +536,7 @@ func (vm *VirtualMachine) Status(ctx *context.Context) (*Status, error) {
 	var powerState types.VirtualMachinePowerState
 	var err error
 	var status *Status = &Status{}
-	var interfaces []NetworkInterface
+	var interfaces []providers.NetworkInterface
 	v := vm.VirtualMachine(ctx)
 
 	if powerState, err = v.PowerState(ctx); err == nil {
@@ -549,27 +550,7 @@ func (vm *VirtualMachine) Status(ctx *context.Context) (*Status, error) {
 }
 
 // SetGuestInfo change guest ingos
-func (vm *VirtualMachine) SetGuestInfo(ctx *context.Context, guestInfos *cloudinit.GuestInfos) error {
-	var task *object.Task
-	var err error
-
-	vmConfigSpec := types.VirtualMachineConfigSpec{}
-	v := vm.VirtualMachine(ctx)
-
-	if guestInfos != nil && !guestInfos.IsEmpty() {
-		vmConfigSpec.ExtraConfig = guestInfos.ToExtraConfig()
-	} else {
-		vmConfigSpec.ExtraConfig = []types.BaseOptionValue{}
-	}
-
-	if task, err = v.Reconfigure(ctx, vmConfigSpec); err == nil {
-		err = task.Wait(ctx)
-	}
-
-	return err
-}
-
-func (vm *VirtualMachine) cloudInit(ctx *context.Context, input *CreateInput) ([]types.BaseOptionValue, error) {
+func (vm *VirtualMachine) SetGuestInfo(ctx *context.Context, input *CreateInput) ([]types.BaseOptionValue, error) {
 	tz, _ := time.Now().Zone()
 	v := vm.VirtualMachine(ctx)
 
@@ -578,21 +559,30 @@ func (vm *VirtualMachine) cloudInit(ctx *context.Context, input *CreateInput) ([
 		InstanceID:   v.UUID(ctx),
 		UserName:     input.UserName,
 		AuthKey:      input.AuthKey,
-		DomainName:   input.Network.Domain,
+		DomainName:   input.VSphereNetwork.Domain,
 		CloudInit:    input.CloudInit,
 		AllowUpgrade: input.AllowUpgrade,
 		TimeZone:     tz,
 		Network:      nil,
 	}
 
-	if input.Network != nil && len(input.Network.Interfaces) > 0 {
-		cloundInitInput.Network = input.Network.GetCloudInitNetwork(input.NodeIndex)
+	if input.VSphereNetwork != nil && len(input.VSphereNetwork.Interfaces) > 0 {
+		cloundInitInput.Network = input.VSphereNetwork.GetCloudInitNetwork(input.NodeIndex)
 	}
 
-	if guestInfos, err := cloudinit.BuildCloudInit(&cloundInitInput); err != nil {
+	if guestInfos, err := cloundInitInput.BuildGuestInfos(); err != nil {
 		return nil, err
 	} else {
-		return guestInfos.ToExtraConfig(), nil
-	}
+		extraConfig := make([]types.BaseOptionValue, len(guestInfos))
 
+		for k, v := range guestInfos {
+			extraConfig = append(extraConfig,
+				&types.OptionValue{
+					Key:   fmt.Sprintf("guestinfo.%s", k),
+					Value: v,
+				})
+		}
+
+		return extraConfig, nil
+	}
 }

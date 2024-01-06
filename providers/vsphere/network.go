@@ -1,132 +1,48 @@
 package vsphere
 
 import (
-	"crypto/rand"
-	"fmt"
 	"strings"
-	"sync"
 
-	"github.com/Fred78290/kubernetes-cloud-autoscaler/cloudinit"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/context"
-	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha1"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 )
 
+type vsphereNetwork struct {
+	*providers.Network
+	VSphereInterfaces []vsphereNetworkInterface
+}
+
 // NetworkInterface declare single interface
-type NetworkInterface struct {
-	Primary          bool                     `json:"primary,omitempty" yaml:"primary,omitempty"`
-	Existing         bool                     `json:"exists,omitempty" yaml:"exists,omitempty"`
-	NetworkName      string                   `json:"network,omitempty" yaml:"network,omitempty"`
-	Adapter          string                   `json:"adapter,omitempty" yaml:"adapter,omitempty"`
-	MacAddress       string                   `json:"mac-address,omitempty" yaml:"mac-address,omitempty"`
-	NicName          string                   `json:"nic,omitempty" yaml:"nic,omitempty"`
-	DHCP             bool                     `json:"dhcp,omitempty" yaml:"dhcp,omitempty"`
-	UseRoutes        bool                     `default:"true" json:"use-dhcp-routes,omitempty" yaml:"use-dhcp-routes,omitempty"`
-	IPAddress        string                   `json:"address,omitempty" yaml:"address,omitempty"`
-	Netmask          string                   `json:"netmask,omitempty" yaml:"netmask,omitempty"`
-	Gateway          string                   `json:"gateway,omitempty" yaml:"gateway,omitempty"`
-	Routes           []v1alpha1.NetworkRoutes `json:"routes,omitempty" yaml:"routes,omitempty"`
+type vsphereNetworkInterface struct {
+	*providers.NetworkInterface
 	networkReference object.NetworkReference
 	networkBacking   types.BaseVirtualDeviceBackingInfo
 }
 
-// Network describes a card adapter
-type Network struct {
-	Domain     string                   `json:"domain,omitempty" yaml:"domain,omitempty"`
-	Interfaces []*NetworkInterface      `json:"interfaces,omitempty" yaml:"interfaces,omitempty"`
-	DNS        *cloudinit.NetworkResolv `json:"dns,omitempty" yaml:"dns,omitempty"`
-}
-
-// GetCloudInitNetwork create cloud-init object
-func (net *Network) GetCloudInitNetwork(nodeIndex int) *cloudinit.NetworkDeclare {
-
-	declare := &cloudinit.NetworkDeclare{
-		Version:   2,
-		Ethernets: make(map[string]*cloudinit.NetworkAdapter, len(net.Interfaces)),
+func newVSphereNetwork(net *providers.Network) *vsphereNetwork {
+	result := &vsphereNetwork{
+		Network:           net.Clone(),
+		VSphereInterfaces: make([]vsphereNetworkInterface, len(net.Interfaces)),
 	}
 
-	for _, n := range net.Interfaces {
-		if len(n.NicName) > 0 {
-			var ethernet *cloudinit.NetworkAdapter
-			var macAddress = n.GetMacAddress(nodeIndex)
-
-			if n.DHCP || len(n.IPAddress) == 0 {
-				ethernet = &cloudinit.NetworkAdapter{
-					DHCP4: n.DHCP,
-				}
-
-				if !n.UseRoutes {
-					dhcpOverrides := map[string]interface{}{
-						"use-routes": "false",
-					}
-					ethernet.DHCPOverrides = &dhcpOverrides
-				} else if len(n.Gateway) > 0 {
-					ethernet.Gateway4 = &n.Gateway
-				}
-
-			} else {
-				ethernet = &cloudinit.NetworkAdapter{
-					Addresses: &[]string{
-						cloudinit.ToCIDR(n.IPAddress, n.Netmask),
-					},
-				}
-
-				if len(n.Gateway) > 0 {
-					ethernet.Gateway4 = &n.Gateway
-				}
-			}
-
-			if len(macAddress) != 0 {
-				ethernet.Match = &map[string]string{
-					"macaddress": macAddress,
-				}
-
-				if len(n.NicName) > 0 {
-					ethernet.NicName = &n.NicName
-				}
-			} else {
-				ethernet.NicName = nil
-			}
-
-			if len(n.Routes) != 0 {
-				ethernet.Routes = &n.Routes
-			}
-
-			if net.DNS != nil {
-				ethernet.Nameservers = &cloudinit.Nameserver{
-					Addresses: net.DNS.Nameserver,
-					Search:    net.DNS.Search,
-				}
-			}
-
-			declare.Ethernets[n.NicName] = ethernet
+	for index, inf := range net.Interfaces {
+		result.VSphereInterfaces[index] = vsphereNetworkInterface{
+			NetworkInterface: inf,
 		}
 	}
 
-	return declare
-}
-
-// GetDeclaredExistingInterfaces return the declared existing interfaces
-func (net *Network) GetDeclaredExistingInterfaces() []*NetworkInterface {
-
-	infs := make([]*NetworkInterface, 0, len(net.Interfaces))
-	for _, inf := range net.Interfaces {
-		if inf.Existing {
-			infs = append(infs, inf)
-		}
-	}
-
-	return infs
+	return result
 }
 
 // Devices return all devices
-func (net *Network) Devices(ctx *context.Context, devices object.VirtualDeviceList, dc *Datacenter, nodeIndex int) (object.VirtualDeviceList, error) {
+func (net *vsphereNetwork) Devices(ctx *context.Context, devices object.VirtualDeviceList, dc *Datacenter, nodeIndex int) (object.VirtualDeviceList, error) {
 	var err error
 	var device types.BaseVirtualDevice
 
-	for _, n := range net.Interfaces {
+	for _, n := range net.VSphereInterfaces {
 		if !n.Existing {
 			if device, err = n.Device(ctx, dc, nodeIndex); err == nil {
 				devices = append(devices, n.SetMacAddress(nodeIndex, device))
@@ -137,46 +53,6 @@ func (net *Network) Devices(ctx *context.Context, devices object.VirtualDeviceLi
 	}
 
 	return devices, err
-}
-
-func (net *Network) UpdateMacAddressTable(nodeIndex int) error {
-	for _, inf := range net.Interfaces {
-		inf.updateMacAddressTable(nodeIndex)
-	}
-
-	return nil
-}
-
-var macAddresesLock sync.Mutex
-var macAddreses = make(map[string]string)
-
-func attachMacAddress(netName, address string) {
-	macAddresesLock.Lock()
-	defer macAddresesLock.Unlock()
-
-	macAddreses[netName] = address
-}
-
-func generateMacAddress(netName string) string {
-	var address string
-	var found bool
-
-	macAddresesLock.Lock()
-	defer macAddresesLock.Unlock()
-
-	if address, found = macAddreses[netName]; !found {
-		buf := make([]byte, 3)
-
-		if _, err := rand.Read(buf); err != nil {
-			return ""
-		}
-
-		address = fmt.Sprintf("00:16:3e:%02x:%02x:%02x", buf[0], buf[1], buf[2])
-
-		macAddreses[netName] = address
-	}
-
-	return address
 }
 
 // See func (p DistributedVirtualPortgroup) EthernetCardBackingInfo(ctx context.Context) (types.BaseVirtualDeviceBackingInfo, error)
@@ -195,7 +71,7 @@ func distributedVirtualPortgroupEthernetCardBackingInfo(ctx *context.Context, p 
 
 // MatchInterface return if this interface match the virtual device
 // Due missing read permission, I can't create BackingInfo network card, so I use collected info to construct backing info
-func (net *NetworkInterface) MatchInterface(ctx *context.Context, dc *Datacenter, card *types.VirtualEthernetCard) (bool, error) {
+func (net *vsphereNetworkInterface) MatchInterface(ctx *context.Context, dc *Datacenter, card *types.VirtualEthernetCard) (bool, error) {
 
 	equal := false
 
@@ -261,39 +137,8 @@ func (net *NetworkInterface) MatchInterface(ctx *context.Context, dc *Datacenter
 	return equal, nil
 }
 
-func (net *NetworkInterface) netName(nodeIndex int) string {
-	return fmt.Sprintf("%s[%d]", net.NicName, nodeIndex)
-}
-
-func (net *NetworkInterface) updateMacAddressTable(nodeIndex int) {
-	address := net.MacAddress
-
-	if len(address) > 0 && strings.ToLower(address) != "generate" && strings.ToLower(address) != "ignore" {
-		attachMacAddress(net.netName(nodeIndex), address)
-	}
-}
-
-func (net *NetworkInterface) AttachMacAddress(address string, nodeIndex int) {
-	attachMacAddress(net.netName(nodeIndex), address)
-}
-
-// GetMacAddress return a macaddress
-func (net *NetworkInterface) GetMacAddress(nodeIndex int) string {
-	address := net.MacAddress
-
-	if strings.ToLower(address) == "generate" {
-		address = generateMacAddress(net.netName(nodeIndex))
-	} else if strings.ToLower(address) == "ignore" {
-		address = ""
-	}
-
-	net.MacAddress = address
-
-	return address
-}
-
 // SetMacAddress put mac address in the device
-func (net *NetworkInterface) SetMacAddress(nodeIndex int, device types.BaseVirtualDevice) types.BaseVirtualDevice {
+func (net *vsphereNetworkInterface) SetMacAddress(nodeIndex int, device types.BaseVirtualDevice) types.BaseVirtualDevice {
 	adress := net.GetMacAddress(nodeIndex)
 
 	if len(adress) != 0 {
@@ -306,7 +151,7 @@ func (net *NetworkInterface) SetMacAddress(nodeIndex int, device types.BaseVirtu
 }
 
 // Reference return the network reference
-func (net *NetworkInterface) Reference(ctx *context.Context, dc *Datacenter) (object.NetworkReference, error) {
+func (net *vsphereNetworkInterface) Reference(ctx *context.Context, dc *Datacenter) (object.NetworkReference, error) {
 	var err error
 
 	if net.networkReference == nil {
@@ -320,7 +165,7 @@ func (net *NetworkInterface) Reference(ctx *context.Context, dc *Datacenter) (ob
 }
 
 // Device return a device
-func (net *NetworkInterface) Device(ctx *context.Context, dc *Datacenter, nodeIndex int) (types.BaseVirtualDevice, error) {
+func (net *vsphereNetworkInterface) Device(ctx *context.Context, dc *Datacenter, nodeIndex int) (types.BaseVirtualDevice, error) {
 	var backing types.BaseVirtualDeviceBackingInfo
 
 	network, err := net.Reference(ctx, dc)
@@ -378,7 +223,7 @@ func (net *NetworkInterface) Device(ctx *context.Context, dc *Datacenter, nodeIn
 }
 
 // Change applies update backing and hardware address changes to the given network device.
-func (net *NetworkInterface) Change(device types.BaseVirtualDevice, update types.BaseVirtualDevice) {
+func (net *vsphereNetworkInterface) Change(device types.BaseVirtualDevice, update types.BaseVirtualDevice) {
 	current := device.(types.BaseVirtualEthernetCard).GetVirtualEthernetCard()
 	changed := update.(types.BaseVirtualEthernetCard).GetVirtualEthernetCard()
 
@@ -394,7 +239,7 @@ func (net *NetworkInterface) Change(device types.BaseVirtualDevice, update types
 }
 
 // ChangeAddress just the mac adress
-func (net *NetworkInterface) ChangeAddress(card *types.VirtualEthernetCard, nodeIndex int) bool {
+func (net *vsphereNetworkInterface) ChangeAddress(card *types.VirtualEthernetCard, nodeIndex int) bool {
 	macAddress := net.GetMacAddress(nodeIndex)
 
 	if len(macAddress) != 0 {
@@ -409,6 +254,6 @@ func (net *NetworkInterface) ChangeAddress(card *types.VirtualEthernetCard, node
 }
 
 // NeedToReconfigure tell that we must set the mac address
-func (net *NetworkInterface) NeedToReconfigure(nodeIndex int) bool {
+func (net *vsphereNetworkInterface) NeedToReconfigure(nodeIndex int) bool {
 	return len(net.GetMacAddress(nodeIndex)) != 0 && net.Existing
 }

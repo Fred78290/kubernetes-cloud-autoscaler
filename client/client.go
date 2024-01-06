@@ -382,7 +382,7 @@ func (p *SingletonClientGenerator) SetProviderID(nodeName, providerID string) er
 			return true, nil
 		}
 
-		patch := utils.ToYAML(map[string]interface{}{
+		patch := utils.ToYAML(map[string]any{
 			"kind":       "Node",
 			"apiVersion": "v1",
 			"spec": map[string]string{

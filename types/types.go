@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/cloudinit"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
 	apigrpc "github.com/Fred78290/kubernetes-cloud-autoscaler/grpc"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
@@ -183,12 +184,12 @@ type RKE2JoinConfig struct {
 }
 
 type ExternalJoinConfig struct {
-	Address           string                 `json:"address,omitempty"`
-	Token             string                 `json:"token,omitempty"`
-	DatastoreEndpoint string                 `json:"datastore-endpoint,omitempty"`
-	JoinCommand       string                 `json:"join-command,omitempty"`
-	ConfigPath        string                 `json:"config-path,omitempty"`
-	ExtraConfig       map[string]interface{} `json:"extra-config,omitempty"`
+	Address           string         `json:"address,omitempty"`
+	Token             string         `json:"token,omitempty"`
+	DatastoreEndpoint string         `json:"datastore-endpoint,omitempty"`
+	JoinCommand       string         `json:"join-command,omitempty"`
+	ConfigPath        string         `json:"config-path,omitempty"`
+	ExtraConfig       map[string]any `json:"extra-config,omitempty"`
 }
 
 // AutoScalerServerOptionals declare wich features must be optional
@@ -254,7 +255,7 @@ type AutoScalerServerConfig struct {
 	DiskSizeInMB               int                              `default:"10240" json:"disk-size"`
 	NodeLabels                 KubernetesLabel                  `json:"nodeLabels"`
 	Machines                   providers.MachineCharacteristics `default:"{\"standard\": {}}" json:"machines"` // Mandatory, Available machines
-	CloudInit                  interface{}                      `json:"cloud-init"`                            // Optional, The cloud init conf file
+	CloudInit                  cloudinit.CloudInit              `json:"cloud-init"`                            // Optional, The cloud init conf file
 	Optionals                  *AutoScalerServerOptionals       `json:"optionals"`
 	ManagedNodeResourceLimiter *ResourceLimiter                 `json:"managednodes-limits"`
 	SSH                        *sshutils.AutoScalerServerSSH    `json:"ssh-infos"`

@@ -208,9 +208,9 @@ func (ds *Datastore) CreateVirtualMachine(ctx *context.Context, input *CreateVir
 				// prepare virtual device config spec for network card
 				configSpecs := []types.BaseVirtualDeviceConfigSpec{}
 
-				if input.Network != nil {
+				if input.VSphereNetwork != nil {
 					if devices, err := templateVM.Device(ctx); err == nil {
-						for _, inf := range input.Network.Interfaces {
+						for _, inf := range input.VSphereNetwork.VSphereInterfaces {
 							if inf.NeedToReconfigure(input.NodeIndex) {
 								// In case we dont find the preconfigured net card, we add it
 								inf.Existing = false

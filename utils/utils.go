@@ -30,7 +30,7 @@ func NodeFromJSON(s string) (*apiv1.Node, error) {
 }
 
 // ToYAML serialize interface to yaml
-func ToYAML(v interface{}) string {
+func ToYAML(v any) string {
 	if v == nil {
 		return ""
 	}
@@ -41,7 +41,7 @@ func ToYAML(v interface{}) string {
 }
 
 // ToJSON serialize interface to json
-func ToJSON(v interface{}) string {
+func ToJSON(v any) string {
 	if v == nil {
 		return ""
 	}

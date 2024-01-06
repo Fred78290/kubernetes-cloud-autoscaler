@@ -137,7 +137,7 @@ func NewController(application applicationInterface, stopCh <-chan struct{}) (*C
 	// Set up an event handler for when ManagedNode resources change
 	managedNodeInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: controller.enqueueManagedNode,
-		UpdateFunc: func(old, new interface{}) {
+		UpdateFunc: func(old, new any) {
 			controller.enqueueManagedNode(new)
 		},
 		DeleteFunc: controller.deleteManagedNode,
@@ -146,7 +146,7 @@ func NewController(application applicationInterface, stopCh <-chan struct{}) (*C
 	// Set up an event handler for when Node resources change
 	nodesInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: controller.handleNode,
-		UpdateFunc: func(old, new interface{}) {
+		UpdateFunc: func(old, new any) {
 			newDepl := new.(*corev1.Node)
 			oldDepl := old.(*corev1.Node)
 
@@ -876,7 +876,7 @@ func (c *Controller) getManagedNodeFromKey(key string) (*v1alpha1.ManagedNode, e
 	}
 }
 
-func (c *Controller) generateKey(obj interface{}) string {
+func (c *Controller) generateKey(obj any) string {
 	if key, err := cache.MetaNamespaceKeyFunc(obj); err == nil {
 		return key
 	} else {
@@ -886,7 +886,7 @@ func (c *Controller) generateKey(obj interface{}) string {
 	return ""
 }
 
-func (c *Controller) deleteManagedNode(obj interface{}) {
+func (c *Controller) deleteManagedNode(obj any) {
 	if managedNode, ok := obj.(*v1alpha1.ManagedNode); ok {
 		if nodeGroup, err := c.application.getNodeGroup(managedNode.GetNodegroup()); err == nil {
 			if node, err := nodeGroup.findNodeByCRDUID(managedNode.GetUID()); err == nil {
@@ -906,7 +906,7 @@ func (c *Controller) deleteManagedNode(obj interface{}) {
 	}
 }
 
-func (c *Controller) enqueueManagedNode(obj interface{}) {
+func (c *Controller) enqueueManagedNode(obj any) {
 	if managedNode, ok := obj.(*v1alpha1.ManagedNode); ok {
 		c.workqueue.Add(c.generateKey(managedNode))
 	}
@@ -928,7 +928,7 @@ func (c *Controller) deleteOwnerRef(ownerRef *metav1.OwnerReference) {
 	}
 }
 
-func (c *Controller) handleNode(obj interface{}) {
+func (c *Controller) handleNode(obj any) {
 	var object metav1.Object
 	var ok bool
 

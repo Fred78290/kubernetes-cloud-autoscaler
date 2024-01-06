@@ -16,19 +16,19 @@ import (
 
 // Configuration declares desktop connection info
 type Configuration struct {
-	Address           string            `json:"address"` // external cluster autoscaler provider address of the form "host:port", "host%zone:port", "[host]:port" or "[host%zone]:port"
-	Key               string            `json:"key"`     // path to file containing the tls key
-	Cert              string            `json:"cert"`    // path to file containing the tls certificate
-	Cacert            string            `json:"cacert"`  // path to file containing the CA certificate
-	Timeout           time.Duration     `json:"timeout"`
-	TimeZone          string            `default:"UTC" json:"time-zone"`
-	TemplateName      string            `json:"template-name"`
-	LinkedClone       bool              `json:"linked"`
-	Autostart         bool              `json:"autostart"`
-	Network           *Network          `json:"network"`
-	AvailableGPUTypes map[string]string `json:"gpu-types"`
-	AllowUpgrade      bool              `default:"true" json:"allow-upgrade"`
-	TestMode          bool              `json:"test-mode"`
+	Address           string             `json:"address"` // external cluster autoscaler provider address of the form "host:port", "host%zone:port", "[host]:port" or "[host%zone]:port"
+	Key               string             `json:"key"`     // path to file containing the tls key
+	Cert              string             `json:"cert"`    // path to file containing the tls certificate
+	Cacert            string             `json:"cacert"`  // path to file containing the CA certificate
+	Timeout           time.Duration      `json:"timeout"`
+	TimeZone          string             `default:"UTC" json:"time-zone"`
+	TemplateName      string             `json:"template-name"`
+	LinkedClone       bool               `json:"linked"`
+	Autostart         bool               `json:"autostart"`
+	Network           *providers.Network `json:"network"`
+	AvailableGPUTypes map[string]string  `json:"gpu-types"`
+	AllowUpgrade      bool               `default:"true" json:"allow-upgrade"`
+	TestMode          bool               `json:"test-mode"`
 }
 
 type desktopWrapper struct {
@@ -40,7 +40,7 @@ type desktopWrapper struct {
 
 type desktopHandler struct {
 	*desktopWrapper
-	network      Network
+	network      *providers.Network
 	instanceType string
 	instanceName string
 	instanceID   string
@@ -53,7 +53,7 @@ type CreateInput struct {
 	NodeIndex    int
 	AllowUpgrade bool
 	TimeZone     string
-	Network      *Network
+	Network      *providers.Network
 }
 
 func NewDesktopProviderConfiguration(fileName string) (providers.ProviderConfiguration, error) {
@@ -72,16 +72,16 @@ func NewDesktopProviderConfiguration(fileName string) (providers.ProviderConfigu
 	return &wrapper, err
 }
 
-type VmStatus struct {
+type vmStatus struct {
 	Status
 	address string
 }
 
-func (status *VmStatus) Address() string {
+func (status *vmStatus) Address() string {
 	return status.address
 }
 
-func (status *VmStatus) Powered() bool {
+func (status *vmStatus) Powered() bool {
 	return status.Status.Powered
 }
 
@@ -92,7 +92,7 @@ func (handler *desktopHandler) GetTimeout() time.Duration {
 func (handler *desktopHandler) ConfigureNetwork(network v1alpha1.ManagedNetworkConfig) {
 	if len(network.VMWare) > 0 {
 		for _, network := range network.VMWare {
-			if inf := handler.findVMNet(network.NetworkName); inf != nil {
+			if inf := handler.network.InterfaceByName(network.NetworkName); inf != nil {
 				inf.DHCP = network.DHCP
 				inf.UseRoutes = network.UseRoutes
 				inf.Routes = network.Routes
@@ -122,7 +122,7 @@ func (handler *desktopHandler) RetrieveNetworkInfos() error {
 		return fmt.Errorf(constantes.ErrInstanceIsNotAttachedToCloudProvider)
 	}
 
-	return handler.desktopWrapper.RetrieveNetworkInfos(handler.instanceID, handler.nodeIndex, &handler.network)
+	return handler.desktopWrapper.RetrieveNetworkInfos(handler.instanceID, handler.nodeIndex, handler.network)
 }
 
 func (handler *desktopHandler) UpdateMacAddressTable() error {
@@ -149,7 +149,7 @@ func (handler *desktopHandler) InstanceCreate(input *providers.InstanceCreateInp
 		NodeIndex:           handler.nodeIndex,
 		AllowUpgrade:        handler.AllowUpgrade,
 		TimeZone:            handler.TimeZone,
-		Network:             &handler.network,
+		Network:             handler.network,
 	}
 
 	if vmuuid, err := handler.Create(createInput); err != nil {
@@ -237,7 +237,7 @@ func (handler *desktopHandler) InstanceStatus() (providers.InstanceStatus, error
 	if status, err := handler.Status(handler.instanceID); err != nil {
 		return nil, err
 	} else {
-		return &VmStatus{
+		return &vmStatus{
 			Status:  *status,
 			address: handler.findPreferredIPAddress(status.Ethernet),
 		}, nil
@@ -294,19 +294,9 @@ func (handler *desktopHandler) findPreferredIPAddress(devices []VNetDevice) stri
 	return address
 }
 
-func (handler *desktopHandler) findVMNet(name string) *NetworkInterface {
+func (handler *desktopHandler) findInterface(ether *VNetDevice) *providers.NetworkInterface {
 	for _, inf := range handler.network.Interfaces {
-		if name == inf.VNet {
-			return inf
-		}
-	}
-
-	return nil
-}
-
-func (handler *desktopHandler) findInterface(ether *VNetDevice) *NetworkInterface {
-	for _, inf := range handler.network.Interfaces {
-		if inf.Same(ether.ConnectionType, ether.VNet) {
+		if ether.Same(inf) {
 			return inf
 		}
 	}
@@ -315,16 +305,12 @@ func (handler *desktopHandler) findInterface(ether *VNetDevice) *NetworkInterfac
 }
 
 func (wrapper *desktopWrapper) AttachInstance(instanceName string, nodeIndex int) (providers.ProviderHandler, error) {
-	var network Network
-
-	providers.Copy(&network, wrapper.Network)
-
 	if vmuuid, err := wrapper.UUID(instanceName); err != nil {
 		return nil, err
 	} else {
 		return &desktopHandler{
 			desktopWrapper: wrapper,
-			network:        network,
+			network:        wrapper.Network.Clone(),
 			instanceName:   instanceName,
 			instanceID:     vmuuid,
 			nodeIndex:      nodeIndex,
@@ -338,13 +324,9 @@ func (wrapper *desktopWrapper) CreateInstance(instanceName, instanceType string,
 		return nil, fmt.Errorf(constantes.ErrVMAlreadyExists, instanceName)
 	}
 
-	var network Network
-
-	providers.Copy(&network, wrapper.Network)
-
 	return &desktopHandler{
 		desktopWrapper: wrapper,
-		network:        network,
+		network:        wrapper.Network.Clone(),
 		instanceType:   instanceType,
 		instanceName:   instanceName,
 		nodeIndex:      nodeIndex,
@@ -424,7 +406,7 @@ func (wrapper *desktopWrapper) CreateWithContext(ctx *context.Context, input *Cr
 		cloundInitInput.Network = input.Network.GetCloudInitNetwork(input.NodeIndex)
 	}
 
-	if request.GuestInfos, err = cloudinit.BuildCloudInit(&cloundInitInput); err != nil {
+	if request.GuestInfos, err = cloundInitInput.BuildGuestInfos(); err != nil {
 		return "", fmt.Errorf(constantes.ErrCloudInitFailCreation, input.NodeName, err)
 	} else if response, err := wrapper.client.VMWareCreate(ctx, request); err != nil {
 		return "", err
@@ -756,7 +738,7 @@ func (wrapper *desktopWrapper) Status(vmuuid string) (*Status, error) {
 	return wrapper.StatusWithContext(ctx, vmuuid)
 }
 
-func (wrapper *desktopWrapper) RetrieveNetworkInfosWithContext(ctx *context.Context, vmuuid string, nodeIndex int, network *Network) error {
+func (wrapper *desktopWrapper) RetrieveNetworkInfosWithContext(ctx *context.Context, vmuuid string, nodeIndex int, network *providers.Network) error {
 	if response, err := wrapper.client.VMWareStatus(ctx, &api.VirtualMachineRequest{Identifier: vmuuid}); err != nil {
 		return err
 	} else if response.GetError() != nil {
@@ -764,7 +746,7 @@ func (wrapper *desktopWrapper) RetrieveNetworkInfosWithContext(ctx *context.Cont
 	} else {
 		for _, ether := range response.GetResult().GetEthernet() {
 			for _, inf := range network.Interfaces {
-				if (inf.VNet == ether.Vnet) || (inf.ConnectionType == ether.ConnectionType && inf.ConnectionType != "custom") {
+				if (inf.NetworkName == ether.Vnet) || (inf.ConnectionType == ether.ConnectionType && inf.ConnectionType != "custom") {
 					inf.AttachMacAddress(ether.GeneratedAddress, nodeIndex)
 				}
 			}
@@ -774,7 +756,7 @@ func (wrapper *desktopWrapper) RetrieveNetworkInfosWithContext(ctx *context.Cont
 	}
 }
 
-func (wrapper *desktopWrapper) RetrieveNetworkInfos(vmuuid string, nodeIndex int, network *Network) error {
+func (wrapper *desktopWrapper) RetrieveNetworkInfos(vmuuid string, nodeIndex int, network *providers.Network) error {
 	ctx := context.NewContext(wrapper.Timeout)
 	defer ctx.Cancel()
 

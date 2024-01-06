@@ -18,7 +18,6 @@ import (
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha1"
 	glog "github.com/sirupsen/logrus"
-	"github.com/vmware/govmomi/vim25/types"
 	"golang.org/x/crypto/ssh"
 	"gopkg.in/yaml.v2"
 )
@@ -29,6 +28,8 @@ const GzipBase64 = "gzip+base64"
 // Must not start with `guestinfo.`
 type GuestInfos map[string]string
 
+type CloudInit map[string]any
+
 type CloudInitInput struct {
 	InstanceName string
 	InstanceID   string //string(uuid.NewUUID())
@@ -38,7 +39,7 @@ type CloudInitInput struct {
 	TimeZone     string
 	Network      *NetworkDeclare
 	AllowUpgrade bool
-	CloudInit    interface{}
+	CloudInit    CloudInit
 }
 
 // NetworkResolv /etc/resolv.conf
@@ -61,13 +62,13 @@ type NetworkAdapter struct {
 	Gateway4      *string                   `json:"gateway4,omitempty" yaml:"gateway4,omitempty"`
 	Addresses     *[]string                 `json:"addresses,omitempty" yaml:"addresses,omitempty"`
 	Nameservers   *Nameserver               `json:"nameservers,omitempty" yaml:"nameservers,omitempty"`
-	DHCPOverrides *map[string]interface{}   `json:"dhcp4-overrides,omitempty" yaml:"dhcp4-overrides,omitempty"`
+	DHCPOverrides CloudInit                 `json:"dhcp4-overrides,omitempty" yaml:"dhcp4-overrides,omitempty"`
 	Routes        *[]v1alpha1.NetworkRoutes `json:"routes,omitempty" yaml:"routes,omitempty"`
 }
 
 // NetworkDeclare wrapper
 type NetworkDeclare struct {
-	Version   int                        `json:"version,omitempty" yaml:"version,omitempty"`
+	Version   int                        `default:"2" json:"version,omitempty" yaml:"version,omitempty"`
 	Ethernets map[string]*NetworkAdapter `json:"ethernets,omitempty" yaml:"ethernets,omitempty"`
 }
 
@@ -81,20 +82,6 @@ type NetworkConfig struct {
 
 func (g GuestInfos) IsEmpty() bool {
 	return len(g) == 0
-}
-
-func (g GuestInfos) ToExtraConfig() []types.BaseOptionValue {
-	extraConfig := make([]types.BaseOptionValue, len(g))
-
-	for k, v := range g {
-		extraConfig = append(extraConfig,
-			&types.OptionValue{
-				Key:   fmt.Sprintf("guestinfo.%s", k),
-				Value: v,
-			})
-	}
-
-	return extraConfig
 }
 
 // Converts IP mask to 16 bit unsigned integer.
@@ -122,17 +109,20 @@ func ToCIDR(address, netmask string) string {
 	return fmt.Sprintf("%s/%d", address, strings.Count(netmask, "1"))
 }
 
-func EncodeCloudInit(name string, object interface{}) (string, error) {
+func EncodeCloudInit(name string, object any) (string, error) {
 	var result string
 	var out bytes.Buffer
 	var err error
 
 	fmt.Fprintln(&out, "#cloud-config")
 
-	wr := yaml.NewEncoder(&out)
-	err = wr.Encode(object)
+	if object != nil {
+		wr := yaml.NewEncoder(&out)
 
-	wr.Close()
+		wr.Encode(object)
+
+		wr.Close()
+	}
 
 	if err == nil {
 		var stdout bytes.Buffer
@@ -151,7 +141,7 @@ func EncodeCloudInit(name string, object interface{}) (string, error) {
 	return result, err
 }
 
-func EncodeObject(name string, object interface{}) (string, error) {
+func EncodeObject(name string, object any) (string, error) {
 	var result string
 	out, err := yaml.Marshal(object)
 
@@ -196,35 +186,66 @@ func GeneratePublicKey(authKey string) (publicKey string, err error) {
 	return
 }
 
-func BuildVendorData(userName, authKey, tz string, allowUpgrade bool) interface{} {
-	if userName != "" && authKey != "" {
-		if pubKey, err := GeneratePublicKey(authKey); err == nil {
-			return map[string]interface{}{
-				"package_update":  allowUpgrade,
-				"package_upgrade": allowUpgrade,
-				"timezone":        tz,
+func (input *CloudInitInput) BuildVendorData() CloudInit {
+	if input.UserName != "" && input.AuthKey != "" {
+		if pubKey, err := GeneratePublicKey(input.AuthKey); err == nil {
+			return CloudInit{
+				"package_update":  input.AllowUpgrade,
+				"package_upgrade": input.AllowUpgrade,
+				"timezone":        input.TimeZone,
 				"users": []string{
 					"default",
 				},
 				"ssh_authorized_keys": []string{
 					pubKey,
 				},
-				"system_info": map[string]interface{}{
+				"system_info": CloudInit{
 					"default_user": map[string]string{
-						"name": userName,
+						"name": input.UserName,
 					},
 				},
 			}
 		}
 	}
-	return map[string]interface{}{
-		"package_update":  allowUpgrade,
-		"package_upgrade": allowUpgrade,
-		"timezone":        tz,
+
+	return CloudInit{
+		"package_update":  input.AllowUpgrade,
+		"package_upgrade": input.AllowUpgrade,
+		"timezone":        input.TimeZone,
 	}
 }
 
-func BuildCloudInit(input *CloudInitInput) (GuestInfos, error) {
+func (input *CloudInitInput) BuildUserData() (vendorData CloudInit, err error) {
+	var out []byte
+
+	if out, err = yaml.Marshal(CloudInit{"network": input.Network}); err == nil {
+		vendorData = input.BuildVendorData()
+
+		for k, v := range input.CloudInit {
+			vendorData[k] = v
+		}
+
+		witeFile := CloudInit{
+			"encoding":    "b64",
+			"owner":       "root:root",
+			"content":     base64.StdEncoding.EncodeToString(out),
+			"path":        "/etc/netplan/51-override.yaml",
+			"permissions": "0644",
+		}
+
+		if write_files, found := vendorData["write_files"]; found {
+			arr := write_files.([]any)
+
+			vendorData["write_files"] = append(arr, witeFile)
+		} else {
+			vendorData["write_files"] = []CloudInit{witeFile}
+		}
+	}
+
+	return
+}
+
+func (input *CloudInitInput) BuildGuestInfos() (GuestInfos, error) {
 	var metadata, userdata, vendordata string
 	var err error
 	var guestInfos GuestInfos
@@ -242,30 +263,24 @@ func BuildCloudInit(input *CloudInitInput) (GuestInfos, error) {
 	}
 
 	if metadata, err = EncodeObject("metadata", netconfig); err != nil {
-		err = fmt.Errorf(constantes.ErrUnableToEncodeGuestInfo, "metadata", err)
+		return nil, fmt.Errorf(constantes.ErrUnableToEncodeGuestInfo, "metadata", err)
 	}
 
-	if err == nil {
-		if input.CloudInit != nil {
-			if userdata, err = EncodeCloudInit("userdata", input.CloudInit); err != nil {
-				return nil, fmt.Errorf(constantes.ErrUnableToEncodeGuestInfo, "userdata", err)
-			}
-		} else if userdata, err = EncodeCloudInit("userdata", map[string]string{}); err != nil {
-			return nil, fmt.Errorf(constantes.ErrUnableToEncodeGuestInfo, "userdata", err)
-		}
+	if userdata, err = EncodeCloudInit("userdata", input.CloudInit); err != nil {
+		return nil, fmt.Errorf(constantes.ErrUnableToEncodeGuestInfo, "userdata", err)
+	}
 
-		if vendordata, err = EncodeCloudInit("vendordata", BuildVendorData(input.UserName, input.AuthKey, input.TimeZone, input.AllowUpgrade)); err != nil {
-			return nil, fmt.Errorf(constantes.ErrUnableToEncodeGuestInfo, "vendordata", err)
-		}
+	if vendordata, err = EncodeCloudInit("vendordata", input.BuildVendorData()); err != nil {
+		return nil, fmt.Errorf(constantes.ErrUnableToEncodeGuestInfo, "vendordata", err)
+	}
 
-		guestInfos = GuestInfos{
-			"metadata":            metadata,
-			"metadata.encoding":   GzipBase64,
-			"userdata":            userdata,
-			"userdata.encoding":   GzipBase64,
-			"vendordata":          vendordata,
-			"vendordata.encoding": GzipBase64,
-		}
+	guestInfos = GuestInfos{
+		"metadata":            metadata,
+		"metadata.encoding":   GzipBase64,
+		"userdata":            userdata,
+		"userdata.encoding":   GzipBase64,
+		"vendordata":          vendordata,
+		"vendordata.encoding": GzipBase64,
 	}
 
 	return guestInfos, nil

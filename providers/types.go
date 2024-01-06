@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/cloudinit"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha1"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/sshutils"
 	"github.com/drone/envsubst"
@@ -41,7 +42,7 @@ var SupportedCloudProviders = []string{
 }
 
 type BasicConfiguration struct {
-	CloudInit    interface{}                      `json:"cloud-init"`
+	CloudInit    cloudinit.CloudInit              `json:"cloud-init"`
 	SSH          sshutils.AutoScalerServerSSH     `json:"ssh"`
 	NodeGroup    string                           `json:"nodegroup"`
 	InstanceName string                           `json:"instance-name"`
@@ -83,7 +84,7 @@ type InstanceCreateInput struct {
 	DiskSize  int
 	UserName  string
 	AuthKey   string
-	CloudInit interface{}
+	CloudInit cloudinit.CloudInit
 	Machine   *MachineCharacteristic
 }
 
@@ -112,7 +113,7 @@ type ProviderHandler interface {
 }
 
 // Copy Make a deep copy from src into dst.
-func Copy(dst interface{}, src interface{}) error {
+func Copy(dst any, src any) error {
 	if dst == nil {
 		return fmt.Errorf("dst cannot be nil")
 	}

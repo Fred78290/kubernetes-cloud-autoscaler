@@ -133,7 +133,7 @@ func (c *Context) Err() error {
 //		u, ok := ctx.Value(userKey).(*User)
 //		return u, ok
 //	}
-func (c *Context) Value(key interface{}) interface{} {
+func (c *Context) Value(key any) any {
 	return c.ctx.Value(key)
 }
 
@@ -152,10 +152,10 @@ func (c *Context) Cancel() {
 // string or any other built-in type to avoid collisions between
 // packages using context. Users of WithValue should define their own
 // types for keys. To avoid allocating when assigning to an
-// interface{}, context keys often have concrete type
+// any, context keys often have concrete type
 // struct{}. Alternatively, exported context key variables' static
 // type should be a pointer or interface.
-func (c *Context) WithValue(key, val interface{}) {
+func (c *Context) WithValue(key, val any) {
 	c.ctx = context.WithValue(c.ctx, key, val)
 }
 

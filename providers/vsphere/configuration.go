@@ -32,7 +32,7 @@ type Configuration struct {
 	LinkedClone       bool              `json:"linked"`
 	AllowUpgrade      bool              `default:"true" json:"allow-upgrade"`
 	Customization     string            `json:"customization"`
-	Network           Network           `json:"network"`
+	Network           providers.Network `json:"network"`
 	AvailableGPUTypes map[string]string `json:"gpu-types"`
 	VMWareRegion      string            `json:"csi-region"`
 	VMWareZone        string            `json:"csi-zone"`
@@ -45,7 +45,7 @@ type vsphereWrapper struct {
 
 type vsphereHandler struct {
 	*vsphereWrapper
-	network      Network
+	network      *vsphereNetwork
 	instanceType string
 	instanceName string
 	instanceID   string
@@ -68,7 +68,7 @@ func NewVSphereProviderConfiguration(fileName string) (providers.ProviderConfigu
 
 // Status shortened vm status
 type Status struct {
-	Interfaces []NetworkInterface
+	Interfaces []providers.NetworkInterface
 	Powered    bool
 }
 
@@ -84,7 +84,7 @@ type CreateInput struct {
 	AllowUpgrade    bool
 	ExpandHardDrive bool
 	Annotation      string
-	Network         *Network
+	VSphereNetwork  *vsphereNetwork
 }
 
 func (status *VmStatus) Address() string {
@@ -102,7 +102,7 @@ func (handler *vsphereHandler) GetTimeout() time.Duration {
 func (handler *vsphereHandler) ConfigureNetwork(network v1alpha1.ManagedNetworkConfig) {
 	if len(network.VMWare) > 0 {
 		for _, network := range network.VMWare {
-			if inf := handler.findInterfaceByName(network.NetworkName); inf != nil {
+			if inf := handler.network.InterfaceByName(network.NetworkName); inf != nil {
 				inf.DHCP = network.DHCP
 				inf.UseRoutes = network.UseRoutes
 				inf.Routes = network.Routes
@@ -135,7 +135,7 @@ func (handler *vsphereHandler) RetrieveNetworkInfos() error {
 	ctx := context.NewContext(handler.Timeout)
 	defer ctx.Cancel()
 
-	return handler.RetrieveNetworkInfosWithContext(ctx, handler.instanceName, handler.nodeIndex, &handler.network)
+	return handler.RetrieveNetworkInfosWithContext(ctx, handler.instanceName, handler.nodeIndex, handler.network)
 }
 
 func (handler *vsphereHandler) UpdateMacAddressTable() error {
@@ -167,7 +167,7 @@ func (handler *vsphereHandler) InstanceCreate(input *providers.InstanceCreateInp
 		AllowUpgrade:        handler.AllowUpgrade,
 		ExpandHardDrive:     true,
 		Annotation:          handler.Annotation,
-		Network:             &handler.network,
+		VSphereNetwork:      handler.network,
 	}
 
 	if vm, err := handler.Create(createInput); err != nil {
@@ -311,11 +311,11 @@ func (handler *vsphereHandler) UnregisterDNS(address string) error {
 	return nil
 }
 
-func (handler *vsphereHandler) findPreferredIPAddress(interfaces []NetworkInterface) string {
+func (handler *vsphereHandler) findPreferredIPAddress(interfaces []providers.NetworkInterface) string {
 	address := ""
 
 	for _, inf := range interfaces {
-		if declaredInf := handler.findInterfaceByName(inf.NetworkName); declaredInf != nil {
+		if declaredInf := handler.network.InterfaceByName(inf.NetworkName); declaredInf != nil {
 			if declaredInf.Primary {
 				return inf.IPAddress
 			}
@@ -325,27 +325,13 @@ func (handler *vsphereHandler) findPreferredIPAddress(interfaces []NetworkInterf
 	return address
 }
 
-func (handler *vsphereHandler) findInterfaceByName(networkName string) *NetworkInterface {
-	for _, inf := range handler.network.Interfaces {
-		if inf.NetworkName == networkName {
-			return inf
-		}
-	}
-
-	return nil
-}
-
 func (wrapper *vsphereWrapper) AttachInstance(instanceName string, nodeIndex int) (providers.ProviderHandler, error) {
-	var network Network
-
-	providers.Copy(&network, wrapper.Network)
-
 	if vmuuid, err := wrapper.UUID(instanceName); err != nil {
 		return nil, err
 	} else {
 		return &vsphereHandler{
 			vsphereWrapper: wrapper,
-			network:        network,
+			network:        newVSphereNetwork(&wrapper.Network),
 			instanceName:   instanceName,
 			instanceID:     vmuuid,
 			nodeIndex:      nodeIndex,
@@ -359,13 +345,9 @@ func (wrapper *vsphereWrapper) CreateInstance(instanceName, instanceType string,
 		return nil, fmt.Errorf(constantes.ErrVMAlreadyExists, instanceName)
 	}
 
-	var network Network
-
-	providers.Copy(&network, wrapper.Network)
-
 	return &vsphereHandler{
 		vsphereWrapper: wrapper,
-		network:        network,
+		network:        newVSphereNetwork(&wrapper.Network),
 		instanceType:   instanceType,
 		instanceName:   instanceName,
 		nodeIndex:      nodeIndex,
@@ -744,7 +726,7 @@ func (wrapper *vsphereWrapper) Status(name string) (*Status, error) {
 	return wrapper.StatusWithContext(ctx, name)
 }
 
-func (wrapper *vsphereWrapper) RetrieveNetworkInfosWithContext(ctx *context.Context, name string, nodeIndex int, network *Network) error {
+func (wrapper *vsphereWrapper) RetrieveNetworkInfosWithContext(ctx *context.Context, name string, nodeIndex int, network *vsphereNetwork) error {
 	vm, err := wrapper.VirtualMachineWithContext(ctx, name)
 
 	if err != nil {
@@ -754,7 +736,7 @@ func (wrapper *vsphereWrapper) RetrieveNetworkInfosWithContext(ctx *context.Cont
 	return vm.collectNetworkInfos(ctx, network, nodeIndex)
 }
 
-func (wrapper *vsphereWrapper) RetrieveNetworkInfos(name string, nodeIndex int, network *Network) error {
+func (wrapper *vsphereWrapper) RetrieveNetworkInfos(name string, nodeIndex int, network *vsphereNetwork) error {
 	ctx := context.NewContext(wrapper.Timeout)
 	defer ctx.Cancel()
 
