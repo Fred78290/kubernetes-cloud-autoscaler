@@ -138,12 +138,10 @@ func (net *Network) GetCloudInitNetwork(nodeIndex int) *cloudinit.NetworkDeclare
 				ethernet.Match = &map[string]string{
 					"macaddress": macAddress,
 				}
+			}
 
-				if len(n.NicName) > 0 {
-					ethernet.NicName = &n.NicName
-				}
-			} else {
-				ethernet.NicName = nil
+			if len(n.NicName) > 0 {
+				ethernet.NicName = &n.NicName
 			}
 
 			if len(n.Routes) != 0 {
