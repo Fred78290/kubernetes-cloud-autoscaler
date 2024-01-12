@@ -125,6 +125,22 @@ func (wrapper *hostMultipassWrapper) status(instanceName string) (providers.Inst
 
 }
 
+func (wrapper *hostMultipassWrapper) marshall(obj any) ([]byte, error) {
+	var out bytes.Buffer
+
+	fmt.Fprintln(&out, "#cloud-config")
+
+	wr := yaml.NewEncoder(&out)
+
+	if err := wr.Encode(obj); err == nil {
+		wr.Close()
+
+		return out.Bytes(), nil
+	} else {
+		return nil, err
+	}
+}
+
 func (wrapper *hostMultipassWrapper) writeCloudFile(input *createInstanceInput) (*os.File, error) {
 	tz, _ := time.Now().Zone()
 
@@ -145,11 +161,11 @@ func (wrapper *hostMultipassWrapper) writeCloudFile(input *createInstanceInput) 
 	if cloudInit, err := cloudInitInput.BuildUserData(); err != nil {
 		return nil, err
 	} else {
-		fName := fmt.Sprintf("%s/cloud-init-%s.yaml", os.TempDir(), input.instanceName)
+		fName := fmt.Sprintf("%s/cloud-init-%s.yaml", desktopUtilityTempDirectory(), input.instanceName)
 
 		if cloudInitFile, err := os.Create(fName); err != nil {
 			return nil, fmt.Errorf(errTempFile, err)
-		} else if b, err := yaml.Marshal(cloudInit); err != nil {
+		} else if b, err := wrapper.marshall(cloudInit); err != nil {
 			os.Remove(fName)
 			return nil, fmt.Errorf(errCloudInitMarshallError, err)
 		} else if _, err = cloudInitFile.Write(b); err != nil {
