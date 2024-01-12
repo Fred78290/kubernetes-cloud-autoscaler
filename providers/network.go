@@ -12,7 +12,7 @@ import (
 
 type NetworkInterface struct {
 	Primary        bool                     `json:"primary,omitempty" yaml:"primary,omitempty"`
-	Existing       bool                     `json:"exists,omitempty" yaml:"exists,omitempty"`
+	Existing       bool                     `default:"true" json:"exists,omitempty" yaml:"exists,omitempty"`
 	ConnectionType string                   `default:"nat" json:"type,omitempty" yaml:"type,omitempty"`
 	BsdName        string                   `json:"bsd-name,omitempty" yaml:"bsd-name,omitempty"`
 	DisplayName    string                   `json:"display-name,omitempty" yaml:"display-name,omitempty"`

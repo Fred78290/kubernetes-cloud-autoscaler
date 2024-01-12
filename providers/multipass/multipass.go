@@ -41,6 +41,7 @@ type createInstanceInput struct {
 	network      *providers.Network
 	instanceName string
 	instanceType string
+	nodeIndex    int
 }
 
 func (wrapper *baseMultipassWrapper) waitForIP(instanceName string, status multipassWrapper, callback providers.CallbackWaitSSHReady) (string, error) {
@@ -133,6 +134,7 @@ func (handler *multipassHandler) InstanceCreate(input *providers.InstanceCreateI
 		network:             handler.network,
 		instanceName:        handler.instanceName,
 		instanceType:        handler.instanceType,
+		nodeIndex:           handler.nodeIndex,
 	}
 
 	return handler.create(&createInstanceInput)

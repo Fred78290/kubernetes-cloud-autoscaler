@@ -163,6 +163,38 @@ func (wrapper *remoteMultipassWrapper) create(input *createInstanceInput) (strin
 			CloudInit:    buffer.Bytes(),
 		}
 
+		if wrapper.baseMultipassWrapper.Network != nil {
+			networks := make([]*api.HostNetworkInterface, 0, len(wrapper.baseMultipassWrapper.Network.Interfaces))
+
+			for _, inf := range wrapper.baseMultipassWrapper.Network.Interfaces {
+				if !inf.Existing {
+					mac := inf.GetMacAddress(input.nodeIndex)
+
+					networks = append(networks, &api.HostNetworkInterface{
+						Name:       inf.NetworkName,
+						Nic:        inf.NicName,
+						Macaddress: mac,
+						Mode:       inf.ConnectionType,
+					})
+				}
+			}
+
+			request.Networks = networks
+		}
+
+		if len(wrapper.baseMultipassWrapper.Mounts) > 0 {
+			mounts := make([]*api.HostMountPoint, 0, len(wrapper.baseMultipassWrapper.Mounts))
+
+			for _, mount := range wrapper.baseMultipassWrapper.Mounts {
+				mounts = append(mounts, &api.HostMountPoint{
+					LocalPath:    mount.LocalPath,
+					InstancePath: mount.InstancePath,
+				})
+			}
+
+			request.Mounts = mounts
+		}
+
 		if response, err := wrapper.client.HostCreateInstance(ctx, &request); err != nil {
 			return "", err
 		} else if response.GetError() != nil {

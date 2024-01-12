@@ -204,6 +204,31 @@ func (wrapper *hostMultipassWrapper) create(input *createInstanceInput) (string,
 			args = append(args, fmt.Sprintf("--cloud-init=%s", cloudInitFile.Name()))
 		}
 
+		if wrapper.baseMultipassWrapper.Network != nil {
+			for _, network := range wrapper.baseMultipassWrapper.Network.Interfaces {
+				if !network.Existing {
+					var sb strings.Builder
+
+					sb.WriteString(fmt.Sprintf("name=%s", network.NetworkName))
+
+					mac := network.GetMacAddress(input.nodeIndex)
+					if len(mac) > 0 {
+						sb.WriteString(fmt.Sprintf(",mac=%s", mac))
+					}
+
+					if strings.ToLower(network.ConnectionType) == "manual" {
+						sb.WriteString(fmt.Sprintf(",mode=%s", network.ConnectionType))
+					}
+
+					args = append(args, "--network", sb.String())
+				}
+			}
+		}
+
+		for _, mount := range wrapper.baseMultipassWrapper.Mounts {
+			args = append(args, fmt.Sprintf("--mount=%s:%s", mount.LocalPath, mount.InstancePath))
+		}
+
 		if len(input.instanceType) > 0 {
 			args = append(args, input.instanceType)
 		}
