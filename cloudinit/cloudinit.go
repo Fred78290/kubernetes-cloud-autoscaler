@@ -219,7 +219,11 @@ func (input *CloudInitInput) BuildUserData() (vendorData CloudInit, err error) {
 	var out []byte
 
 	if out, err = yaml.Marshal(CloudInit{"network": input.Network}); err == nil {
-		vendorData = input.BuildVendorData()
+		vendorData = CloudInit{
+			"package_update":  input.AllowUpgrade,
+			"package_upgrade": input.AllowUpgrade,
+			"timezone":        input.TimeZone,
+		}
 
 		for k, v := range input.CloudInit {
 			vendorData[k] = v
