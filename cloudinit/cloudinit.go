@@ -237,13 +237,25 @@ func (input *CloudInitInput) BuildUserData() (vendorData CloudInit, err error) {
 			"permissions": "0644",
 		}
 
-		if write_files, found := vendorData["write_files"]; found {
-			arr := write_files.([]any)
+		var oarr []any
 
-			vendorData["write_files"] = append(arr, witeFile)
+		if runcmd, found := vendorData["runcmd"]; found {
+			oarr = runcmd.([]any)
+			oarr = append(oarr, "netplan apply")
 		} else {
-			vendorData["write_files"] = []CloudInit{witeFile}
+			oarr = []any{"netplan apply"}
 		}
+
+		vendorData["runcmd"] = oarr
+
+		if write_files, found := vendorData["write_files"]; found {
+			oarr = write_files.([]any)
+			oarr = append(oarr, witeFile)
+		} else {
+			oarr = []any{witeFile}
+		}
+
+		vendorData["write_files"] = oarr
 	}
 
 	return
