@@ -158,7 +158,7 @@ func (wrapper *hostMultipassWrapper) writeCloudFile(input *createInstanceInput) 
 		cloudInitInput.Network = input.network.GetCloudInitNetwork(-1)
 	}
 
-	if cloudInit, err := cloudInitInput.BuildUserData(); err != nil {
+	if cloudInit, err := cloudInitInput.BuildUserData(input.netplanFile); err != nil {
 		return nil, err
 	} else {
 		fName := fmt.Sprintf("%s/cloud-init-%s.yaml", desktopUtilityTempDirectory(), input.instanceName)
@@ -209,14 +209,19 @@ func (wrapper *hostMultipassWrapper) create(input *createInstanceInput) (string,
 				if !network.Existing {
 					var sb strings.Builder
 
+					mode := network.ConnectionType
 					sb.WriteString(fmt.Sprintf("name=%s", network.NetworkName))
+
+					if !network.DHCP {
+						mode = "manual"
+					}
 
 					mac := network.GetMacAddress(input.nodeIndex)
 					if len(mac) > 0 {
 						sb.WriteString(fmt.Sprintf(",mac=%s", mac))
 					}
 
-					if strings.ToLower(network.ConnectionType) == "manual" {
+					if strings.ToLower(mode) == "manual" {
 						sb.WriteString(fmt.Sprintf(",mode=%s", network.ConnectionType))
 					}
 

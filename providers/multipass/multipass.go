@@ -39,6 +39,7 @@ type baseMultipassWrapper struct {
 type createInstanceInput struct {
 	*providers.InstanceCreateInput
 	network      *providers.Network
+	netplanFile  string
 	instanceName string
 	instanceType string
 	nodeIndex    int
@@ -135,6 +136,7 @@ func (handler *multipassHandler) InstanceCreate(input *providers.InstanceCreateI
 		instanceName:        handler.instanceName,
 		instanceType:        handler.instanceType,
 		nodeIndex:           handler.nodeIndex,
+		netplanFile:         handler.getConfiguration().NetplanFileName,
 	}
 
 	return handler.create(&createInstanceInput)

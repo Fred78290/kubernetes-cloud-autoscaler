@@ -215,8 +215,12 @@ func (input *CloudInitInput) BuildVendorData() CloudInit {
 	}
 }
 
-func (input *CloudInitInput) BuildUserData() (vendorData CloudInit, err error) {
+func (input *CloudInitInput) BuildUserData(netplan string) (vendorData CloudInit, err error) {
 	var out []byte
+
+	if netplan == "" {
+		netplan = "51-custom.yaml"
+	}
 
 	if out, err = yaml.Marshal(CloudInit{"network": input.Network}); err == nil {
 		vendorData = CloudInit{
@@ -233,7 +237,7 @@ func (input *CloudInitInput) BuildUserData() (vendorData CloudInit, err error) {
 			"encoding":    "b64",
 			"owner":       "root:root",
 			"content":     base64.StdEncoding.EncodeToString(out),
-			"path":        "/etc/netplan/51-override.yaml",
+			"path":        fmt.Sprintf("/etc/netplan/%s", netplan),
 			"permissions": "0644",
 		}
 

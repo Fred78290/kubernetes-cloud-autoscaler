@@ -144,7 +144,7 @@ func (wrapper *remoteMultipassWrapper) create(input *createInstanceInput) (strin
 		cloudInitInput.Network = input.network.GetCloudInitNetwork(-1)
 	}
 
-	if cloudInitOut, err := cloudInitInput.BuildUserData(); err != nil {
+	if cloudInitOut, err := cloudInitInput.BuildUserData(input.netplanFile); err != nil {
 		return "", err
 	} else {
 		var buffer bytes.Buffer
@@ -168,13 +168,18 @@ func (wrapper *remoteMultipassWrapper) create(input *createInstanceInput) (strin
 
 			for _, inf := range wrapper.baseMultipassWrapper.Network.Interfaces {
 				if !inf.Existing {
+					mode := inf.ConnectionType
 					mac := inf.GetMacAddress(input.nodeIndex)
+
+					if !inf.DHCP {
+						mode = "manual"
+					}
 
 					networks = append(networks, &api.HostNetworkInterface{
 						Name:       inf.NetworkName,
 						Nic:        inf.NicName,
 						Macaddress: mac,
-						Mode:       inf.ConnectionType,
+						Mode:       mode,
 					})
 				}
 			}
