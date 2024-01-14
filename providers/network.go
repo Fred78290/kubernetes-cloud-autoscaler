@@ -37,6 +37,22 @@ type Network struct {
 var macAddresesLock sync.Mutex
 var macAddreses = make(map[string]string)
 
+func stringBefore(str string, char string) string {
+	if index := strings.Index(str, char); index >= 0 {
+		return str[:index]
+	} else {
+		return str
+	}
+}
+
+func stringAfter(str string, char string) string {
+	if index := strings.LastIndex(str, char); index >= 0 {
+		return str[index:]
+	} else {
+		return ""
+	}
+}
+
 func attachMacAddress(netName, address string) {
 	macAddresesLock.Lock()
 	defer macAddresesLock.Unlock()
@@ -105,7 +121,10 @@ func (net *Network) GetCloudInitNetwork(nodeIndex int) *cloudinit.NetworkDeclare
 	}
 
 	for _, n := range net.Interfaces {
-		if len(n.NicName) > 0 {
+		nicName := stringBefore(n.NicName, ":")
+		label := stringAfter(n.NicName, ":")
+
+		if len(nicName) > 0 {
 			var ethernet *cloudinit.NetworkAdapter
 			var macAddress = n.GetMacAddress(nodeIndex)
 
@@ -122,11 +141,27 @@ func (net *Network) GetCloudInitNetwork(nodeIndex int) *cloudinit.NetworkDeclare
 					ethernet.Gateway4 = &n.Gateway
 				}
 
-			} else {
-				ethernet = &cloudinit.NetworkAdapter{
-					Addresses: &[]string{
-						cloudinit.ToCIDR(n.IPAddress, n.Netmask),
-					},
+			}
+
+			if len(n.IPAddress) > 0 {
+				if len(label) > 0 {
+					addr := map[string]any{}
+					addr[cloudinit.ToCIDR(n.IPAddress, n.Netmask)] = map[string]any{
+						"label": label,
+					}
+
+					ethernet = &cloudinit.NetworkAdapter{
+						Addresses: &[]any{
+							addr,
+						},
+					}
+
+				} else {
+					ethernet = &cloudinit.NetworkAdapter{
+						Addresses: &[]any{
+							cloudinit.ToCIDR(n.IPAddress, n.Netmask),
+						},
+					}
 				}
 
 				if len(n.Gateway) > 0 {
@@ -139,8 +174,8 @@ func (net *Network) GetCloudInitNetwork(nodeIndex int) *cloudinit.NetworkDeclare
 					"macaddress": macAddress,
 				}
 
-				if len(n.NicName) > 0 {
-					ethernet.NicName = &n.NicName
+				if len(nicName) > 0 {
+					ethernet.NicName = &nicName
 				}
 			}
 
@@ -155,7 +190,7 @@ func (net *Network) GetCloudInitNetwork(nodeIndex int) *cloudinit.NetworkDeclare
 				}
 			}
 
-			declare.Ethernets[n.NicName] = ethernet
+			declare.Ethernets[nicName] = ethernet
 		}
 	}
 
