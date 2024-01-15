@@ -45,6 +45,7 @@ type AutoScalerServerApp struct {
 	apigrpc.UnimplementedCloudProviderServiceServer
 	apigrpc.UnimplementedNodeGroupServiceServer
 	apigrpc.UnimplementedPricingModelServiceServer
+	Machines        providers.MachineCharacteristics      `default:"{\"standard\": {}}" json:"machines"` // Mandatory, Available machines
 	ResourceLimiter *types.ResourceLimiter                `json:"limits"`
 	Groups          map[string]*AutoScalerServerNodeGroup `json:"groups"`
 	NodesDefinition []*apigrpc.NodeGroupDef               `json:"nodedefs"`
@@ -91,7 +92,7 @@ type nodegroupCreateInput struct {
 
 func (s *AutoScalerServerApp) newNodeGroup(intput *nodegroupCreateInput) (*AutoScalerServerNodeGroup, error) {
 
-	machine := s.configuration.Machines[intput.machineType]
+	machine := s.Machines[intput.machineType]
 
 	if machine == nil {
 		return nil, fmt.Errorf(constantes.ErrMachineTypeNotFound, intput.machineType)
@@ -124,6 +125,7 @@ func (s *AutoScalerServerApp) newNodeGroup(intput *nodegroupCreateInput) (*AutoS
 		SystemLabels:               intput.systemLabels,
 		AutoProvision:              intput.autoProvision,
 		configuration:              s.configuration,
+		machines:                   s.Machines,
 	}
 
 	s.Groups[intput.nodeGroupID] = nodeGroup
@@ -517,9 +519,9 @@ func (s *AutoScalerServerApp) GetAvailableMachineTypes(ctx context.Context, requ
 		return nil, fmt.Errorf(constantes.ErrMismatchingProvider)
 	}
 
-	machineTypes := make([]string, 0, len(s.configuration.Machines))
+	machineTypes := make([]string, 0, len(s.Machines))
 
-	for n := range s.configuration.Machines {
+	for n := range s.Machines {
 		machineTypes = append(machineTypes, n)
 	}
 
@@ -553,7 +555,7 @@ func (s *AutoScalerServerApp) NewNodeGroup(ctx context.Context, request *apigrpc
 		instanceType = s.configuration.DefaultMachineType
 	}
 
-	machineType := s.configuration.Machines[instanceType]
+	machineType := s.Machines[instanceType]
 
 	if machineType == nil {
 		glog.Errorf(constantes.ErrMachineTypeNotFound, request.GetMachineType())
@@ -1534,7 +1536,7 @@ func (s *AutoScalerServerApp) Load(fileName string) error {
 
 func (s *AutoScalerServerApp) getMachineType(instanceType string) *providers.MachineCharacteristic {
 
-	if machineSpec, ok := s.configuration.Machines[instanceType]; ok {
+	if machineSpec, ok := s.Machines[instanceType]; ok {
 		return machineSpec
 	}
 
@@ -1665,6 +1667,7 @@ func (s *AutoScalerServerApp) checkEtcdSslReadable() bool {
 func StartServer(kubeClient types.ClientGenerator, c *types.Config) {
 	var config types.AutoScalerServerConfig
 	var autoScalerServer *AutoScalerServerApp
+	var machines providers.MachineCharacteristics
 
 	saveState := c.SaveLocation
 	configFileName := c.Config
@@ -1698,6 +1701,10 @@ func StartServer(kubeClient types.ClientGenerator, c *types.Config) {
 			Create:                   false,
 			Delete:                   false,
 		}
+	}
+
+	if config.MachineConfig == nil {
+		config.MachineConfig = &c.MachineConfig
 	}
 
 	if config.Distribution == nil {
@@ -1777,6 +1784,10 @@ func StartServer(kubeClient types.ClientGenerator, c *types.Config) {
 		config.KubernetesPKIDestDir = c.KubernetesPKIDestDir
 	}
 
+	if err = providers.LoadConfig(*config.MachineConfig, machines); err != nil {
+		log.Fatalf(constantes.ErrMachineSpecsNotFound, *config.MachineConfig, err)
+	}
+
 	config.ManagedNodeResourceLimiter = c.GetManagedNodeResourceLimiter()
 
 	if !phSaveState || !utils.FileExists(phSavedState) {
@@ -1786,6 +1797,7 @@ func StartServer(kubeClient types.ClientGenerator, c *types.Config) {
 			ResourceLimiter: c.GetResourceLimiter(),
 			configuration:   &config,
 			Groups:          make(map[string]*AutoScalerServerNodeGroup),
+			Machines:        machines,
 		}
 
 		autoScalerServer.ResourceLimiter.SetMaxValue64(constantes.ResourceNameNodes, *config.MaxNode)
@@ -1801,6 +1813,7 @@ func StartServer(kubeClient types.ClientGenerator, c *types.Config) {
 			kubeClient:     kubeClient,
 			requestTimeout: c.RequestTimeout,
 			configuration:  &config,
+			Machines:       machines,
 		}
 
 		if err := autoScalerServer.Load(phSavedState); err != nil {

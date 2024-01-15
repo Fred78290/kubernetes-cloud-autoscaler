@@ -300,10 +300,11 @@ func (m *baseTest) newTestNodeGroup() (*autoScalerServerNodeGroupTest, error) {
 					Nodes:                      make(map[string]*AutoScalerServerNode),
 					RunningNodes:               make(map[int]ServerNodeState),
 					pendingNodes:               make(map[string]*AutoScalerServerNode),
-					configuration:              config,
+					configuration:              &config.AutoScalerServerConfig,
 					NodeLabels:                 config.NodeLabels,
 					InstanceType:               config.DefaultMachineType,
 					DiskSize:                   config.DiskSizeInMB,
+					machines:                   config.Machines,
 				},
 			}
 
@@ -324,8 +325,13 @@ func (m *baseTest) getConfFile() string {
 	return "../test/server.json"
 }
 
-func (m *baseTest) newTestConfig() (*types.AutoScalerServerConfig, error) {
-	var config types.AutoScalerServerConfig
+type AutoScalerServerConfigTest struct {
+	types.AutoScalerServerConfig
+	Machines providers.MachineCharacteristics `json:"machines"`
+}
+
+func (m *baseTest) newTestConfig() (*AutoScalerServerConfigTest, error) {
+	var config AutoScalerServerConfigTest
 	fileName := m.getConfFile()
 
 	godotenv.Overload("../.env")

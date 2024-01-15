@@ -273,6 +273,9 @@ const (
 
 	// ErrInstanceIsNotAttachedToCloudProvider err msg
 	ErrInstanceIsNotAttachedToCloudProvider = "instance is not attached to cloud provider"
+
+	// ErrMachineSpecsNotFound err msg
+	ErrMachineSpecsNotFound = "machine specs could not be loaded: %s, %v"
 )
 
 //update status managed node %s failed, reason: %v

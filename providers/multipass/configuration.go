@@ -29,7 +29,7 @@ type Configuration struct {
 	Cacert            string             `json:"cacert"`  // path to file containing the CA certificate
 	Timeout           time.Duration      `json:"timeout"`
 	TemplateName      string             `json:"template-name"`
-	NetplanFileName   string             `default:"51-custom.yaml" json:"netplan-name"`
+	NetplanFileName   string             `default:"10-custom.yaml" json:"netplan-name"`
 	AvailableGPUTypes map[string]string  `json:"gpu-types"`
 	AllowUpgrade      bool               `default:"true" json:"allow-upgrade"`
 	Network           *providers.Network `json:"network"`

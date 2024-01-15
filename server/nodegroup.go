@@ -74,6 +74,7 @@ type AutoScalerServerNodeGroup struct {
 	numOfProvisionnedNodes     int
 	numOfManagedNodes          int
 	configuration              *types.AutoScalerServerConfig
+	machines                   providers.MachineCharacteristics
 }
 
 func CreateLabelOrAnnotation(values []string) types.KubernetesLabel {
@@ -95,7 +96,7 @@ func CreateLabelOrAnnotation(values []string) types.KubernetesLabel {
 }
 
 func (g *AutoScalerServerNodeGroup) Machine() *providers.MachineCharacteristic {
-	return g.configuration.Machines[g.InstanceType]
+	return g.machines[g.InstanceType]
 }
 
 func (g *AutoScalerServerNodeGroup) findNextNodeIndex(managed bool) int {
@@ -273,7 +274,7 @@ func (g *AutoScalerServerNodeGroup) addManagedNode(crd *v1alpha1.ManagedNode) (*
 		instanceType = g.InstanceType
 	}
 
-	if machine, found := g.configuration.Machines[instanceType]; found {
+	if machine, found := g.machines[instanceType]; found {
 		// Clone the config to allow increment IP address for vmware
 		if providerHandler, err := g.configuration.GetCloudConfiguration().CreateInstance(nodeName, instanceType, nodeIndex); err == nil {
 			g.RunningNodes[nodeIndex] = ServerNodeStateCreating
