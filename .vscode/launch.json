@@ -1,0 +1,96 @@
+{
+	// Utilisez IntelliSense pour en savoir plus sur les attributs possibles.
+	// Pointez pour afficher la description des attributs existants.
+	// Pour plus d'informations, visitez : https://go.microsoft.com/fwlink/?linkid=830387
+	"version": "0.2.0",
+	"configurations": [
+        {
+            "preLaunchTask": "k3s multipass",
+            "name": "k3s multipass",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}",
+            "cwd": "${env:HOME}/go/src/github.com/Fred78290/kubernetes-cloud-autoscaler",
+            "args": [
+                "--request-timeout=120s",
+                "--use-vanilla-grpc",
+				"--distribution=k3s",
+				"--provider=multipass",
+                "--listen=unix:/tmp/autoscaler.sock",
+				"--machines=${workspaceFolder}/.config/multipass/desktop-ca-k8s/machines.json",
+				"--provider-config=${workspaceFolder}/.config/multipass/desktop-ca-k8s/provider.json",
+                "--config=${workspaceFolder}/.config/multipass/desktop-ca-k8s/autoscaler.json",
+                "--save=${workspaceFolder}/.config/multipass/desktop-ca-k8s/state.json",
+                "--kubeconfig=${workspaceFolder}/.config/multipass/desktop-ca-k8s/config",
+                "--log-level=info"
+            ]
+        },
+        {
+            "preLaunchTask": "k3s vmware",
+            "name": "k3s vmware",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}",
+            "cwd": "${env:HOME}/go/src/github.com/Fred78290/kubernetes-cloud-autoscaler",
+            "args": [
+                "--request-timeout=120s",
+                "--use-vanilla-grpc",
+				"--distribution=k3s",
+				"--provider=vmware",
+                "--listen=unix:/tmp/autoscaler.sock",
+				"--machines=${workspaceFolder}/.config/vmware/vmware-dev-k3s/machines.json",
+				"--provider-config=${workspaceFolder}/.config/vmware/vmware-dev-k3s/provider.json",
+                "--config=${workspaceFolder}/.config/vmware/vmware-dev-k3s/autoscaler.json",
+                "--save=${workspaceFolder}/.config/vmware/vmware-dev-k3s/state.json",
+                "--kubeconfig=${workspaceFolder}/.config/vmware/vmware-dev-k3s/config",
+                "--log-level=info"
+            ]
+        },
+        {
+            "preLaunchTask": "k3s aws",
+            "name": "k3s aws",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}",
+            "cwd": "${env:HOME}/go/src/github.com/Fred78290/kubernetes-cloud-autoscaler",
+            "args": [
+                "--request-timeout=120s",
+                "--use-vanilla-grpc",
+				"--distribution=k3s",
+				"--provider=aws",
+                "--listen=unix:/tmp/autoscaler.sock",
+				"--machines=${workspaceFolder}/.config/aws/aws-ca-k8s/machines.json",
+				"--provider-config=${workspaceFolder}/.config/aws/aws-ca-k8s/provider.json",
+                "--config=${workspaceFolder}/.config/aws/aws-ca-k8s/autoscaler.json",
+                "--save=${workspaceFolder}/.config/aws/aws-ca-k8s/state.json",
+                "--kubeconfig=${workspaceFolder}/.config/aws/aws-ca-k8s/config",
+                "--log-level=info"
+            ]
+        },
+        {
+            "preLaunchTask": "k3s desktop",
+            "name": "k3s desktop",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}",
+            "cwd": "${env:HOME}/go/src/github.com/Fred78290/kubernetes-cloud-autoscaler",
+            "args": [
+                "--request-timeout=120s",
+                "--use-vanilla-grpc",
+				"--distribution=k3s",
+				"--provider=desktop",
+                "--listen=unix:/tmp/autoscaler.sock",
+				"--machines=${workspaceFolder}/.config/desktop/desktop-ca-k8s/machines.json",
+				"--provider-config=${workspaceFolder}/.config/desktop/desktop-ca-k8s/provider.json",
+                "--config=${workspaceFolder}/.config/desktop/desktop-ca-k8s/autoscaler.json",
+                "--save=${workspaceFolder}/.config/desktop/desktop-ca-k8s/state.json",
+                "--kubeconfig=${workspaceFolder}/.config/desktop/desktop-ca-k8s/config",
+                "--log-level=info"
+            ]
+        }
+    ]
+}

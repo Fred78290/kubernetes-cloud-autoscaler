@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -1606,15 +1607,33 @@ func (s *AutoScalerServerApp) runServer(config *types.AutoScalerServerConfig, re
 	registerService(server)
 	reflection.Register(server)
 
-	if listener, err := net.Listen(config.Network, config.Listen); err != nil {
-		return fmt.Errorf("failed to listen: %v", err)
-	} else if err = server.Serve(listener); err != nil {
-		return fmt.Errorf("failed to serve: %v", err)
+	if u, err := url.Parse(*config.Listen); err != nil {
+		return err
+	} else {
+		var listen string
+
+		if u.Scheme == "unix" {
+			listen = u.Path
+		} else if u.Scheme == "tcp" {
+			listen = u.Host
+		} else {
+			return fmt.Errorf("unsupported scheme:%s, %s", u.Scheme, *config.Listen)
+		}
+
+		if len(listen) == 0 {
+			return fmt.Errorf("endpoint is empty, %s", *config.Listen)
+		}
+
+		if listener, err := net.Listen(u.Scheme, listen); err != nil {
+			return fmt.Errorf("failed to listen: %v", err)
+		} else if err = server.Serve(listener); err != nil {
+			return fmt.Errorf("failed to serve: %v", err)
+		}
+
+		glog.Infof("End listening server")
+
+		return nil
 	}
-
-	glog.Infof("End listening server")
-
-	return nil
 }
 
 func (s *AutoScalerServerApp) runVanillaGrpc(config *types.AutoScalerServerConfig) {
@@ -1701,6 +1720,10 @@ func StartServer(kubeClient types.ClientGenerator, c *types.Config) {
 			Create:                   false,
 			Delete:                   false,
 		}
+	}
+
+	if config.Listen == nil {
+		config.Listen = &c.Listen
 	}
 
 	if config.MachineConfig == nil {

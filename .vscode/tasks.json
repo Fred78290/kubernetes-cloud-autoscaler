@@ -1,0 +1,45 @@
+{
+	"version": "2.0.0",
+    "tasks": [
+		{
+            "label": "k3s multipass",
+            "type": "shell",
+            "command": "${workspaceFolder}/scripts/prepare.sh multipass desktop-ca-k8s",
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+		{
+            "label": "k3s desktop",
+            "type": "shell",
+            "command": "${workspaceFolder}/scripts/prepare.sh desktop desktop-ca-k8s",
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+		{
+            "label": "k3s vmware",
+            "type": "shell",
+            "command": "${workspaceFolder}/scripts/prepare.sh vmware vmware-dev-k3s",
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+		{
+            "label": "k3s aws",
+            "type": "shell",
+            "command": "${workspaceFolder}/scripts/prepare.sh aws aws-ca-k8s",
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+	]
+}
