@@ -28,6 +28,8 @@ type Configuration struct {
 	Network           *providers.Network `json:"network"`
 	AvailableGPUTypes map[string]string  `json:"gpu-types"`
 	AllowUpgrade      bool               `default:"true" json:"allow-upgrade"`
+	Region            string             `default:"home"`
+	Zone              string             `default:"office"`
 	TestMode          bool               `json:"test-mode"`
 }
 
@@ -138,7 +140,12 @@ func (handler *desktopHandler) GenerateProviderID() string {
 }
 
 func (handler *desktopHandler) GetTopologyLabels() map[string]string {
-	return map[string]string{}
+	return map[string]string{
+		constantes.NodeLabelTopologyRegion:  handler.Region,
+		constantes.NodeLabelTopologyZone:    handler.Zone,
+		constantes.NodeLabelVMWareCSIRegion: handler.Region,
+		constantes.NodeLabelVMWareCSIZone:   handler.Zone,
+	}
 }
 
 func (handler *desktopHandler) InstanceCreate(input *providers.InstanceCreateInput) (string, error) {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/context"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha1"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
@@ -126,7 +127,12 @@ func (handler *multipassHandler) GenerateProviderID() string {
 }
 
 func (handler *multipassHandler) GetTopologyLabels() map[string]string {
-	return map[string]string{}
+	return map[string]string{
+		constantes.NodeLabelTopologyRegion:  handler.getConfiguration().Region,
+		constantes.NodeLabelTopologyZone:    handler.getConfiguration().Zone,
+		constantes.NodeLabelVMWareCSIRegion: handler.getConfiguration().Region,
+		constantes.NodeLabelVMWareCSIZone:   handler.getConfiguration().Zone,
+	}
 }
 
 func (handler *multipassHandler) InstanceCreate(input *providers.InstanceCreateInput) (string, error) {

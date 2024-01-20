@@ -167,8 +167,10 @@ func (handler *awsHandler) GenerateProviderID() string {
 
 func (handler *awsHandler) GetTopologyLabels() map[string]string {
 	return map[string]string{
-		constantes.NodeLabelTopologyRegion: *handler.runningInstance.Region,
-		constantes.NodeLabelTopologyZone:   *handler.runningInstance.Zone,
+		constantes.NodeLabelTopologyRegion:  *handler.runningInstance.Region,
+		constantes.NodeLabelTopologyZone:    *handler.runningInstance.Zone,
+		constantes.NodeLabelVMWareCSIRegion: *handler.runningInstance.Region,
+		constantes.NodeLabelVMWareCSIZone:   *handler.runningInstance.Zone,
 	}
 }
 

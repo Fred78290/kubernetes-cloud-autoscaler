@@ -32,6 +32,8 @@ type Configuration struct {
 	NetplanFileName   string             `default:"10-custom.yaml" json:"netplan-name"`
 	AvailableGPUTypes map[string]string  `json:"gpu-types"`
 	AllowUpgrade      bool               `default:"true" json:"allow-upgrade"`
+	Region            string             `default:"home"`
+	Zone              string             `default:"office"`
 	Network           *providers.Network `json:"network"`
 	Mounts            []MountPoint       `json:"mounts"`
 }
