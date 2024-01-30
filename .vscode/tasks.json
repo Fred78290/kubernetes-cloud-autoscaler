@@ -4,7 +4,7 @@
 		{
             "label": "k3s multipass",
             "type": "shell",
-            "command": "${workspaceFolder}/scripts/prepare.sh multipass desktop-ca-k8s",
+            "command": "${workspaceFolder}/scripts/prepare.sh multipass multipass-dev-k3s",
             "problemMatcher": [],
             "group": {
                 "kind": "build",
@@ -22,9 +22,9 @@
             }
         },
 		{
-            "label": "k3s vmware",
+            "label": "k3s vsphere",
             "type": "shell",
-            "command": "${workspaceFolder}/scripts/prepare.sh vmware vmware-dev-k3s",
+            "command": "${workspaceFolder}/scripts/prepare.sh vsphere vsphere-dev-k3s",
             "problemMatcher": [],
             "group": {
                 "kind": "build",
