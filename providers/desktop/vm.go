@@ -18,14 +18,16 @@ func BuildNetworkInterface(interfaces []*providers.NetworkInterface, nodeIndex i
 	result := make([]*api.NetworkInterface, 0, len(interfaces))
 
 	for _, inf := range interfaces {
-		result = append(result, &api.NetworkInterface{
-			Macaddress:  inf.GetMacAddress(nodeIndex),
-			Vnet:        inf.NetworkName,
-			Type:        inf.ConnectionType,
-			Device:      inf.Adapter,
-			BsdName:     inf.BsdName,
-			DisplayName: inf.DisplayName,
-		})
+		if inf.Enabled {
+			result = append(result, &api.NetworkInterface{
+				Macaddress:  inf.GetMacAddress(nodeIndex),
+				Vnet:        inf.NetworkName,
+				Type:        inf.ConnectionType,
+				Device:      inf.Adapter,
+				BsdName:     inf.BsdName,
+				DisplayName: inf.DisplayName,
+			})
+		}
 	}
 	return result
 }

@@ -11,6 +11,7 @@ import (
 )
 
 type NetworkInterface struct {
+	Enabled        bool                     `default:"true" json:"enabled,omitempty" yaml:"primary,omitempty"`
 	Primary        bool                     `json:"primary,omitempty" yaml:"primary,omitempty"`
 	Existing       bool                     `default:"true" json:"exists,omitempty" yaml:"exists,omitempty"`
 	ConnectionType string                   `default:"nat" json:"type,omitempty" yaml:"type,omitempty"`
@@ -91,6 +92,7 @@ func (net *Network) Clone() *Network {
 
 	for index, inf := range net.Interfaces {
 		copy.Interfaces[index] = &NetworkInterface{
+			Enabled:        inf.Enabled,
 			Primary:        inf.Primary,
 			Existing:       inf.Existing,
 			ConnectionType: inf.ConnectionType,
@@ -121,76 +123,78 @@ func (net *Network) GetCloudInitNetwork(nodeIndex int) *cloudinit.NetworkDeclare
 	}
 
 	for _, n := range net.Interfaces {
-		nicName := stringBefore(n.NicName, ":")
-		label := stringAfter(n.NicName, ":")
+		if n.Enabled {
+			nicName := stringBefore(n.NicName, ":")
+			label := stringAfter(n.NicName, ":")
 
-		if len(nicName) > 0 {
-			var ethernet *cloudinit.NetworkAdapter
-			var macAddress = n.GetMacAddress(nodeIndex)
+			if len(nicName) > 0 {
+				var ethernet *cloudinit.NetworkAdapter
+				var macAddress = n.GetMacAddress(nodeIndex)
 
-			if n.DHCP || len(n.IPAddress) == 0 {
-				ethernet = &cloudinit.NetworkAdapter{
-					DHCP4: n.DHCP,
-				}
-
-				if !n.UseRoutes {
-					ethernet.DHCPOverrides = map[string]any{
-						"use-routes": false,
-					}
-				} else if len(n.Gateway) > 0 {
-					ethernet.Gateway4 = &n.Gateway
-				}
-
-			}
-
-			if len(n.IPAddress) > 0 {
-				if len(label) > 0 {
-					addr := map[string]any{}
-					addr[cloudinit.ToCIDR(n.IPAddress, n.Netmask)] = map[string]any{
-						"label": label,
-					}
-
+				if n.DHCP || len(n.IPAddress) == 0 {
 					ethernet = &cloudinit.NetworkAdapter{
-						Addresses: &[]any{
-							addr,
-						},
+						DHCP4: n.DHCP,
 					}
 
-				} else {
-					ethernet = &cloudinit.NetworkAdapter{
-						Addresses: &[]any{
-							cloudinit.ToCIDR(n.IPAddress, n.Netmask),
-						},
+					if !n.UseRoutes {
+						ethernet.DHCPOverrides = map[string]any{
+							"use-routes": false,
+						}
+					} else if len(n.Gateway) > 0 {
+						ethernet.Gateway4 = &n.Gateway
+					}
+
+				}
+
+				if len(n.IPAddress) > 0 {
+					if len(label) > 0 {
+						addr := map[string]any{}
+						addr[cloudinit.ToCIDR(n.IPAddress, n.Netmask)] = map[string]any{
+							"label": label,
+						}
+
+						ethernet = &cloudinit.NetworkAdapter{
+							Addresses: &[]any{
+								addr,
+							},
+						}
+
+					} else {
+						ethernet = &cloudinit.NetworkAdapter{
+							Addresses: &[]any{
+								cloudinit.ToCIDR(n.IPAddress, n.Netmask),
+							},
+						}
+					}
+
+					if len(n.Gateway) > 0 {
+						ethernet.Gateway4 = &n.Gateway
 					}
 				}
 
-				if len(n.Gateway) > 0 {
-					ethernet.Gateway4 = &n.Gateway
+				if len(macAddress) != 0 {
+					ethernet.Match = &map[string]string{
+						"macaddress": macAddress,
+					}
+
+					if len(nicName) > 0 {
+						ethernet.NicName = &nicName
+					}
 				}
-			}
 
-			if len(macAddress) != 0 {
-				ethernet.Match = &map[string]string{
-					"macaddress": macAddress,
+				if len(n.Routes) != 0 {
+					ethernet.Routes = &n.Routes
 				}
 
-				if len(nicName) > 0 {
-					ethernet.NicName = &nicName
+				if net.DNS != nil {
+					ethernet.Nameservers = &cloudinit.Nameserver{
+						Addresses: net.DNS.Nameserver,
+						Search:    net.DNS.Search,
+					}
 				}
-			}
 
-			if len(n.Routes) != 0 {
-				ethernet.Routes = &n.Routes
+				declare.Ethernets[nicName] = ethernet
 			}
-
-			if net.DNS != nil {
-				ethernet.Nameservers = &cloudinit.Nameserver{
-					Addresses: net.DNS.Nameserver,
-					Search:    net.DNS.Search,
-				}
-			}
-
-			declare.Ethernets[nicName] = ethernet
 		}
 	}
 
@@ -202,7 +206,7 @@ func (net *Network) GetDeclaredExistingInterfaces() []*NetworkInterface {
 
 	infs := make([]*NetworkInterface, 0, len(net.Interfaces))
 	for _, inf := range net.Interfaces {
-		if inf.Existing {
+		if inf.Enabled && inf.Existing {
 			infs = append(infs, inf)
 		}
 	}
@@ -212,7 +216,9 @@ func (net *Network) GetDeclaredExistingInterfaces() []*NetworkInterface {
 
 func (net *Network) UpdateMacAddressTable(nodeIndex int) error {
 	for _, inf := range net.Interfaces {
-		inf.updateMacAddressTable(nodeIndex)
+		if inf.Enabled {
+			inf.updateMacAddressTable(nodeIndex)
+		}
 	}
 
 	return nil
@@ -220,7 +226,7 @@ func (net *Network) UpdateMacAddressTable(nodeIndex int) error {
 
 func (net *Network) InterfaceByName(networkName string) *NetworkInterface {
 	for _, inf := range net.Interfaces {
-		if inf.NetworkName == networkName {
+		if inf.Enabled && inf.NetworkName == networkName {
 			return inf
 		}
 	}
@@ -246,7 +252,7 @@ func (net *NetworkInterface) AttachMacAddress(address string, nodeIndex int) {
 
 // GetMacAddress return a macaddress
 func (net *NetworkInterface) GetMacAddress(nodeIndex int) string {
-	if nodeIndex < 0 {
+	if nodeIndex < 0 || !net.Enabled {
 		return ""
 	}
 

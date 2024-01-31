@@ -206,7 +206,7 @@ func (wrapper *hostMultipassWrapper) create(input *createInstanceInput) (string,
 
 		if wrapper.baseMultipassWrapper.Network != nil {
 			for _, network := range wrapper.baseMultipassWrapper.Network.Interfaces {
-				if !network.Existing {
+				if network.Enabled && !network.Existing {
 					var sb strings.Builder
 
 					mode := network.ConnectionType

@@ -82,9 +82,11 @@ func (vm *VirtualMachine) collectNetworkInfos(ctx *context.Context, network *vsp
 			if ethernet, ok := device.(types.BaseVirtualEthernetCard); ok {
 				// Match my network?
 				for _, inf := range network.VSphereInterfaces {
-					card := ethernet.GetVirtualEthernetCard()
-					if match, err := inf.MatchInterface(ctx, vm.Datastore.Datacenter, card); match && err == nil {
-						inf.AttachMacAddress(card.MacAddress, nodeIndex)
+					if inf.Enabled {
+						card := ethernet.GetVirtualEthernetCard()
+						if match, err := inf.MatchInterface(ctx, vm.Datastore.Datacenter, card); match && err == nil {
+							inf.AttachMacAddress(card.MacAddress, nodeIndex)
+						}
 					}
 				}
 			}
