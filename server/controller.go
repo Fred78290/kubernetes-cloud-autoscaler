@@ -96,7 +96,7 @@ type Controller struct {
 }
 
 // NewController returns a new sample controller
-func NewController(application applicationInterface, stopCh <-chan struct{}) (*Controller, error) {
+func NewController(application applicationInterface, stopCh <-chan struct{}) (controller *Controller, err error) {
 
 	client := application.client()
 	kubeclientset, _ := client.KubeClient()
@@ -120,7 +120,7 @@ func NewController(application applicationInterface, stopCh <-chan struct{}) (*C
 
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerAgentName})
 
-	controller := &Controller{
+	controller = &Controller{
 		client:            client,
 		stopCh:            stopCh,
 		application:       application,
@@ -157,14 +157,14 @@ func NewController(application applicationInterface, stopCh <-chan struct{}) (*C
 		DeleteFunc: controller.handleNode,
 	})
 
-	err := controller.CreateCRD()
-
-	// notice that there is no need to run Start methods in a separate goroutine. (i.e. go kubeInformerFactory.Start(stopCh)
-	// Start method is non-blocking and runs all registered informers in a dedicated goroutine.
-	kubeInformerFactory.Start(stopCh)
-	cache.WaitForCacheSync(stopCh, controller.nodesSynced)
-	managedNodeInformerFactory.Start(stopCh)
-	cache.WaitForCacheSync(stopCh, controller.managedNodeSynced)
+	if err = controller.CreateCRD(); err == nil {
+		// notice that there is no need to run Start methods in a separate goroutine. (i.e. go kubeInformerFactory.Start(stopCh)
+		// Start method is non-blocking and runs all registered informers in a dedicated goroutine.
+		kubeInformerFactory.Start(stopCh)
+		cache.WaitForCacheSync(stopCh, controller.nodesSynced)
+		managedNodeInformerFactory.Start(stopCh)
+		cache.WaitForCacheSync(stopCh, controller.managedNodeSynced)
+	}
 
 	return controller, err
 }
@@ -172,7 +172,7 @@ func NewController(application applicationInterface, stopCh <-chan struct{}) (*C
 func (c *Controller) waitCRDAccepted() error {
 	apiextensionClientset, _ := c.client.ApiExtentionClient()
 
-	err := wait.Poll(1*time.Second, 10*time.Second, func() (bool, error) {
+	err := wait.PollUntilContextTimeout(context.Background(), 1*time.Second, 10*time.Second, true, func(context.Context) (bool, error) {
 		if crd, err := apiextensionClientset.ApiextensionsV1().CustomResourceDefinitions().Get(context.TODO(), nodemanager.FullCRDName, metav1.GetOptions{}); err == nil {
 			for _, condition := range crd.Status.Conditions {
 				if condition.Type == apiextensionv1.Established &&
@@ -191,16 +191,19 @@ func (c *Controller) waitCRDAccepted() error {
 }
 
 func (c *Controller) CreateCRD() error {
-	var TRUE bool = true
+	//var TRUE bool = true
 	var err error
+
+	var XPreserveUnknownFields *bool = nil
 
 	apiextensionClientset, _ := c.client.ApiExtentionClient()
 
 	crd := &apiextensionv1.CustomResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{Name: nodemanager.FullCRDName},
 		Spec: apiextensionv1.CustomResourceDefinitionSpec{
-			Group: nodemanager.GroupName,
-			Scope: apiextensionv1.ClusterScoped,
+			Group:                 nodemanager.GroupName,
+			Scope:                 apiextensionv1.ClusterScoped,
+			PreserveUnknownFields: false,
 			Versions: []apiextensionv1.CustomResourceDefinitionVersion{
 				{
 					Name:    nodemanager.GroupVersion,
@@ -212,11 +215,11 @@ func (c *Controller) CreateCRD() error {
 					Schema: &apiextensionv1.CustomResourceValidation{
 						OpenAPIV3Schema: &apiextensionv1.JSONSchemaProps{
 							Type:                   "object",
-							XPreserveUnknownFields: &TRUE,
+							XPreserveUnknownFields: XPreserveUnknownFields,
 							Properties: map[string]apiextensionv1.JSONSchemaProps{
 								"spec": {
 									Type:                   "object",
-									XPreserveUnknownFields: &TRUE,
+									XPreserveUnknownFields: XPreserveUnknownFields,
 									Properties: map[string]apiextensionv1.JSONSchemaProps{
 										"nodegroup": {
 											Type: "string",
@@ -230,19 +233,19 @@ func (c *Controller) CreateCRD() error {
 										"instanceType": {
 											Type: "string",
 											Default: &apiextensionv1.JSON{
-												Raw: []byte("2"),
+												Raw: []byte("\"t2.micro\""),
 											},
 										},
 										"diskSizeInMB": {
 											Type: "integer",
 											Default: &apiextensionv1.JSON{
-												Raw: []byte("10"),
+												Raw: []byte("10240"),
 											},
 										},
 										"diskType": {
 											Type: "string",
 											Default: &apiextensionv1.JSON{
-												Raw: []byte("gp3"),
+												Raw: []byte("\"gp3\""),
 											},
 										},
 										"labels": {
@@ -263,7 +266,7 @@ func (c *Controller) CreateCRD() error {
 										},
 										"network": {
 											Type:                   "object",
-											XPreserveUnknownFields: &TRUE,
+											XPreserveUnknownFields: XPreserveUnknownFields,
 											Properties: map[string]apiextensionv1.JSONSchemaProps{
 												"vmware": {
 													Type: "array",
@@ -277,7 +280,7 @@ func (c *Controller) CreateCRD() error {
 																"device": {
 																	Type: "string",
 																	Default: &apiextensionv1.JSON{
-																		Raw: []byte("vmxnet3"),
+																		Raw: []byte("\"vmxnet3\""),
 																	},
 																},
 																"dhcp": {

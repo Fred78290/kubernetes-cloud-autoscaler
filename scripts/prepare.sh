@@ -2,7 +2,7 @@
 SRCDIR=$(dirname $0)
 PLATEFORM=$1
 NODEGROUP=$2
-CONFIG_DIR=${SRCDIR}/../.config/${NODEGROUP}
+CONFIG_DIR=${SRCDIR}/../.config/${PLATEFORM}/${NODEGROUP}
 
 rm -rf /tmp/autoscaler.sock
 

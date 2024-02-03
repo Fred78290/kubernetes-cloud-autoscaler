@@ -1807,7 +1807,7 @@ func StartServer(kubeClient types.ClientGenerator, c *types.Config) {
 		config.KubernetesPKIDestDir = c.KubernetesPKIDestDir
 	}
 
-	if err = providers.LoadConfig(*config.MachineConfig, machines); err != nil {
+	if err = providers.LoadConfig(*config.MachineConfig, &machines); err != nil {
 		log.Fatalf(constantes.ErrMachineSpecsNotFound, *config.MachineConfig, err)
 	}
 

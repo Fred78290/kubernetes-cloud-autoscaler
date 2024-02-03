@@ -165,9 +165,13 @@ func (c *Context) Context() context.Context {
 }
 
 func PollImmediate(interval, timeout time.Duration, condition wait.ConditionFunc) error {
+	conditionWithContext := func(context.Context) (bool, error) {
+		return condition()
+	}
+
 	if timeout == 0 {
-		return wait.PollImmediateInfinite(interval, condition)
+		return wait.PollUntilContextCancel(context.Background(), interval, true, conditionWithContext)
 	} else {
-		return wait.PollImmediate(interval, timeout, condition)
+		return wait.PollUntilContextTimeout(context.Background(), interval, timeout, true, conditionWithContext)
 	}
 }

@@ -225,8 +225,8 @@ type NodeGroupAutoscalingOptions struct {
 // AutoScalerServerConfig is contains configuration
 type AutoScalerServerConfig struct {
 	Distribution               *string                         `default:"kubeadm" json:"distribution"`
-	CloudProvider              *string                         `default:"vsphere" json:"machines"`
-	MachineConfig              *string                         `json:"cloud-provider"`
+	CloudProvider              *string                         `default:"vsphere" json:"cloud-provider"`
+	MachineConfig              *string                         `json:"machines"`
 	UseExternalEtdc            *bool                           `json:"use-external-etcd"`
 	UseVanillaGrpcProvider     *bool                           `json:"use-vanilla-grpc"`
 	UseControllerManager       *bool                           `json:"use-controller-manager"`

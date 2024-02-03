@@ -20,7 +20,7 @@ ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 
 COPY out .
-RUN ls / ; mv /$TARGETPLATFORM/vsphere-autoscaler /vsphere-autoscaler ; chmod uog+x /vsphere-autoscaler
+RUN ls / ; mv /$TARGETPLATFORM/kubernetes-cloud-autoscaler /kubernetes-cloud-autoscaler ; chmod uog+x /kubernetes-cloud-autoscaler
 
 FROM $BASEIMAGE
 ARG TARGETPLATFORM
@@ -31,7 +31,7 @@ ENV HOME /home/$USER
 
 LABEL maintainer="Frederic Boltz <frederic.boltz@gmail.com>"
 
-COPY --from=builder /vsphere-autoscaler /usr/local/bin/vsphere-autoscaler
+COPY --from=builder /kubernetes-cloud-autoscaler /usr/local/bin/kubernetes-cloud-autoscaler
 
 # add new user
 RUN apk update \
@@ -44,4 +44,4 @@ USER $USER
 
 EXPOSE 5200
 
-CMD ["/usr/local/bin/vsphere-autoscaler"]
+CMD ["/usr/local/bin/kubernetes-cloud-autoscaler"]

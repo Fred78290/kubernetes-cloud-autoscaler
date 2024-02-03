@@ -16,7 +16,7 @@ GOARCH?=$(shell go env GOARCH)
 REGISTRY?=fred78290
 BUILD_DATE?=`date +%Y-%m-%dT%H:%M:%SZ`
 VERSION_LDFLAGS=-X main.phVersion=$(TAG)
-IMAGE=$(REGISTRY)/vsphere-autoscaler
+IMAGE=$(REGISTRY)/kubernetes-cloud-autoscaler
 
 deps:
 	go mod vendor
@@ -26,7 +26,7 @@ deps:
 build: $(addprefix build-arch-,$(ALL_ARCH))
 
 build-arch-%: deps clean-arch-%
-	$(ENVVAR) GOOS=$(GOOS) GOARCH=$* go build -buildvcs=false -ldflags="-X main.phVersion=$(TAG) -X main.phBuildDate=$(BUILD_DATE) ${LDFLAGS}" -a -o out/$(GOOS)/$*/vsphere-autoscaler
+	$(ENVVAR) GOOS=$(GOOS) GOARCH=$* go build -buildvcs=false -ldflags="-X main.phVersion=$(TAG) -X main.phBuildDate=$(BUILD_DATE) ${LDFLAGS}" -a -o out/$(GOOS)/$*/kubernetes-cloud-autoscaler
 
 test-unit: clean build
 	go install github.com/vmware/govmomi/vcsim@v0.30.0
@@ -52,7 +52,7 @@ container-push-manifest: container push-manifest
 clean: $(addprefix clean-arch-,$(ALL_ARCH))
 
 clean-arch-%:
-	rm -f ./out/$(GOOS)/$*/vsphere-autoscaler
+	rm -f ./out/$(GOOS)/$*/kubernetes-cloud-autoscaler
 
 docker-builder:
 	docker build -t kubernetes-cloud-autoscaler-builder ./builder
@@ -60,8 +60,8 @@ docker-builder:
 build-in-docker: $(addprefix build-in-docker-arch-,$(ALL_ARCH))
 
 build-in-docker-arch-%: clean-arch-% docker-builder
-	docker run --rm -v `pwd`:/gopath/src/github.com/Fred78290/vsphere-autoscaler/ kubernetes-cloud-autoscaler-builder:latest bash \
-		-c 'cd /gopath/src/github.com/Fred78290/vsphere-autoscaler \
+	docker run --rm -v `pwd`:/gopath/src/github.com/Fred78290/kubernetes-cloud-autoscaler/ kubernetes-cloud-autoscaler-builder:latest bash \
+		-c 'cd /gopath/src/github.com/Fred78290/kubernetes-cloud-autoscaler \
 		&& BUILD_TAGS=${BUILD_TAGS} make -e REGISTRY=${REGISTRY} -e TAG=${TAG} -e BUILD_DATE=`date +%Y-%m-%dT%H:%M:%SZ` build-arch-$*'
 
 container: $(addprefix container-arch-,$(ALL_ARCH))
