@@ -174,6 +174,10 @@ func (c *Controller) waitCRDAccepted() error {
 
 	err := wait.PollUntilContextTimeout(context.Background(), 1*time.Second, 10*time.Second, true, func(context.Context) (bool, error) {
 		if crd, err := apiextensionClientset.ApiextensionsV1().CustomResourceDefinitions().Get(context.TODO(), nodemanager.FullCRDName, metav1.GetOptions{}); err == nil {
+			if len(crd.Status.Conditions) == 0 {
+				return false, nil
+			}
+
 			for _, condition := range crd.Status.Conditions {
 				if condition.Type == apiextensionv1.Established &&
 					condition.Status == apiextensionv1.ConditionTrue {
