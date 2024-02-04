@@ -9,6 +9,7 @@ import (
 	apigrpc "github.com/Fred78290/kubernetes-cloud-autoscaler/grpc"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/types"
 	glog "github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/anypb"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,6 +17,7 @@ import (
 
 type externalgrpcServerApp struct {
 	externalgrpc.UnimplementedCloudProviderServer
+
 	appServer        *AutoScalerServerApp
 	autoProvisionned bool
 }
@@ -28,8 +30,12 @@ func NewExternalgrpcServerApp(appServer *AutoScalerServerApp) (*externalgrpcServ
 	return external, external.doAutoProvision()
 }
 
+func (v *externalgrpcServerApp) RegisterCloudProviderServer(server *grpc.Server) {
+	externalgrpc.RegisterCloudProviderServer(server, v)
+}
+
 func (v *externalgrpcServerApp) doAutoProvision() error {
-	if !v.autoProvisionned {
+	if !v.appServer.AutoProvision {
 		nodegroupDef := &apigrpc.NodeGroupDef{
 			NodeGroupID:         v.appServer.configuration.NodeGroup,
 			MinSize:             int32(*v.appServer.configuration.MinNode),
@@ -47,8 +53,6 @@ func (v *externalgrpcServerApp) doAutoProvision() error {
 
 			return err
 		}
-
-		v.autoProvisionned = true
 	}
 
 	return nil
