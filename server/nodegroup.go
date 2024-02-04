@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
+	apigrpc "github.com/Fred78290/kubernetes-cloud-autoscaler/grpc"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha1"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/types"
@@ -902,9 +903,9 @@ func (g *AutoScalerServerNodeGroup) findNodeByCRDUID(uid uid.UID) (*AutoScalerSe
 	return nil, fmt.Errorf(constantes.ErrManagedNodeNotFound, uid)
 }
 
-func (g *AutoScalerServerNodeGroup) GetOptions(defaults *types.NodeGroupAutoscalingOptions) (*types.NodeGroupAutoscalingOptions, error) {
-	if g.configuration.AutoScalingOptions != nil {
-		return g.configuration.AutoScalingOptions, nil
+func (g *AutoScalerServerNodeGroup) GetOptions(defaults *apigrpc.AutoscalingOptions) (*apigrpc.AutoscalingOptions, error) {
+	if options, err := g.configuration.GetAutoScalingOptions(); options != nil {
+		return options, err
 	}
 
 	return defaults, nil

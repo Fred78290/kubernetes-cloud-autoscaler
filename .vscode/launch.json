@@ -40,11 +40,11 @@
 				"--distribution=k3s",
 				"--provider=vsphere",
                 "--listen=unix:/tmp/autoscaler.sock",
-				"--machines=${workspaceFolder}/.config/vsphere/vsphere-dev-k3s/machines.json",
-				"--provider-config=${workspaceFolder}/.config/vsphere/vsphere-dev-k3s/provider.json",
-                "--config=${workspaceFolder}/.config/vsphere/vsphere-dev-k3s/autoscaler.json",
-                "--save=${workspaceFolder}/.config/vsphere/vsphere-dev-k3s/state.json",
-                "--kubeconfig=${workspaceFolder}/.config/vsphere/vsphere-dev-k3s/config",
+				"--machines=${workspaceFolder}/.config/vsphere/vsphere-test-k3s/machines.json",
+				"--provider-config=${workspaceFolder}/.config/vsphere/vsphere-test-k3s/provider.json",
+                "--config=${workspaceFolder}/.config/vsphere/vsphere-test-k3s/autoscaler.json",
+                "--save=${workspaceFolder}/.config/vsphere/vsphere-test-k3s/state.json",
+                "--kubeconfig=${workspaceFolder}/.config/vsphere/vsphere-test-k3s/config",
                 "--log-level=info"
             ]
         },

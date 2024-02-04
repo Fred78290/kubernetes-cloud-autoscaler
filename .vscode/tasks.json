@@ -24,7 +24,7 @@
 		{
             "label": "k3s vsphere",
             "type": "shell",
-            "command": "${workspaceFolder}/scripts/prepare.sh vsphere vsphere-dev-k3s",
+            "command": "${workspaceFolder}/scripts/prepare.sh vsphere vsphere-test-k3s",
             "problemMatcher": [],
             "group": {
                 "kind": "build",

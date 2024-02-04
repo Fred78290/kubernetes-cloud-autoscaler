@@ -419,11 +419,11 @@ func (v *externalgrpcServerApp) NodeGroupGetOptions(ctx context.Context, request
 		return nil, fmt.Errorf("request fields were nil")
 	}
 
-	defaults := &types.NodeGroupAutoscalingOptions{
+	defaults := &apigrpc.AutoscalingOptions{
 		ScaleDownUtilizationThreshold:    pbDefaults.GetScaleDownGpuUtilizationThreshold(),
 		ScaleDownGpuUtilizationThreshold: pbDefaults.GetScaleDownGpuUtilizationThreshold(),
-		ScaleDownUnneededTime:            pbDefaults.GetScaleDownUnneededTime().Duration,
-		ScaleDownUnreadyTime:             pbDefaults.GetScaleDownUnneededTime().Duration,
+		ScaleDownUnneededTime:            pbDefaults.GetScaleDownUnneededTime(),
+		ScaleDownUnreadyTime:             pbDefaults.GetScaleDownUnneededTime(),
 	}
 
 	opts, err := nodeGroup.GetOptions(defaults)
@@ -440,12 +440,8 @@ func (v *externalgrpcServerApp) NodeGroupGetOptions(ctx context.Context, request
 		NodeGroupAutoscalingOptions: &externalgrpc.NodeGroupAutoscalingOptions{
 			ScaleDownUtilizationThreshold:    opts.ScaleDownUtilizationThreshold,
 			ScaleDownGpuUtilizationThreshold: opts.ScaleDownGpuUtilizationThreshold,
-			ScaleDownUnneededTime: &metav1.Duration{
-				Duration: opts.ScaleDownUnneededTime,
-			},
-			ScaleDownUnreadyTime: &metav1.Duration{
-				Duration: opts.ScaleDownUnreadyTime,
-			},
+			ScaleDownUnneededTime:            opts.ScaleDownUnneededTime,
+			ScaleDownUnreadyTime:             opts.ScaleDownUnreadyTime,
 		},
 	}, nil
 }

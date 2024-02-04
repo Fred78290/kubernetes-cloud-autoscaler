@@ -20,6 +20,7 @@ import (
 	clientset "github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/generated/clientset/versioned"
 	apiv1 "k8s.io/api/core/v1"
 	apiextension "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -207,19 +208,19 @@ type AutoScalerServerOptionals struct {
 type NodeGroupAutoscalingOptions struct {
 	// ScaleDownUtilizationThreshold sets threshold for nodes to be considered for scale down
 	// if cpu or memory utilization is over threshold.
-	ScaleDownUtilizationThreshold float64 `json:"scaleDownUtilizationThreshold,omitempty"`
+	ScaleDownUtilizationThreshold float64 `default:"0.5" json:"scaleDownUtilizationThreshold,omitempty"`
 
 	// ScaleDownGpuUtilizationThreshold sets threshold for gpu nodes to be
 	// considered for scale down if gpu utilization is over threshold.
-	ScaleDownGpuUtilizationThreshold float64 `json:"scaleDownGpuUtilizationThreshold,omitempty"`
+	ScaleDownGpuUtilizationThreshold float64 `default:"0.5" json:"scaleDownGpuUtilizationThreshold,omitempty"`
 
 	// ScaleDownUnneededTime sets the duration CA expects a node to be
 	// unneeded/eligible for removal before scaling down the node.
-	ScaleDownUnneededTime time.Duration `json:"scaleDownUnneededTime,omitempty"`
+	ScaleDownUnneededTime string `default:"1m" json:"scaleDownUnneededTime,omitempty"`
 
 	// ScaleDownUnreadyTime represents how long an unready node should be
 	// unneeded before it is eligible for scale down.
-	ScaleDownUnreadyTime time.Duration `json:"scaleDownUnreadyTime,omitempty"`
+	ScaleDownUnreadyTime string `default:"1m" json:"scaleDownUnreadyTime,omitempty"`
 }
 
 // AutoScalerServerConfig is contains configuration
@@ -263,6 +264,7 @@ type AutoScalerServerConfig struct {
 	AutoScalingOptions         *NodeGroupAutoscalingOptions    `json:"autoscaling-options,omitempty"`
 	DebugMode                  *bool                           `json:"debug,omitempty"`
 	providerConfiguration      providers.ProviderConfiguration `json:"-"`
+	autoScalingOptions         *apigrpc.AutoscalingOptions     `json:"-"`
 }
 
 func (limits *ResourceLimiter) MergeRequestResourceLimiter(limiter *apigrpc.ResourceLimiter) {
@@ -379,6 +381,32 @@ func (conf *AutoScalerServerConfig) SetupCloudConfiguration(configFile string) e
 
 func (conf *AutoScalerServerConfig) GetCloudConfiguration() providers.ProviderConfiguration {
 	return conf.providerConfiguration
+}
+
+func (conf *AutoScalerServerConfig) GetAutoScalingOptions() (*apigrpc.AutoscalingOptions, error) {
+	if conf.autoScalingOptions == nil {
+		if conf.AutoScalingOptions != nil {
+			if scaleDownUnneededTime, err := time.ParseDuration(conf.AutoScalingOptions.ScaleDownUnneededTime); err != nil {
+				return nil, fmt.Errorf("unable to parse scaleDownUnneededTime: %v", err)
+			} else if scaleDownUnreadyTime, err := time.ParseDuration(conf.AutoScalingOptions.ScaleDownUnreadyTime); err != nil {
+				return nil, fmt.Errorf("unable to parse scaleDownUnreadyTime: %v", err)
+			} else {
+
+				conf.autoScalingOptions = &apigrpc.AutoscalingOptions{
+					ScaleDownUtilizationThreshold:    conf.AutoScalingOptions.ScaleDownUtilizationThreshold,
+					ScaleDownGpuUtilizationThreshold: conf.AutoScalingOptions.ScaleDownGpuUtilizationThreshold,
+					ScaleDownUnneededTime: &metav1.Duration{
+						Duration: scaleDownUnneededTime,
+					},
+					ScaleDownUnreadyTime: &metav1.Duration{
+						Duration: scaleDownUnreadyTime,
+					},
+				}
+			}
+		}
+	}
+
+	return conf.autoScalingOptions, nil
 }
 
 // NewConfig returns new Config object

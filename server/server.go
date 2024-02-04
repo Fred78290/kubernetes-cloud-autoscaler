@@ -1240,11 +1240,11 @@ func (s *AutoScalerServerApp) GetOptions(ctx context.Context, request *apigrpc.G
 		}, nil
 	}
 
-	defaults := &types.NodeGroupAutoscalingOptions{
+	defaults := &apigrpc.AutoscalingOptions{
 		ScaleDownUtilizationThreshold:    pbDefaults.GetScaleDownGpuUtilizationThreshold(),
 		ScaleDownGpuUtilizationThreshold: pbDefaults.GetScaleDownGpuUtilizationThreshold(),
-		ScaleDownUnneededTime:            pbDefaults.GetScaleDownUnneededTime().Duration,
-		ScaleDownUnreadyTime:             pbDefaults.GetScaleDownUnneededTime().Duration,
+		ScaleDownUnneededTime:            pbDefaults.GetScaleDownUnneededTime(),
+		ScaleDownUnreadyTime:             pbDefaults.GetScaleDownUnneededTime(),
 	}
 
 	opts, err := nodeGroup.GetOptions(defaults)
@@ -1265,12 +1265,8 @@ func (s *AutoScalerServerApp) GetOptions(ctx context.Context, request *apigrpc.G
 			NodeGroupAutoscalingOptions: &apigrpc.AutoscalingOptions{
 				ScaleDownUtilizationThreshold:    opts.ScaleDownUtilizationThreshold,
 				ScaleDownGpuUtilizationThreshold: opts.ScaleDownGpuUtilizationThreshold,
-				ScaleDownUnneededTime: &metav1.Duration{
-					Duration: opts.ScaleDownUnneededTime,
-				},
-				ScaleDownUnreadyTime: &metav1.Duration{
-					Duration: opts.ScaleDownUnreadyTime,
-				},
+				ScaleDownUnneededTime:            opts.ScaleDownUnneededTime,
+				ScaleDownUnreadyTime:             opts.ScaleDownUnreadyTime,
 			},
 		},
 	}, nil
@@ -1740,6 +1736,10 @@ func StartServer(kubeClient types.ClientGenerator, c *types.Config) {
 
 	if err = config.SetupCloudConfiguration(c.ProviderConfig); err != nil {
 		glog.Fatalf("Can't setup cloud provider, reason:%s", err)
+	}
+
+	if _, err = config.GetAutoScalingOptions(); err != nil {
+		glog.Fatalf("Can't setup autoscaling options, reason:%s", err)
 	}
 
 	switch *config.Distribution {
