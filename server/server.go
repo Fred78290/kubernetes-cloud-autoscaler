@@ -423,7 +423,7 @@ func (s *AutoScalerServerApp) runServer(config *types.AutoScalerServerConfig, re
 }
 
 func (s *AutoScalerServerApp) createGrpListener() (cloudProviderServer, error) {
-	if *s.configuration.UseVanillaGrpcProvider {
+	if *s.configuration.GrpcProvider == "externalgrpc" {
 		return NewExternalgrpcServerApp(s)
 	} else {
 		return NewGrpcServerApp(s)
@@ -517,8 +517,8 @@ func StartServer(kubeClient types.ClientGenerator, c *types.Config) {
 		config.Distribution = &c.Distribution
 	}
 
-	if config.CloudProvider == nil {
-		config.CloudProvider = &c.CloudProvider
+	if config.Plateform == nil {
+		config.Plateform = &c.Plateform
 	}
 
 	if err = config.SetupCloudConfiguration(c.ProviderConfig); err != nil {
@@ -566,16 +566,16 @@ func StartServer(kubeClient types.ClientGenerator, c *types.Config) {
 		config.DebugMode = &c.DebugMode
 	}
 
-	if config.UseControllerManager == nil {
-		config.UseControllerManager = &c.UseControllerManager
+	if config.CloudProvider == nil {
+		config.CloudProvider = &c.CloudProvider
 	}
 
 	if config.UseExternalEtdc == nil {
 		config.UseExternalEtdc = &c.UseExternalEtdc
 	}
 
-	if config.UseVanillaGrpcProvider == nil {
-		config.UseVanillaGrpcProvider = &c.UseVanillaGrpcProvider
+	if config.GrpcProvider == nil {
+		config.GrpcProvider = &c.GrpcProvider
 	}
 
 	if len(config.ExtDestinationEtcdSslDir) == 0 {

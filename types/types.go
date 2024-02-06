@@ -75,13 +75,13 @@ type Config struct {
 	KubernetesPKIDestDir     string
 	Distribution             string
 	UseExternalEtdc          bool
-	UseVanillaGrpcProvider   bool
-	UseControllerManager     bool
+	GrpcProvider             string
+	CloudProvider            string
 	RequestTimeout           time.Duration
 	DeletionTimeout          time.Duration
 	MaxGracePeriod           time.Duration
 	NodeReadyTimeout         time.Duration
-	CloudProvider            string
+	Plateform                string
 	Config                   string
 	SaveLocation             string
 	DisplayVersion           bool
@@ -226,30 +226,30 @@ type NodeGroupAutoscalingOptions struct {
 // AutoScalerServerConfig is contains configuration
 type AutoScalerServerConfig struct {
 	Distribution               *string                         `default:"kubeadm" json:"distribution"`
-	CloudProvider              *string                         `default:"vsphere" json:"cloud-provider"`
+	Plateform                  *string                         `default:"vsphere" json:"plateform"`
 	MachineConfig              *string                         `json:"machines"`
 	UseExternalEtdc            *bool                           `json:"use-external-etcd"`
-	UseVanillaGrpcProvider     *bool                           `json:"use-vanilla-grpc"`
-	UseControllerManager       *bool                           `json:"use-controller-manager"`
+	CloudProvider              *string                         `json:"cloud-provider"`
+	GrpcProvider               *string                         `json:"grpc-provider"`
 	ExtDestinationEtcdSslDir   string                          `default:"/etc/etcd/ssl" json:"dst-etcd-ssl-dir"`
 	ExtSourceEtcdSslDir        string                          `default:"/etc/etcd/ssl" json:"src-etcd-ssl-dir"`
 	KubernetesPKISourceDir     string                          `default:"/etc/kubernetes/pki" json:"kubernetes-pki-srcdir"`
 	KubernetesPKIDestDir       string                          `default:"/etc/kubernetes/pki" json:"kubernetes-pki-dstdir"`
-	Listen                     *string                         `default:"unix:///var/run/autoscaler.sock" json:"listen"` // Mandatory, Address to listen
-	CertPrivateKey             string                          `json:"cert-private-key,omitempty"`                       // Optional to secure grcp channel
-	CertPublicKey              string                          `json:"cert-public-key,omitempty"`                        // Optional to secure grcp channel
-	CertCA                     string                          `json:"cert-ca,omitempty"`                                // Optional to secure grcp channel
-	ServiceIdentifier          string                          `json:"secret"`                                           // Mandatory, secret Identifier, client must match this
-	NodeGroup                  string                          `json:"nodegroup"`                                        // Mandatory, the nodegroup
-	MinNode                    *int64                          `json:"minNode"`                                          // Mandatory, Min AutoScaler VM
-	MaxNode                    *int64                          `json:"maxNode"`                                          // Mandatory, Max AutoScaler VM
-	MaxPods                    *int64                          `default:"110" json:"maxPods"`                            // Mandatory, Max pod per node
-	MaxCreatedNodePerCycle     int                             `json:"maxNode-per-cycle" default:"2"`                    // Optional, the max number VM to create in //
-	ProvisionnedNodeNamePrefix string                          `default:"autoscaled" json:"node-name-prefix"`            // Optional, the created node name prefix
-	ManagedNodeNamePrefix      string                          `default:"worker" json:"managed-name-prefix"`             // Optional, the created node name prefix
-	ControlPlaneNamePrefix     string                          `default:"master" json:"controlplane-name-prefix"`        // Optional, the created node name prefix
-	NodePrice                  float64                         `json:"nodePrice"`                                        // Optional, The VM price
-	PodPrice                   float64                         `json:"podPrice"`                                         // Optional, The pod price
+	Listen                     *string                         `json:"listen"`                                    // Mandatory, Address to listen
+	CertPrivateKey             string                          `json:"cert-private-key,omitempty"`                // Optional to secure grcp channel
+	CertPublicKey              string                          `json:"cert-public-key,omitempty"`                 // Optional to secure grcp channel
+	CertCA                     string                          `json:"cert-ca,omitempty"`                         // Optional to secure grcp channel
+	ServiceIdentifier          string                          `json:"secret"`                                    // Mandatory, secret Identifier, client must match this
+	NodeGroup                  string                          `json:"nodegroup"`                                 // Mandatory, the nodegroup
+	MinNode                    *int64                          `json:"minNode"`                                   // Mandatory, Min AutoScaler VM
+	MaxNode                    *int64                          `json:"maxNode"`                                   // Mandatory, Max AutoScaler VM
+	MaxPods                    *int64                          `json:"maxPods"`                                   // Mandatory, Max pod per node
+	MaxCreatedNodePerCycle     int                             `json:"maxNode-per-cycle" default:"2"`             // Optional, the max number VM to create in //
+	ProvisionnedNodeNamePrefix string                          `default:"autoscaled" json:"node-name-prefix"`     // Optional, the created node name prefix
+	ManagedNodeNamePrefix      string                          `default:"worker" json:"managed-name-prefix"`      // Optional, the created node name prefix
+	ControlPlaneNamePrefix     string                          `default:"master" json:"controlplane-name-prefix"` // Optional, the created node name prefix
+	NodePrice                  float64                         `json:"nodePrice"`                                 // Optional, The VM price
+	PodPrice                   float64                         `json:"podPrice"`                                  // Optional, The pod price
 	KubeAdm                    *KubeJoinConfig                 `json:"kubeadm"`
 	K3S                        *K3SJoinConfig                  `json:"k3s,omitempty"`
 	RKE2                       *RKE2JoinConfig                 `json:"rke2,omitempty"`
@@ -358,10 +358,10 @@ func (conf *AutoScalerServerConfig) SetupCloudConfiguration(configFile string) e
 	var err error
 
 	if conf.providerConfiguration == nil {
-		if conf.CloudProvider == nil {
+		if conf.Plateform == nil {
 			conf.providerConfiguration, err = vsphere.NewVSphereProviderConfiguration(configFile)
 		} else {
-			switch *conf.CloudProvider {
+			switch *conf.Plateform {
 			case providers.AwsCloudProviderName:
 				conf.providerConfiguration, err = aws.NewAwsProviderConfiguration(configFile)
 			case providers.VSphereCloudProviderName:
@@ -371,12 +371,20 @@ func (conf *AutoScalerServerConfig) SetupCloudConfiguration(configFile string) e
 			case providers.MultipassProviderName:
 				conf.providerConfiguration, err = multipass.NewMultipassProviderConfiguration(configFile)
 			default:
-				glog.Fatalf("Unsupported cloud provider: %s", *conf.CloudProvider)
+				glog.Fatalf("Unsupported cloud provider: %s", *conf.Plateform)
 			}
 		}
 	}
 
 	return err
+}
+
+func (conf *AutoScalerServerConfig) UseControllerManager() bool {
+	if conf.CloudProvider != nil && *conf.CloudProvider == "external" {
+		return true
+	}
+
+	return false
 }
 
 func (conf *AutoScalerServerConfig) GetCloudConfiguration() providers.ProviderConfiguration {
@@ -420,8 +428,8 @@ func NewConfig() *Config {
 		Listen:                   "unix:///var/run/autoscaler.sock",
 		Distribution:             providers.KubeAdmDistributionName,
 		UseExternalEtdc:          false,
-		UseVanillaGrpcProvider:   false,
-		UseControllerManager:     true,
+		GrpcProvider:             "grpc",
+		CloudProvider:            "",
 		ExtDestinationEtcdSslDir: "/etc/etcd/ssl",
 		ExtSourceEtcdSslDir:      "/etc/etcd/ssl",
 		KubernetesPKISourceDir:   "/etc/kubernetes/pki",
@@ -430,7 +438,7 @@ func NewConfig() *Config {
 		DeletionTimeout:          DefaultMaxDeletionPeriod,
 		MaxGracePeriod:           DefaultMaxGracePeriod,
 		NodeReadyTimeout:         DefaultNodeReadyTimeout,
-		CloudProvider:            "vsphere",
+		Plateform:                "vsphere",
 		DisplayVersion:           false,
 		MinNode:                  DefaultMinNodes,
 		MaxNode:                  DefaultMaxNodes,
@@ -471,12 +479,12 @@ func (cfg *Config) ParseFlags(args []string, version string) error {
 
 	app.Flag("debug", "Debug mode").Default("false").BoolVar(&cfg.DebugMode)
 
-	app.Flag("provider", "Which cloud provider used: vsphere, aws, desktop, multipass").Default(providers.VSphereCloudProviderName).EnumVar(&cfg.CloudProvider, providers.SupportedCloudProviders...)
-	app.Flag("provider-config", "Cloud provider config file").Default(cfg.ProviderConfig).StringVar(&cfg.ProviderConfig)
+	app.Flag("plateform", "Which plateform used: vsphere, aws, desktop, multipass").Default(cfg.Plateform).EnumVar(&cfg.Plateform, providers.SupportedCloudProviders...)
+	app.Flag("plateform-config", "Plateform provider config file").Default(cfg.ProviderConfig).StringVar(&cfg.ProviderConfig)
 
-	app.Flag("distribution", "Which kubernetes distribution to use: kubeadm, k3s, rke2, external").Default(providers.K3SDistributionName).EnumVar(&cfg.Distribution, providers.SupportedKubernetesDistribution...)
-	app.Flag("use-vanilla-grpc", "Tell we use vanilla autoscaler externalgrpc cloudprovider").Default("false").BoolVar(&cfg.UseVanillaGrpcProvider)
-	app.Flag("use-controller-manager", "Tell we use vsphere controller manager").Default("true").BoolVar(&cfg.UseControllerManager)
+	app.Flag("distribution", "Which kubernetes distribution to use: kubeadm, k3s, rke2, external").Default(cfg.Distribution).EnumVar(&cfg.Distribution, providers.SupportedKubernetesDistribution...)
+	app.Flag("grpc-provider", "Which grpc provider to use: externalgrpc, grpc").Default(cfg.GrpcProvider).EnumVar(&cfg.GrpcProvider, "grpc", "externalgrpc")
+	app.Flag("cloud-provider", "Which controller manager used: external").Default(cfg.CloudProvider).EnumVar(&cfg.CloudProvider, "external", "")
 
 	// External Etcd
 	app.Flag("use-external-etcd", "Tell we use an external etcd service (overriden by config file if defined)").Default("false").BoolVar(&cfg.UseExternalEtdc)

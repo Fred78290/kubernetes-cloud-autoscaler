@@ -102,9 +102,14 @@ func NewMultipassProviderConfiguration(fileName string) (providers.ProviderConfi
 }
 
 func (status *VMStatus) Address() string {
+	if len(status.Ipv4) > 1 {
+		return status.Ipv4[1]
+	}
+
 	if len(status.Ipv4) > 0 {
 		return status.Ipv4[0]
 	}
+
 	return ""
 }
 

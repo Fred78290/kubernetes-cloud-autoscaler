@@ -201,7 +201,9 @@ func (vm *AutoScalerServerNode) writeKubeletMergeConfig(c types.ClientGenerator,
 				Kind:       "KubeletConfiguration",
 				APIVersion: kubelet.SchemeGroupVersion.Identifier(),
 			},
-			MaxPods: int32(maxPods),
+			Address:    vm.IPAddress,
+			ProviderID: vm.generateProviderID(),
+			MaxPods:    int32(maxPods),
 		}
 
 		if _, err = f.WriteString(utils.ToYAML(&kubeletConfiguration)); err != nil {
@@ -279,7 +281,7 @@ func (vm *AutoScalerServerNode) externalAgentJoin(c types.ClientGenerator, maxPo
 		"node-name":                vm.NodeName,
 		"server":                   external.Address,
 		"token":                    external.Token,
-		"disable-cloud-controller": vm.ControlPlaneNode && vm.serverConfig.UseControllerManager != nil && *vm.serverConfig.UseControllerManager,
+		"disable-cloud-controller": vm.ControlPlaneNode && vm.serverConfig.UseControllerManager(),
 	}
 
 	if external.ExtraConfig != nil {
@@ -330,8 +332,8 @@ func (vm *AutoScalerServerNode) rke2AgentJoin(c types.ClientGenerator, maxPods i
 	service := "rke2-server"
 	kubeletArgs := []string{"fail-swap-on=false", fmt.Sprintf("provider-id=%s", vm.generateProviderID()), fmt.Sprintf("max-pods=%d", maxPods)}
 
-	if vm.serverConfig.UseControllerManager != nil && *vm.serverConfig.UseControllerManager {
-		kubeletArgs = append(kubeletArgs, "cloud-provider=external")
+	if vm.serverConfig.CloudProvider != nil && len(*vm.serverConfig.CloudProvider) > 0 {
+		kubeletArgs = append(kubeletArgs, fmt.Sprintf("cloud-provider=%s", *vm.serverConfig.CloudProvider))
 	}
 
 	config := map[string]any{
@@ -342,9 +344,9 @@ func (vm *AutoScalerServerNode) rke2AgentJoin(c types.ClientGenerator, maxPods i
 	}
 
 	if vm.ControlPlaneNode {
-		if vm.serverConfig.UseControllerManager != nil && *vm.serverConfig.UseControllerManager {
-			config["disable-cloud-controller"] = true
-			config["cloud-provider-name"] = "external"
+		if vm.serverConfig.CloudProvider != nil && len(*vm.serverConfig.CloudProvider) > 0 {
+			config["disable-cloud-controller"] = *vm.serverConfig.CloudProvider == "external"
+			config["cloud-provider-name"] = *vm.serverConfig.CloudProvider
 		}
 
 		config["disable"] = []string{
@@ -421,7 +423,7 @@ func (vm *AutoScalerServerNode) k3sAgentJoin(c types.ClientGenerator, maxPods in
 	}
 
 	if vm.ControlPlaneNode {
-		if vm.serverConfig.UseControllerManager != nil && *vm.serverConfig.UseControllerManager {
+		if vm.serverConfig.UseControllerManager() {
 			args = append(args, "echo 'K3S_MODE=server' > /etc/default/k3s", "echo K3S_DISABLE_ARGS='--disable-cloud-controller --disable=servicelb --disable=traefik --disable=metrics-server' > /etc/systemd/system/k3s.disabled.env")
 		} else {
 			args = append(args, "echo 'K3S_MODE=server' > /etc/default/k3s", "echo K3S_DISABLE_ARGS='--disable=servicelb --disable=traefik --disable=metrics-server' > /etc/systemd/system/k3s.disabled.env")
@@ -522,7 +524,7 @@ func (vm *AutoScalerServerNode) WaitSSHReady(nodename, address string) error {
 		}
 
 		// Node name and instance name could be differ when using AWS cloud provider
-		if *vm.serverConfig.CloudProvider == "aws" {
+		if *vm.serverConfig.Plateform == "aws" {
 
 			if nodeName, err := utils.Sudo(vm.serverConfig.SSH, address, 1, "curl -s http://169.254.169.254/latest/meta-data/local-hostname"); err == nil {
 				vm.NodeName = nodeName
@@ -856,7 +858,7 @@ func (vm *AutoScalerServerNode) statusVM() (AutoScalerServerNodeState, error) {
 }
 
 func (vm *AutoScalerServerNode) setProviderID(c types.ClientGenerator) error {
-	if vm.serverConfig.UseControllerManager != nil && !*vm.serverConfig.UseControllerManager {
+	if vm.serverConfig.UseControllerManager() {
 		providerID := vm.generateProviderID()
 
 		if len(providerID) > 0 {
@@ -868,7 +870,7 @@ func (vm *AutoScalerServerNode) setProviderID(c types.ClientGenerator) error {
 }
 
 func (vm *AutoScalerServerNode) generateProviderID() string {
-	if vm.serverConfig.UseControllerManager != nil && *vm.serverConfig.UseControllerManager {
+	if vm.serverConfig.UseControllerManager() {
 		return vm.providerHandler.GenerateProviderID()
 	}
 
