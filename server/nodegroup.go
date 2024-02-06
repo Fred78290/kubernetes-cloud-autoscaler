@@ -58,7 +58,6 @@ type AutoScalerServerNodeGroup struct {
 	ManagedNodeNamePrefix      string                           `default:"worker" json:"managed-name-prefix"`
 	ControlPlaneNamePrefix     string                           `default:"master" json:"controlplane-name-prefix"`
 	InstanceType               string                           `json:"instance-type"`
-	DiskSize                   int                              `default:"10240" json:"disk-size"`
 	Status                     NodeGroupState                   `json:"status"`
 	MinNodeSize                int                              `json:"minSize"`
 	MaxNodeSize                int                              `json:"maxSize"`
@@ -281,8 +280,13 @@ func (g *AutoScalerServerNodeGroup) addManagedNode(crd *v1alpha1.ManagedNode) (*
 			g.RunningNodes[nodeIndex] = ServerNodeStateCreating
 
 			resLimit := g.configuration.ManagedNodeResourceLimiter
+			diskSize := crd.Spec.DiskSizeInMB
 
-			diskSize := utils.MaxInt(utils.MinInt(crd.Spec.DiskSizeInMB, resLimit.GetMaxValue(constantes.ResourceNameManagedNodeDisk, types.ManagedNodeMaxDiskSize)),
+			if diskSize == 0 {
+				diskSize = machine.DiskSize
+			}
+
+			diskSize = utils.MaxInt(utils.MinInt(diskSize, resLimit.GetMaxValue(constantes.ResourceNameManagedNodeDisk, types.ManagedNodeMaxDiskSize)),
 				resLimit.GetMinValue(constantes.ResourceNameManagedNodeDisk, types.ManagedNodeMinDiskSize))
 
 			node := &AutoScalerServerNode{
@@ -369,7 +373,7 @@ func (g *AutoScalerServerNodeGroup) prepareNodes(c types.ClientGenerator, delta 
 				InstanceName:     nodeName,
 				Memory:           machine.Memory,
 				CPU:              machine.Vcpu,
-				DiskSize:         g.configuration.DiskSizeInMB,
+				DiskSize:         machine.DiskSize,
 				NodeType:         AutoScalerServerNodeAutoscaled,
 				ExtraAnnotations: extraAnnotations,
 				ExtraLabels:      extraLabels,

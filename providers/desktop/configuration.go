@@ -392,7 +392,7 @@ func (wrapper *desktopWrapper) CreateWithContext(ctx *context.Context, input *Cr
 		Name:         input.NodeName,
 		Vcpus:        int32(input.Machine.Vcpu),
 		Memory:       int64(input.Machine.Memory),
-		DiskSizeInMb: int32(input.DiskSize),
+		DiskSizeInMb: int32(input.Machine.DiskSize),
 		Linked:       wrapper.LinkedClone,
 		Networks:     BuildNetworkInterface(input.Network.Interfaces, input.NodeIndex),
 		Register:     false,

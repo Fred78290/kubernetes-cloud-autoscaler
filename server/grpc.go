@@ -280,7 +280,6 @@ func (s *grpcServerApp) NewNodeGroup(ctx context.Context, request *apigrpc.NewNo
 
 	labels := make(types.KubernetesLabel)
 	systemLabels := make(types.KubernetesLabel)
-	diskSize := s.appServer.configuration.DiskSizeInMB
 
 	if reqLabels := request.GetLabels(); reqLabels != nil {
 		for k2, v2 := range reqLabels {
@@ -305,7 +304,6 @@ func (s *grpcServerApp) NewNodeGroup(ctx context.Context, request *apigrpc.NewNo
 		minNodeSize:   int(request.GetMinNodeSize()),
 		maxNodeSize:   int(request.GetMaxNodeSize()),
 		machineType:   instanceType,
-		diskSizeInMB:  diskSize,
 		labels:        labels,
 		systemLabels:  systemLabels,
 		autoProvision: false,

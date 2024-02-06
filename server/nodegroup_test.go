@@ -50,7 +50,7 @@ func (ng *autoScalerServerNodeGroupTest) createTestNode(nodeName string, desired
 		CRDUID:          testCRDUID,
 		Memory:          machine.Memory,
 		CPU:             machine.Vcpu,
-		DiskSize:        ng.configuration.DiskSizeInMB,
+		DiskSize:        machine.DiskSize,
 		IPAddress:       "127.0.0.1",
 		State:           state,
 		NodeType:        AutoScalerServerNodeAutoscaled,
@@ -303,7 +303,6 @@ func (m *baseTest) newTestNodeGroup() (*autoScalerServerNodeGroupTest, error) {
 					configuration:              &config.AutoScalerServerConfig,
 					NodeLabels:                 config.NodeLabels,
 					InstanceType:               config.DefaultMachineType,
-					DiskSize:                   config.DiskSizeInMB,
 					machines:                   config.Machines,
 				},
 			}

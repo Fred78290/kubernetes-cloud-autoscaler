@@ -211,7 +211,7 @@ func (handler *awsHandler) InstanceCreate(input *providers.InstanceCreateInput) 
 		return "", err
 	}
 
-	if err = handler.runningInstance.Create(handler.nodeIndex, input.NodeGroup, handler.instanceType, userData, handler.DiskType, input.DiskSize, handler.desiredENI); err != nil {
+	if err = handler.runningInstance.Create(handler.nodeIndex, input.NodeGroup, handler.instanceType, userData, handler.DiskType, input.Machine.DiskSize, handler.desiredENI); err != nil {
 		return "", err
 	}
 

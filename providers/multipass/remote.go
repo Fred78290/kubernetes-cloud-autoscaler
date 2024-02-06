@@ -159,7 +159,7 @@ func (wrapper *remoteMultipassWrapper) create(input *createInstanceInput) (strin
 			InstanceType: input.instanceType,
 			Memory:       int32(input.Machine.Memory),
 			Vcpu:         int32(input.Machine.Vcpu),
-			DiskSize:     int32(input.DiskSize),
+			DiskSize:     int32(input.Machine.DiskSize),
 			CloudInit:    buffer.Bytes(),
 		}
 

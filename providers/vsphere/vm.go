@@ -206,7 +206,7 @@ func (vm *VirtualMachine) Configure(ctx *context.Context, input *CreateInput) er
 		Uuid:         virtualMachine.UUID(ctx),
 	}
 
-	if devices, err = vm.addOrExpandHardDrive(ctx, virtualMachine, input.DiskSize, input.ExpandHardDrive, devices); err != nil {
+	if devices, err = vm.addOrExpandHardDrive(ctx, virtualMachine, input.Machine.DiskSize, input.ExpandHardDrive, devices); err != nil {
 
 		err = fmt.Errorf(constantes.ErrUnableToAddHardDrive, vm.Name, err)
 

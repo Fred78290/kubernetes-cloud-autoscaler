@@ -564,13 +564,13 @@ func (vm *AutoScalerServerNode) launchVM(c types.ClientGenerator, nodeLabels, sy
 	vm.State = AutoScalerServerNodeStateCreating
 
 	desiredMachine := &providers.MachineCharacteristic{
-		Memory: vm.Memory,
-		Vcpu:   vm.CPU,
+		Memory:   vm.Memory,
+		Vcpu:     vm.CPU,
+		DiskSize: vm.DiskSize,
 	}
 
 	createInput := &providers.InstanceCreateInput{
 		NodeGroup: vm.NodeGroup,
-		DiskSize:  vm.DiskSize,
 		UserName:  userInfo.GetUserName(),
 		AuthKey:   userInfo.GetAuthKeys(),
 		CloudInit: vm.serverConfig.CloudInit,

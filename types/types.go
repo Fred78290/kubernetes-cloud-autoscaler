@@ -256,7 +256,6 @@ type AutoScalerServerConfig struct {
 	RKE2                       *RKE2JoinConfig                 `json:"rke2,omitempty"`
 	External                   *ExternalJoinConfig             `json:"external,omitempty"`
 	DefaultMachineType         string                          `default:"standard" json:"default-machine"`
-	DiskSizeInMB               int                             `default:"10240" json:"disk-size"`
 	NodeLabels                 KubernetesLabel                 `json:"nodeLabels"`
 	CloudInit                  cloudinit.CloudInit             `json:"cloud-init"` // Optional, The cloud init conf file
 	Optionals                  *AutoScalerServerOptionals      `json:"optionals"`

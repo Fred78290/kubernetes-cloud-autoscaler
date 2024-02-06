@@ -196,8 +196,8 @@ func (wrapper *hostMultipassWrapper) create(input *createInstanceInput) (string,
 			args = append(args, fmt.Sprintf("--cpus=%d", input.Machine.Vcpu))
 		}
 
-		if input.DiskSize > 0 {
-			args = append(args, fmt.Sprintf("--disk=%dM", input.DiskSize))
+		if input.Machine.DiskSize > 0 {
+			args = append(args, fmt.Sprintf("--disk=%dM", input.Machine.DiskSize))
 		}
 
 		if cloudInitFile != nil {

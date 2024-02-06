@@ -85,7 +85,6 @@ type nodegroupCreateInput struct {
 	minNodeSize   int
 	maxNodeSize   int
 	machineType   string
-	diskSizeInMB  int
 	labels        types.KubernetesLabel
 	systemLabels  types.KubernetesLabel
 	autoProvision bool
@@ -107,7 +106,7 @@ func (s *AutoScalerServerApp) newNodeGroup(intput *nodegroupCreateInput) (*AutoS
 
 	intput.labels = types.MergeKubernetesLabel(s.configuration.NodeLabels, intput.labels)
 
-	glog.Infof("New node group, ID:%s minSize:%d, maxSize:%d, machineType:%s, diskeSize:%d, node labels:%v, %v", intput.nodeGroupID, intput.minNodeSize, intput.maxNodeSize, intput.machineType, intput.diskSizeInMB, intput.labels, intput.systemLabels)
+	glog.Infof("New node group, ID:%s minSize:%d, maxSize:%d, machineType:%s, node labels:%v, %v", input.nodeGroupID, input.minNodeSize, input.maxNodeSize, input.machineType, input.labels, input.systemLabels)
 
 	nodeGroup := &AutoScalerServerNodeGroup{
 		ServiceIdentifier:          s.configuration.ServiceIdentifier,
@@ -116,7 +115,6 @@ func (s *AutoScalerServerApp) newNodeGroup(intput *nodegroupCreateInput) (*AutoS
 		ControlPlaneNamePrefix:     s.configuration.ControlPlaneNamePrefix,
 		NodeGroupIdentifier:        intput.nodeGroupID,
 		InstanceType:               intput.machineType,
-		DiskSize:                   intput.diskSizeInMB,
 		Status:                     NodegroupNotCreated,
 		pendingNodes:               make(map[string]*AutoScalerServerNode),
 		Nodes:                      make(map[string]*AutoScalerServerNode),
@@ -217,7 +215,6 @@ func (s *AutoScalerServerApp) doAutoProvision() error {
 					minNodeSize:   int(nodeGroupDef.MinSize),
 					maxNodeSize:   int(nodeGroupDef.MaxSize),
 					machineType:   s.configuration.DefaultMachineType,
-					diskSizeInMB:  s.configuration.DiskSizeInMB,
 					labels:        labels,
 					systemLabels:  systemLabels,
 					autoProvision: true,

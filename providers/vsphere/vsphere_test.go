@@ -122,7 +122,6 @@ func Test_createVM(t *testing.T) {
 					NodeGroup: config.NodeGroup,
 					UserName:  config.SSH.UserName,
 					AuthKey:   config.SSH.AuthKeys,
-					DiskSize:  config.DiskSize,
 					CloudInit: nil,
 					Machine:   &machine,
 				}
