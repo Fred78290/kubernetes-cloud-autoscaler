@@ -90,21 +90,21 @@ type nodegroupCreateInput struct {
 	autoProvision bool
 }
 
-func (s *AutoScalerServerApp) newNodeGroup(intput *nodegroupCreateInput) (*AutoScalerServerNodeGroup, error) {
+func (s *AutoScalerServerApp) newNodeGroup(input *nodegroupCreateInput) (*AutoScalerServerNodeGroup, error) {
 
-	machine := s.Machines[intput.machineType]
+	machine := s.Machines[input.machineType]
 
 	if machine == nil {
-		return nil, fmt.Errorf(constantes.ErrMachineTypeNotFound, intput.machineType)
+		return nil, fmt.Errorf(constantes.ErrMachineTypeNotFound, input.machineType)
 	}
 
-	if nodeGroup := s.Groups[intput.nodeGroupID]; nodeGroup != nil {
-		glog.Errorf(constantes.ErrNodeGroupAlreadyExists, intput.nodeGroupID)
+	if nodeGroup := s.Groups[input.nodeGroupID]; nodeGroup != nil {
+		glog.Errorf(constantes.ErrNodeGroupAlreadyExists, input.nodeGroupID)
 
-		return nil, fmt.Errorf(constantes.ErrNodeGroupAlreadyExists, intput.nodeGroupID)
+		return nil, fmt.Errorf(constantes.ErrNodeGroupAlreadyExists, input.nodeGroupID)
 	}
 
-	intput.labels = types.MergeKubernetesLabel(s.configuration.NodeLabels, intput.labels)
+	input.labels = types.MergeKubernetesLabel(s.configuration.NodeLabels, input.labels)
 
 	glog.Infof("New node group, ID:%s minSize:%d, maxSize:%d, machineType:%s, node labels:%v, %v", input.nodeGroupID, input.minNodeSize, input.maxNodeSize, input.machineType, input.labels, input.systemLabels)
 
@@ -113,21 +113,21 @@ func (s *AutoScalerServerApp) newNodeGroup(intput *nodegroupCreateInput) (*AutoS
 		ProvisionnedNodeNamePrefix: s.configuration.ProvisionnedNodeNamePrefix,
 		ManagedNodeNamePrefix:      s.configuration.ManagedNodeNamePrefix,
 		ControlPlaneNamePrefix:     s.configuration.ControlPlaneNamePrefix,
-		NodeGroupIdentifier:        intput.nodeGroupID,
-		InstanceType:               intput.machineType,
+		NodeGroupIdentifier:        input.nodeGroupID,
+		InstanceType:               input.machineType,
 		Status:                     NodegroupNotCreated,
 		pendingNodes:               make(map[string]*AutoScalerServerNode),
 		Nodes:                      make(map[string]*AutoScalerServerNode),
-		MinNodeSize:                intput.minNodeSize,
-		MaxNodeSize:                intput.maxNodeSize,
-		NodeLabels:                 intput.labels,
-		SystemLabels:               intput.systemLabels,
-		AutoProvision:              intput.autoProvision,
+		MinNodeSize:                input.minNodeSize,
+		MaxNodeSize:                input.maxNodeSize,
+		NodeLabels:                 input.labels,
+		SystemLabels:               input.systemLabels,
+		AutoProvision:              input.autoProvision,
 		configuration:              s.configuration,
 		machines:                   s.Machines,
 	}
 
-	s.Groups[intput.nodeGroupID] = nodeGroup
+	s.Groups[input.nodeGroupID] = nodeGroup
 
 	return nodeGroup, nil
 }

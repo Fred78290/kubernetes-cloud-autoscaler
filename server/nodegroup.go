@@ -658,7 +658,7 @@ func (g *AutoScalerServerNodeGroup) autoDiscoveryNodes(client types.ClientGenera
 
 			// Ignore nodes not handled by autoscaler if option includeExistingNode == false
 			if nodegroupName == g.NodeGroupIdentifier && (autoProvisionned || includeExistingNode) {
-				glog.Infof("Discover node:%s matching nodegroup:%s", nodeInfo.Name, g.NodeGroupIdentifier)
+				glog.Infof("Discover kubernetes node:%s matching nodegroup:%s", nodeInfo.Name, g.NodeGroupIdentifier)
 
 				if instanceName, found = nodeInfo.Annotations[constantes.AnnotationInstanceName]; found {
 					node := formerNodes[instanceName]
@@ -679,7 +679,7 @@ func (g *AutoScalerServerNodeGroup) autoDiscoveryNodes(client types.ClientGenera
 						lastNodeIndex, _ = strconv.Atoi(nodeIndex)
 					}
 
-					glog.Infof("Add node:%s with IP:%s to nodegroup:%s", nodeInfo.Name, runningIP, g.NodeGroupIdentifier)
+					glog.Infof("Handle kubernetes node:%s with IP:%s into nodegroup:%s", nodeInfo.Name, runningIP, g.NodeGroupIdentifier)
 
 					g.LastCreatedNodeIndex = utils.MaxInt(g.LastCreatedNodeIndex, lastNodeIndex)
 
@@ -692,7 +692,7 @@ func (g *AutoScalerServerNodeGroup) autoDiscoveryNodes(client types.ClientGenera
 					// Node name and instance name could be differ when using AWS cloud provider
 					if handler, err = g.configuration.GetCloudConfiguration().AttachInstance(instanceName, lastNodeIndex); err == nil {
 						if node == nil {
-							glog.Infof("Add node:%s with IP:%s to nodegroup:%s", instanceName, runningIP, g.NodeGroupIdentifier)
+							glog.Infof("Create node:%s with IP:%s to nodegroup:%s", instanceName, runningIP, g.NodeGroupIdentifier)
 
 							node = &AutoScalerServerNode{
 								NodeGroup:        g.NodeGroupIdentifier,

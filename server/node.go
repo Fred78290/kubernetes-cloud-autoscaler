@@ -81,16 +81,15 @@ const (
 // AutoScalerServerNode Describe a AutoScaler VM
 // Node name and instance name could be differ when using AWS cloud provider
 type AutoScalerServerNode struct {
-	NodeGroup    string  `json:"group"`
-	NodeName     string  `json:"node-name"`
-	NodeIndex    int     `json:"index"`
-	InstanceName string  `json:"instance-name"`
-	VMUUID       string  `json:"vm-uuid"`
-	CRDUID       uid.UID `json:"crd-uid"`
-	Memory       int     `json:"memory"`
-	CPU          int     `json:"cpu"`
-	DiskSize     int     `json:"diskSize"`
-	//InstanceType     string                    `json:"instance-Type"`
+	NodeGroup        string                    `json:"group"`
+	NodeName         string                    `json:"node-name"`
+	NodeIndex        int                       `json:"index"`
+	InstanceName     string                    `json:"instance-name"`
+	VMUUID           string                    `json:"vm-uuid"`
+	CRDUID           uid.UID                   `json:"crd-uid"`
+	Memory           int                       `json:"memory"`
+	CPU              int                       `json:"cpu"`
+	DiskSize         int                       `json:"diskSize"`
 	IPAddress        string                    `json:"address"`
 	State            AutoScalerServerNodeState `json:"state"`
 	NodeType         AutoScalerServerNodeType  `json:"type"`
