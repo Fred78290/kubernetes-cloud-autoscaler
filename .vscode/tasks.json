@@ -32,6 +32,16 @@
             }
         },
 		{
+            "label": "kubeadm vsphere",
+            "type": "shell",
+            "command": "${workspaceFolder}/scripts/prepare.sh vsphere vsphere-test-kubeadm",
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+		{
             "label": "k3s aws",
             "type": "shell",
             "command": "${workspaceFolder}/scripts/prepare.sh aws aws-ca-k8s",
