@@ -509,6 +509,10 @@ func StartServer(kubeClient types.ClientGenerator, c *types.Config) {
 		config.Listen = &c.Listen
 	}
 
+	if config.NodeGroup == nil {
+		config.NodeGroup = &c.Nodegroup
+	}
+
 	if config.MachineConfig == nil {
 		config.MachineConfig = &c.MachineConfig
 	}
@@ -519,6 +523,10 @@ func StartServer(kubeClient types.ClientGenerator, c *types.Config) {
 
 	if config.Plateform == nil {
 		config.Plateform = &c.Plateform
+	}
+
+	if len(*config.NodeGroup) == 0 {
+		glog.Fatal("Nodegroup is not defined")
 	}
 
 	if err = config.SetupCloudConfiguration(c.ProviderConfig); err != nil {

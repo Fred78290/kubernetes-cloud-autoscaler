@@ -37,7 +37,7 @@ func (v *externalgrpcServerApp) RegisterCloudProviderServer(server *grpc.Server)
 func (v *externalgrpcServerApp) doAutoProvision() error {
 	if !v.autoProvisionned {
 		nodegroupDef := &apigrpc.NodeGroupDef{
-			NodeGroupID:         v.appServer.configuration.NodeGroup,
+			NodeGroupID:         *v.appServer.configuration.NodeGroup,
 			MinSize:             int32(*v.appServer.configuration.MinNode),
 			MaxSize:             int32(*v.appServer.configuration.MaxNode),
 			IncludeExistingNode: true,

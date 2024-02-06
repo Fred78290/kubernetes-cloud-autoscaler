@@ -77,6 +77,7 @@ type Config struct {
 	UseExternalEtdc          bool
 	GrpcProvider             string
 	CloudProvider            string
+	Nodegroup                string
 	RequestTimeout           time.Duration
 	DeletionTimeout          time.Duration
 	MaxGracePeriod           time.Duration
@@ -240,7 +241,7 @@ type AutoScalerServerConfig struct {
 	CertPublicKey              string                          `json:"cert-public-key,omitempty"`                 // Optional to secure grcp channel
 	CertCA                     string                          `json:"cert-ca,omitempty"`                         // Optional to secure grcp channel
 	ServiceIdentifier          string                          `json:"secret"`                                    // Mandatory, secret Identifier, client must match this
-	NodeGroup                  string                          `json:"nodegroup"`                                 // Mandatory, the nodegroup
+	NodeGroup                  *string                         `json:"nodegroup"`                                 // Mandatory, the nodegroup
 	MinNode                    *int64                          `json:"minNode"`                                   // Mandatory, Min AutoScaler VM
 	MaxNode                    *int64                          `json:"maxNode"`                                   // Mandatory, Max AutoScaler VM
 	MaxPods                    *int64                          `json:"maxPods"`                                   // Mandatory, Max pod per node
@@ -430,6 +431,7 @@ func NewConfig() *Config {
 		UseExternalEtdc:          false,
 		GrpcProvider:             "grpc",
 		CloudProvider:            "",
+		Nodegroup:                "",
 		ExtDestinationEtcdSslDir: "/etc/etcd/ssl",
 		ExtSourceEtcdSslDir:      "/etc/etcd/ssl",
 		KubernetesPKISourceDir:   "/etc/kubernetes/pki",
@@ -485,6 +487,7 @@ func (cfg *Config) ParseFlags(args []string, version string) error {
 	app.Flag("distribution", "Which kubernetes distribution to use: kubeadm, k3s, rke2, external").Default(cfg.Distribution).EnumVar(&cfg.Distribution, providers.SupportedKubernetesDistribution...)
 	app.Flag("grpc-provider", "Which grpc provider to use: externalgrpc, grpc").Default(cfg.GrpcProvider).EnumVar(&cfg.GrpcProvider, "grpc", "externalgrpc")
 	app.Flag("cloud-provider", "Which controller manager used: external").Default(cfg.CloudProvider).EnumVar(&cfg.CloudProvider, "external", "")
+	app.Flag("nodegroup", "Autoscaler nodegroup name").Default(cfg.Nodegroup).StringVar(&cfg.Nodegroup)
 
 	// External Etcd
 	app.Flag("use-external-etcd", "Tell we use an external etcd service (overriden by config file if defined)").Default("false").BoolVar(&cfg.UseExternalEtdc)
