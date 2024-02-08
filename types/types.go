@@ -22,6 +22,7 @@ import (
 	apiextension "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	kubelet "k8s.io/kubelet/config/v1beta1"
 )
 
 const (
@@ -64,44 +65,49 @@ func MergeKubernetesLabel(labels ...KubernetesLabel) KubernetesLabel {
 }
 
 type Config struct {
-	APIServerURL             string
-	KubeConfig               string
-	ProviderConfig           string
-	MachineConfig            string
-	Listen                   string
-	ExtDestinationEtcdSslDir string
-	ExtSourceEtcdSslDir      string
-	KubernetesPKISourceDir   string
-	KubernetesPKIDestDir     string
-	Distribution             string
-	UseExternalEtdc          bool
-	GrpcProvider             string
-	CloudProvider            string
-	Nodegroup                string
-	RequestTimeout           time.Duration
-	DeletionTimeout          time.Duration
-	MaxGracePeriod           time.Duration
-	NodeReadyTimeout         time.Duration
-	Plateform                string
-	Config                   string
-	SaveLocation             string
-	DisplayVersion           bool
-	DebugMode                bool
-	LogFormat                string
-	LogLevel                 string
-	MinNode                  int64
-	MaxNode                  int64
-	MaxPods                  int64
-	MinCpus                  int64
-	MinMemory                int64
-	MaxCpus                  int64
-	MaxMemory                int64
-	ManagedNodeMinCpus       int64
-	ManagedNodeMinMemory     int64
-	ManagedNodeMaxCpus       int64
-	ManagedNodeMaxMemory     int64
-	ManagedNodeMinDiskSize   int64
-	ManagedNodeMaxDiskSize   int64
+	APIServerURL                  string
+	KubeConfig                    string
+	ProviderConfig                string
+	MachineConfig                 string
+	Listen                        string
+	ExtDestinationEtcdSslDir      string
+	ExtSourceEtcdSslDir           string
+	KubernetesPKISourceDir        string
+	KubernetesPKIDestDir          string
+	Distribution                  string
+	UseExternalEtdc               bool
+	UseCloudInitConfig            bool
+	CloudInitFileOwner            string
+	CloudInitFileMode             int
+	GrpcProvider                  string
+	CloudProvider                 string
+	Nodegroup                     string
+	RequestTimeout                time.Duration
+	DeletionTimeout               time.Duration
+	MaxGracePeriod                time.Duration
+	NodeReadyTimeout              time.Duration
+	Plateform                     string
+	Config                        string
+	SaveLocation                  string
+	DisplayVersion                bool
+	DebugMode                     bool
+	LogFormat                     string
+	LogLevel                      string
+	MinNode                       int64
+	MaxNode                       int64
+	MaxPods                       int64
+	MinCpus                       int64
+	MinMemory                     int64
+	MaxCpus                       int64
+	MaxMemory                     int64
+	ManagedNodeMinCpus            int64
+	ManagedNodeMinMemory          int64
+	ManagedNodeMaxCpus            int64
+	ManagedNodeMaxMemory          int64
+	ManagedNodeMinDiskSize        int64
+	ManagedNodeMaxDiskSize        int64
+	ImageCredentialProviderConfig string
+	ImageCredentialProviderBinDir string
 }
 
 func (c *Config) GetResourceLimiter() *ResourceLimiter {
@@ -173,18 +179,16 @@ type KubeJoinConfig struct {
 }
 
 type K3SJoinConfig struct {
-	Address                   string   `json:"address,omitempty"`
-	Token                     string   `json:"token,omitempty"`
-	ExtraCommands             []string `json:"extras-commands,omitempty"`
-	DatastoreEndpoint         string   `json:"datastore-endpoint,omitempty"`
-	DeleteCredentialsProvider bool     `json:"delete-credentials-provider,omitempty"`
+	Address           string   `json:"address,omitempty"`
+	Token             string   `json:"token,omitempty"`
+	ExtraCommands     []string `json:"extras-commands,omitempty"`
+	DatastoreEndpoint string   `json:"datastore-endpoint,omitempty"`
 }
 
 type RKE2JoinConfig struct {
-	Address                   string   `json:"address,omitempty"`
-	Token                     string   `json:"token,omitempty"`
-	ExtraCommands             []string `json:"extras-commands,omitempty"`
-	DeleteCredentialsProvider bool     `json:"delete-credentials-provider,omitempty"`
+	Address       string   `json:"address,omitempty"`
+	Token         string   `json:"token,omitempty"`
+	ExtraCommands []string `json:"extras-commands,omitempty"`
 }
 
 type ExternalJoinConfig struct {
@@ -226,45 +230,51 @@ type NodeGroupAutoscalingOptions struct {
 
 // AutoScalerServerConfig is contains configuration
 type AutoScalerServerConfig struct {
-	Distribution               *string                         `default:"kubeadm" json:"distribution"`
-	Plateform                  *string                         `default:"vsphere" json:"plateform"`
-	MachineConfig              *string                         `json:"machines"`
-	UseExternalEtdc            *bool                           `json:"use-external-etcd"`
-	CloudProvider              *string                         `json:"cloud-provider"`
-	GrpcProvider               *string                         `json:"grpc-provider"`
-	ExtDestinationEtcdSslDir   string                          `default:"/etc/etcd/ssl" json:"dst-etcd-ssl-dir"`
-	ExtSourceEtcdSslDir        string                          `default:"/etc/etcd/ssl" json:"src-etcd-ssl-dir"`
-	KubernetesPKISourceDir     string                          `default:"/etc/kubernetes/pki" json:"kubernetes-pki-srcdir"`
-	KubernetesPKIDestDir       string                          `default:"/etc/kubernetes/pki" json:"kubernetes-pki-dstdir"`
-	Listen                     *string                         `json:"listen"`                                    // Mandatory, Address to listen
-	CertPrivateKey             string                          `json:"cert-private-key,omitempty"`                // Optional to secure grcp channel
-	CertPublicKey              string                          `json:"cert-public-key,omitempty"`                 // Optional to secure grcp channel
-	CertCA                     string                          `json:"cert-ca,omitempty"`                         // Optional to secure grcp channel
-	ServiceIdentifier          string                          `json:"secret"`                                    // Mandatory, secret Identifier, client must match this
-	NodeGroup                  *string                         `json:"nodegroup"`                                 // Mandatory, the nodegroup
-	MinNode                    *int64                          `json:"minNode"`                                   // Mandatory, Min AutoScaler VM
-	MaxNode                    *int64                          `json:"maxNode"`                                   // Mandatory, Max AutoScaler VM
-	MaxPods                    *int64                          `json:"maxPods"`                                   // Mandatory, Max pod per node
-	MaxCreatedNodePerCycle     int                             `json:"maxNode-per-cycle" default:"2"`             // Optional, the max number VM to create in //
-	ProvisionnedNodeNamePrefix string                          `default:"autoscaled" json:"node-name-prefix"`     // Optional, the created node name prefix
-	ManagedNodeNamePrefix      string                          `default:"worker" json:"managed-name-prefix"`      // Optional, the created node name prefix
-	ControlPlaneNamePrefix     string                          `default:"master" json:"controlplane-name-prefix"` // Optional, the created node name prefix
-	NodePrice                  float64                         `json:"nodePrice"`                                 // Optional, The VM price
-	PodPrice                   float64                         `json:"podPrice"`                                  // Optional, The pod price
-	KubeAdm                    *KubeJoinConfig                 `json:"kubeadm"`
-	K3S                        *K3SJoinConfig                  `json:"k3s,omitempty"`
-	RKE2                       *RKE2JoinConfig                 `json:"rke2,omitempty"`
-	External                   *ExternalJoinConfig             `json:"external,omitempty"`
-	DefaultMachineType         string                          `default:"standard" json:"default-machine"`
-	NodeLabels                 KubernetesLabel                 `json:"nodeLabels"`
-	CloudInit                  cloudinit.CloudInit             `json:"cloud-init"` // Optional, The cloud init conf file
-	Optionals                  *AutoScalerServerOptionals      `json:"optionals"`
-	ManagedNodeResourceLimiter *ResourceLimiter                `json:"managednodes-limits"`
-	SSH                        *sshutils.AutoScalerServerSSH   `json:"ssh-infos"`
-	AutoScalingOptions         *NodeGroupAutoscalingOptions    `json:"autoscaling-options,omitempty"`
-	DebugMode                  *bool                           `json:"debug,omitempty"`
-	providerConfiguration      providers.ProviderConfiguration `json:"-"`
-	autoScalingOptions         *apigrpc.AutoscalingOptions     `json:"-"`
+	Distribution                  *string                           `default:"kubeadm" json:"distribution"`
+	Plateform                     *string                           `default:"vsphere" json:"plateform"`
+	MachineConfig                 *string                           `json:"machines"`
+	ImageCredentialProviderConfig *string                           `json:"image-credential-provider-config"`
+	ImageCredentialProviderBinDir *string                           `json:"image-credential-provider-bin-dir"`
+	UseExternalEtdc               *bool                             `json:"use-external-etcd"`
+	UseCloudInitConfig            *bool                             `json:"use-cloudinit-config"`
+	CloudInitFileOwner            *string                           `json:"cloudinit-file-owner"`
+	CloudInitFileMode             *uint                             `json:"cloudinit-file-mode"`
+	CloudProvider                 *string                           `json:"cloud-provider"`
+	GrpcProvider                  *string                           `json:"grpc-provider"`
+	ExtDestinationEtcdSslDir      string                            `default:"/etc/etcd/ssl" json:"dst-etcd-ssl-dir"`
+	ExtSourceEtcdSslDir           string                            `default:"/etc/etcd/ssl" json:"src-etcd-ssl-dir"`
+	KubernetesPKISourceDir        string                            `default:"/etc/kubernetes/pki" json:"kubernetes-pki-srcdir"`
+	KubernetesPKIDestDir          string                            `default:"/etc/kubernetes/pki" json:"kubernetes-pki-dstdir"`
+	Listen                        *string                           `json:"listen"`                                    // Mandatory, Address to listen
+	CertPrivateKey                string                            `json:"cert-private-key,omitempty"`                // Optional to secure grcp channel
+	CertPublicKey                 string                            `json:"cert-public-key,omitempty"`                 // Optional to secure grcp channel
+	CertCA                        string                            `json:"cert-ca,omitempty"`                         // Optional to secure grcp channel
+	ServiceIdentifier             string                            `json:"secret"`                                    // Mandatory, secret Identifier, client must match this
+	NodeGroup                     *string                           `json:"nodegroup"`                                 // Mandatory, the nodegroup
+	MinNode                       *int64                            `json:"minNode"`                                   // Mandatory, Min AutoScaler VM
+	MaxNode                       *int64                            `json:"maxNode"`                                   // Mandatory, Max AutoScaler VM
+	MaxPods                       *int64                            `json:"maxPods"`                                   // Mandatory, Max pod per node
+	MaxCreatedNodePerCycle        int                               `json:"maxNode-per-cycle" default:"2"`             // Optional, the max number VM to create in //
+	ProvisionnedNodeNamePrefix    string                            `default:"autoscaled" json:"node-name-prefix"`     // Optional, the created node name prefix
+	ManagedNodeNamePrefix         string                            `default:"worker" json:"managed-name-prefix"`      // Optional, the created node name prefix
+	ControlPlaneNamePrefix        string                            `default:"master" json:"controlplane-name-prefix"` // Optional, the created node name prefix
+	NodePrice                     float64                           `json:"nodePrice"`                                 // Optional, The VM price
+	PodPrice                      float64                           `json:"podPrice"`                                  // Optional, The pod price
+	KubeAdm                       *KubeJoinConfig                   `json:"kubeadm"`
+	K3S                           *K3SJoinConfig                    `json:"k3s,omitempty"`
+	RKE2                          *RKE2JoinConfig                   `json:"rke2,omitempty"`
+	External                      *ExternalJoinConfig               `json:"external,omitempty"`
+	DefaultMachineType            string                            `default:"standard" json:"default-machine"`
+	NodeLabels                    KubernetesLabel                   `json:"nodeLabels"`
+	CloudInit                     cloudinit.CloudInit               `json:"cloud-init"` // Optional, The cloud init conf file
+	Optionals                     *AutoScalerServerOptionals        `json:"optionals"`
+	ManagedNodeResourceLimiter    *ResourceLimiter                  `json:"managednodes-limits"`
+	SSH                           *sshutils.AutoScalerServerSSH     `json:"ssh-infos"`
+	AutoScalingOptions            *NodeGroupAutoscalingOptions      `json:"autoscaling-options,omitempty"`
+	DebugMode                     *bool                             `json:"debug,omitempty"`
+	CredentialProviderConfig      *kubelet.CredentialProviderConfig `json:"credential-provider-config,omitempty"`
+	providerConfiguration         providers.ProviderConfiguration   `json:"-"`
+	autoScalingOptions            *apigrpc.AutoscalingOptions       `json:"-"`
 }
 
 func (limits *ResourceLimiter) MergeRequestResourceLimiter(limiter *apigrpc.ResourceLimiter) {
@@ -361,6 +371,8 @@ func (conf *AutoScalerServerConfig) SetupCloudConfiguration(configFile string) e
 		if conf.Plateform == nil {
 			conf.providerConfiguration, err = vsphere.NewVSphereProviderConfiguration(configFile)
 		} else {
+			glog.Infof("Load %s provider config", *conf.Plateform)
+
 			switch *conf.Plateform {
 			case providers.AwsCloudProviderName:
 				conf.providerConfiguration, err = aws.NewAwsProviderConfiguration(configFile)
@@ -377,6 +389,21 @@ func (conf *AutoScalerServerConfig) SetupCloudConfiguration(configFile string) e
 	}
 
 	return err
+}
+
+func (conf *AutoScalerServerConfig) KubernetesDistribution() string {
+	if conf.Distribution == nil {
+		return providers.KubeAdmDistributionName
+	}
+	return *conf.Distribution
+}
+
+func (conf *AutoScalerServerConfig) UseCloudInitToConfigure() bool {
+	if conf.UseCloudInitConfig == nil {
+		return false
+	}
+
+	return *conf.UseCloudInitConfig
 }
 
 func (conf *AutoScalerServerConfig) UseControllerManager() bool {
@@ -428,6 +455,9 @@ func NewConfig() *Config {
 		Listen:                   "unix:///var/run/autoscaler.sock",
 		Distribution:             providers.KubeAdmDistributionName,
 		UseExternalEtdc:          false,
+		UseCloudInitConfig:       false,
+		CloudInitFileOwner:       "root:adm",
+		CloudInitFileMode:        0644,
 		GrpcProvider:             "grpc",
 		CloudProvider:            "",
 		Nodegroup:                "",
@@ -487,6 +517,9 @@ func (cfg *Config) ParseFlags(args []string, version string) error {
 	app.Flag("grpc-provider", "Which grpc provider to use: externalgrpc, grpc").Default(cfg.GrpcProvider).EnumVar(&cfg.GrpcProvider, "grpc", "externalgrpc")
 	app.Flag("cloud-provider", "Which controller manager used: external").Default(cfg.CloudProvider).EnumVar(&cfg.CloudProvider, "external", "")
 	app.Flag("nodegroup", "Autoscaler nodegroup name").Default(cfg.Nodegroup).StringVar(&cfg.Nodegroup)
+	app.Flag("use-cloudinit-config", "Tell we use cloud-init mechanism to configure kubernetes service (overriden by config file if defined)").Default("false").BoolVar(&cfg.UseCloudInitConfig)
+	app.Flag("cloudinit-file-owner", "Tell owner of cloud-init file to configure kubernetes service (overriden by config file if defined)").Default(cfg.CloudInitFileOwner).StringVar(&cfg.CloudInitFileOwner)
+	app.Flag("cloudinit-file-mode", "Tell file mode of cloud-init file to configure kubernetes service (overriden by config file if defined)").Default(fmt.Sprintf("%d", cfg.CloudInitFileMode)).IntVar(&cfg.CloudInitFileMode)
 
 	// External Etcd
 	app.Flag("use-external-etcd", "Tell we use an external etcd service (overriden by config file if defined)").Default("false").BoolVar(&cfg.UseExternalEtdc)
@@ -525,6 +558,9 @@ func (cfg *Config) ParseFlags(args []string, version string) error {
 
 	app.Flag("machines", "The machine specs").Default(cfg.MachineConfig).StringVar(&cfg.MachineConfig)
 	app.Flag("save", "The file to persists the server").Default(cfg.SaveLocation).StringVar(&cfg.SaveLocation)
+
+	app.Flag("image-credential-provider-config", "The path to the credential provider plugin config file").Default(cfg.ImageCredentialProviderConfig).StringVar(&cfg.ImageCredentialProviderConfig)
+	app.Flag("image-credential-provider-bin-dir", "The path to the directory where credential provider plugin binaries are located").Default(cfg.ImageCredentialProviderBinDir).StringVar(&cfg.ImageCredentialProviderBinDir)
 
 	_, err := app.Parse(args)
 	if err != nil {

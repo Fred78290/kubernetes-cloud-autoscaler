@@ -57,7 +57,7 @@ type ManagedNodeSpec struct {
 	AllowDeployment bool                 `json:"allowDeployment,omitempty"`
 	InstanceType    string               `default:"t2.micro" json:"instanceType"`
 	DiskSizeInMB    int                  `default:"10240" json:"diskSizeInMB"`
-	DiskType        int                  `default:"gp3" json:"diskType"`
+	DiskType        string               `default:"gp3" json:"diskType"`
 	Labels          []string             `json:"labels,omitempty"`
 	Annotations     []string             `json:"annotations,omitempty"`
 	Networking      ManagedNetworkConfig `json:"network,omitempty"`

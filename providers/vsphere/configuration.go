@@ -303,6 +303,10 @@ func (handler *vsphereHandler) InstanceMaxPods(desiredMaxPods int) (int, error) 
 	return desiredMaxPods, nil
 }
 
+func (handler *vsphereHandler) PrivateDNSName() (string, error) {
+	return handler.instanceName, nil
+}
+
 func (handler *vsphereHandler) RegisterDNS(address string) error {
 	return nil
 }

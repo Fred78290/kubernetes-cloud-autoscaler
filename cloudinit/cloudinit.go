@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -216,51 +217,22 @@ func (input *CloudInitInput) BuildVendorData() CloudInit {
 }
 
 func (input *CloudInitInput) BuildUserData(netplan string) (vendorData CloudInit, err error) {
-	var out []byte
-
 	if netplan == "" {
 		netplan = "51-custom.yaml"
 	}
 
-	if out, err = yaml.Marshal(CloudInit{"network": input.Network}); err == nil {
-		vendorData = CloudInit{
-			"package_update":  input.AllowUpgrade,
-			"package_upgrade": input.AllowUpgrade,
-			"timezone":        input.TimeZone,
-		}
-
-		for k, v := range input.CloudInit {
-			vendorData[k] = v
-		}
-
-		witeFile := CloudInit{
-			"encoding":    "b64",
-			"owner":       "root:root",
-			"content":     base64.StdEncoding.EncodeToString(out),
-			"path":        fmt.Sprintf("/etc/netplan/%s", netplan),
-			"permissions": "0644",
-		}
-
-		var oarr []any
-
-		if runcmd, found := vendorData["runcmd"]; found {
-			oarr = runcmd.([]any)
-			oarr = append(oarr, "netplan apply")
-		} else {
-			oarr = []any{"netplan apply"}
-		}
-
-		vendorData["runcmd"] = oarr
-
-		if write_files, found := vendorData["write_files"]; found {
-			oarr = write_files.([]any)
-			oarr = append(oarr, witeFile)
-		} else {
-			oarr = []any{witeFile}
-		}
-
-		vendorData["write_files"] = oarr
+	vendorData = CloudInit{
+		"package_update":  input.AllowUpgrade,
+		"package_upgrade": input.AllowUpgrade,
+		"timezone":        input.TimeZone,
 	}
+
+	for k, v := range input.CloudInit {
+		vendorData[k] = v
+	}
+
+	vendorData.AddRunCommand("netplan apply")
+	err = vendorData.AddObjectToWriteFile(CloudInit{"network": input.Network}, fmt.Sprintf("/etc/netplan/%s", netplan), "root:root", 0644)
 
 	return
 }
@@ -304,4 +276,90 @@ func (input *CloudInitInput) BuildGuestInfos() (GuestInfos, error) {
 	}
 
 	return guestInfos, nil
+}
+
+func (c CloudInit) Clone() (copy CloudInit, err error) {
+	copy = make(CloudInit)
+	err = constantes.Copy(copy, c)
+
+	return
+}
+
+func (c CloudInit) AddFileToWriteFile(sourceFile, dstDir, owner string) error {
+	if content, err := os.ReadFile(sourceFile); err != nil {
+		return err
+	} else if info, err := os.Stat(sourceFile); err != nil {
+		return err
+	} else {
+		c.AddToWriteFile(content, path.Join(dstDir, path.Base(sourceFile)), owner, uint(info.Mode()))
+	}
+
+	return nil
+}
+
+func (c CloudInit) AddDirectoryToWriteFile(srcDir, dstDir, owner string) error {
+	if files, err := os.ReadDir(srcDir); err != nil {
+		return err
+	} else {
+		for _, file := range files {
+			if file.IsDir() {
+				err = c.AddDirectoryToWriteFile(path.Join(srcDir, file.Name()), path.Join(dstDir, file.Name()), owner)
+			} else {
+				err = c.AddFileToWriteFile(path.Join(srcDir, file.Name()), dstDir, owner)
+			}
+
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (c CloudInit) AddObjectToWriteFile(object any, destination, owner string, permissions uint) error {
+	if out, err := yaml.Marshal(object); err != nil {
+		return err
+	} else {
+		c.AddToWriteFile(out, destination, owner, permissions)
+	}
+
+	return nil
+}
+func (c CloudInit) AddToWriteFile(content []byte, destination, owner string, permissions uint) {
+	var oarr []any
+
+	fileEntry := map[string]any{
+		"encoding":    "b64",
+		"owner":       owner,
+		"path":        destination,
+		"permissions": permissions,
+		"content":     base64.StdEncoding.EncodeToString(content),
+	}
+
+	if write_files, found := c["write_files"]; found {
+		oarr = write_files.([]any)
+		oarr = append(oarr, fileEntry)
+	} else {
+		oarr = []any{fileEntry}
+	}
+
+	c["write_files"] = oarr
+}
+
+func (c CloudInit) AddTextToWriteFile(text string, destination, owner string, permissions uint) {
+	c.AddToWriteFile([]byte(text), destination, owner, permissions)
+}
+
+func (c CloudInit) AddRunCommand(command ...string) {
+	var oarr []string
+
+	if runcmd, found := c["runcmd"]; found {
+		oarr = runcmd.([]string)
+		oarr = append(oarr, command...)
+	} else {
+		oarr = command
+	}
+
+	c["runcmd"] = oarr
 }

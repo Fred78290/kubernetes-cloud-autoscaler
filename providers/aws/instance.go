@@ -35,12 +35,13 @@ type instanceStatus struct {
 // Ec2Instance Running instance
 type Ec2Instance struct {
 	*awsWrapper
-	client       *ec2.EC2
-	InstanceName string
-	InstanceID   *string
-	Region       *string
-	Zone         *string
-	AddressIP    *string
+	client         *ec2.EC2
+	InstanceName   string
+	PrivateDNSName string
+	InstanceID     *string
+	Region         *string
+	Zone           *string
+	AddressIP      *string
 }
 
 func userHomeDir() string {
@@ -429,6 +430,7 @@ func (instance *Ec2Instance) Create(nodeIndex int, nodeGroup, instanceType strin
 	instance.Region = aws.String(instance.awsWrapper.Region)
 	instance.Zone = result.Instances[0].Placement.AvailabilityZone
 	instance.InstanceID = result.Instances[0].InstanceId
+	instance.PrivateDNSName = *result.Instances[0].PrivateDnsName
 
 	return nil
 }

@@ -46,7 +46,7 @@ type AutoScalerServerApp struct {
 	apigrpc.UnimplementedCloudProviderServiceServer
 	apigrpc.UnimplementedNodeGroupServiceServer
 	apigrpc.UnimplementedPricingModelServiceServer
-	Machines        providers.MachineCharacteristics      `default:"{\"standard\": {}}" json:"machines"` // Mandatory, Available machines
+	machines        providers.MachineCharacteristics
 	ResourceLimiter *types.ResourceLimiter                `json:"limits"`
 	Groups          map[string]*AutoScalerServerNodeGroup `json:"groups"`
 	NodesDefinition []*apigrpc.NodeGroupDef               `json:"nodedefs"`
@@ -92,7 +92,7 @@ type nodegroupCreateInput struct {
 
 func (s *AutoScalerServerApp) newNodeGroup(input *nodegroupCreateInput) (*AutoScalerServerNodeGroup, error) {
 
-	machine := s.Machines[input.machineType]
+	machine := s.machines[input.machineType]
 
 	if machine == nil {
 		return nil, fmt.Errorf(constantes.ErrMachineTypeNotFound, input.machineType)
@@ -124,7 +124,7 @@ func (s *AutoScalerServerApp) newNodeGroup(input *nodegroupCreateInput) (*AutoSc
 		SystemLabels:               input.systemLabels,
 		AutoProvision:              input.autoProvision,
 		configuration:              s.configuration,
-		machines:                   s.Machines,
+		machines:                   s.machines,
 	}
 
 	s.Groups[input.nodeGroupID] = nodeGroup
@@ -320,7 +320,7 @@ func (s *AutoScalerServerApp) Load(fileName string) error {
 
 func (s *AutoScalerServerApp) getMachineType(instanceType string) *providers.MachineCharacteristic {
 
-	if machineSpec, ok := s.Machines[instanceType]; ok {
+	if machineSpec, ok := s.machines[instanceType]; ok {
 		return machineSpec
 	}
 
@@ -510,6 +510,14 @@ func StartServer(kubeClient types.ClientGenerator, c *types.Config) {
 		config.NodeGroup = &c.Nodegroup
 	}
 
+	if config.ImageCredentialProviderConfig == nil {
+		config.ImageCredentialProviderConfig = &c.ImageCredentialProviderConfig
+	}
+
+	if config.ImageCredentialProviderBinDir == nil {
+		config.ImageCredentialProviderBinDir = &c.ImageCredentialProviderBinDir
+	}
+
 	if config.MachineConfig == nil {
 		config.MachineConfig = &c.MachineConfig
 	}
@@ -520,6 +528,14 @@ func StartServer(kubeClient types.ClientGenerator, c *types.Config) {
 
 	if config.Plateform == nil {
 		config.Plateform = &c.Plateform
+	}
+
+	if config.UseCloudInitConfig == nil {
+		config.UseCloudInitConfig = &c.UseCloudInitConfig
+	}
+
+	if config.CloudInitFileOwner == nil {
+		config.CloudInitFileOwner = &c.CloudInitFileOwner
 	}
 
 	if len(*config.NodeGroup) == 0 {
@@ -554,6 +570,8 @@ func StartServer(kubeClient types.ClientGenerator, c *types.Config) {
 	default:
 		glog.Fatalf("Unsupported kubernetes distribution: %s", *config.Distribution)
 	}
+
+	glog.Infof("Use %s kubernetes distribution", *config.Distribution)
 
 	if config.MinNode == nil {
 		config.MinNode = &c.MinNode
@@ -612,7 +630,7 @@ func StartServer(kubeClient types.ClientGenerator, c *types.Config) {
 			ResourceLimiter: c.GetResourceLimiter(),
 			configuration:   &config,
 			Groups:          make(map[string]*AutoScalerServerNodeGroup),
-			Machines:        machines,
+			machines:        machines,
 		}
 
 		autoScalerServer.ResourceLimiter.SetMaxValue64(constantes.ResourceNameNodes, *config.MaxNode)
@@ -628,7 +646,7 @@ func StartServer(kubeClient types.ClientGenerator, c *types.Config) {
 			kubeClient:     kubeClient,
 			requestTimeout: c.RequestTimeout,
 			configuration:  &config,
-			Machines:       machines,
+			machines:       machines,
 		}
 
 		if err := autoScalerServer.Load(phSavedState); err != nil {

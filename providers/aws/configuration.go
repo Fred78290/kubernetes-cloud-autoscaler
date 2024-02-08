@@ -310,6 +310,10 @@ func (handler *awsHandler) InstanceMaxPods(desiredMaxPods int) (int, error) {
 	}
 }
 
+func (handler *awsHandler) PrivateDNSName() (string, error) {
+	return handler.runningInstance.PrivateDNSName, nil
+}
+
 func (handler *awsHandler) RegisterDNS(address string) error {
 	var err error
 
@@ -486,13 +490,14 @@ func (wrapper *awsWrapper) GetEc2Instance(instanceName string) (*Ec2Instance, er
 					}
 
 					return &Ec2Instance{
-						awsWrapper:   wrapper,
-						client:       client,
-						InstanceName: instanceName,
-						InstanceID:   instance.InstanceId,
-						Region:       &wrapper.Region,
-						Zone:         instance.Placement.AvailabilityZone,
-						AddressIP:    address,
+						awsWrapper:     wrapper,
+						client:         client,
+						InstanceName:   instanceName,
+						PrivateDNSName: *instance.PrivateDnsName,
+						InstanceID:     instance.InstanceId,
+						Region:         &wrapper.Region,
+						Zone:           instance.Placement.AvailabilityZone,
+						AddressIP:      address,
 					}, nil
 				}
 			}

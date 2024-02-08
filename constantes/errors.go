@@ -276,6 +276,9 @@ const (
 
 	// ErrMachineSpecsNotFound err msg
 	ErrMachineSpecsNotFound = "machine specs could not be loaded: %s, %v"
+
+	// ErrImageCredentialProviderConfigNotFound err msg
+	ErrImageCredentialProviderConfigNotFound = "credential provider plugin config file could not be loaded: %s, %v"
 )
 
 //update status managed node %s failed, reason: %v

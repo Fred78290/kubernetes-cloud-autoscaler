@@ -281,6 +281,10 @@ func (handler *desktopHandler) UUID(name string) (string, error) {
 	return handler.desktopWrapper.UUID(name)
 }
 
+func (handler *desktopHandler) PrivateDNSName() (string, error) {
+	return handler.instanceName, nil
+}
+
 func (handler *desktopHandler) RegisterDNS(address string) error {
 	return nil
 }

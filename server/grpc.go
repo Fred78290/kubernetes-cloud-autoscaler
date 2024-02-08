@@ -225,9 +225,9 @@ func (s *grpcServerApp) GetAvailableMachineTypes(ctx context.Context, request *a
 		return nil, fmt.Errorf(constantes.ErrMismatchingProvider)
 	}
 
-	machineTypes := make([]string, 0, len(s.appServer.Machines))
+	machineTypes := make([]string, 0, len(s.appServer.machines))
 
-	for n := range s.appServer.Machines {
+	for n := range s.appServer.machines {
 		machineTypes = append(machineTypes, n)
 	}
 
@@ -261,7 +261,7 @@ func (s *grpcServerApp) NewNodeGroup(ctx context.Context, request *apigrpc.NewNo
 		instanceType = s.appServer.configuration.DefaultMachineType
 	}
 
-	machineType := s.appServer.Machines[instanceType]
+	machineType := s.appServer.machines[instanceType]
 
 	if machineType == nil {
 		glog.Errorf(constantes.ErrMachineTypeNotFound, request.GetMachineType())

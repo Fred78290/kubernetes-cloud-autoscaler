@@ -199,6 +199,10 @@ func (handler *multipassHandler) InstanceMaxPods(desiredMaxPods int) (int, error
 	return desiredMaxPods, nil
 }
 
+func (handler *multipassHandler) PrivateDNSName() (string, error) {
+	return handler.instanceName, nil
+}
+
 func (handler *multipassHandler) RegisterDNS(address string) error {
 	return nil
 }
