@@ -77,6 +77,27 @@ type AutoScalerServerNodeGroup struct {
 	machines                   providers.MachineCharacteristics
 }
 
+func NewAutoScalerServerNodeGroup(s *nodegroupCreateInput) (nodeGroup *AutoScalerServerNodeGroup) {
+	return &AutoScalerServerNodeGroup{
+		ServiceIdentifier:          s.configuration.ServiceIdentifier,
+		ProvisionnedNodeNamePrefix: s.configuration.ProvisionnedNodeNamePrefix,
+		ManagedNodeNamePrefix:      s.configuration.ManagedNodeNamePrefix,
+		ControlPlaneNamePrefix:     s.configuration.ControlPlaneNamePrefix,
+		NodeGroupIdentifier:        s.nodeGroupID,
+		InstanceType:               s.machineType,
+		Status:                     NodegroupNotCreated,
+		pendingNodes:               make(map[string]*AutoScalerServerNode),
+		Nodes:                      make(map[string]*AutoScalerServerNode),
+		MinNodeSize:                s.minNodeSize,
+		MaxNodeSize:                s.maxNodeSize,
+		NodeLabels:                 s.labels,
+		SystemLabels:               s.systemLabels,
+		AutoProvision:              s.autoProvision,
+		configuration:              s.configuration,
+		machines:                   s.machines,
+	}
+}
+
 func CreateLabelOrAnnotation(values []string) types.KubernetesLabel {
 	result := types.KubernetesLabel{}
 
@@ -289,6 +310,9 @@ func (g *AutoScalerServerNodeGroup) addManagedNode(crd *v1alpha1.ManagedNode) (*
 			diskSize = utils.MaxInt(utils.MinInt(diskSize, resLimit.GetMaxValue(constantes.ResourceNameManagedNodeDisk, types.ManagedNodeMaxDiskSize)),
 				resLimit.GetMinValue(constantes.ResourceNameManagedNodeDisk, types.ManagedNodeMinDiskSize))
 
+			// Change network if asked
+			providerHandler.ConfigureNetwork(crd.Spec.Networking)
+
 			node := &AutoScalerServerNode{
 				NodeGroup:        g.NodeGroupIdentifier,
 				NodeName:         nodeName,
@@ -303,12 +327,10 @@ func (g *AutoScalerServerNodeGroup) addManagedNode(crd *v1alpha1.ManagedNode) (*
 				ExtraLabels:      CreateLabelOrAnnotation(crd.Spec.Labels),
 				ExtraAnnotations: CreateLabelOrAnnotation(crd.Spec.Annotations),
 				CRDUID:           crd.GetUID(),
+				IPAddress:        providerHandler.InstancePrimaryAddressIP(),
 				providerHandler:  providerHandler,
 				serverConfig:     g.configuration,
 			}
-
-			// Change network if asked
-			providerHandler.ConfigureNetwork(crd.Spec.Networking)
 
 			annoteMaster := ""
 
@@ -379,6 +401,7 @@ func (g *AutoScalerServerNodeGroup) prepareNodes(c types.ClientGenerator, delta 
 				ExtraLabels:      extraLabels,
 				ControlPlaneNode: false,
 				AllowDeployment:  true,
+				IPAddress:        providerHandler.InstancePrimaryAddressIP(),
 				providerHandler:  providerHandler,
 				serverConfig:     g.configuration,
 			}
@@ -811,10 +834,11 @@ func (g *AutoScalerServerNodeGroup) deleteNodeByName(c types.ClientGenerator, no
 	return fmt.Errorf(constantes.ErrNodeNotFoundInNodeGroup, nodeName, g.NodeGroupIdentifier)
 }
 
-func (g *AutoScalerServerNodeGroup) setConfiguration(config *types.AutoScalerServerConfig) (err error) {
+func (g *AutoScalerServerNodeGroup) setConfiguration(config *types.AutoScalerServerConfig, machines providers.MachineCharacteristics) (err error) {
 	glog.Debugf("AutoScalerServerNodeGroup::setConfiguration, nodeGroupID: %s", g.NodeGroupIdentifier)
 
 	g.configuration = config
+	g.machines = machines
 
 	for _, node := range g.AllNodes() {
 		if err = node.setServerConfiguration(config); err != nil {

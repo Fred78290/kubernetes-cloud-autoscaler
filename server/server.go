@@ -88,6 +88,8 @@ type nodegroupCreateInput struct {
 	labels        types.KubernetesLabel
 	systemLabels  types.KubernetesLabel
 	autoProvision bool
+	configuration *types.AutoScalerServerConfig
+	machines      providers.MachineCharacteristics
 }
 
 func (s *AutoScalerServerApp) newNodeGroup(input *nodegroupCreateInput) (*AutoScalerServerNodeGroup, error) {
@@ -105,27 +107,12 @@ func (s *AutoScalerServerApp) newNodeGroup(input *nodegroupCreateInput) (*AutoSc
 	}
 
 	input.labels = types.MergeKubernetesLabel(s.configuration.NodeLabels, input.labels)
+	input.configuration = s.configuration
+	input.machines = s.machines
 
 	glog.Infof("New node group, ID: %s minSize: %d, maxSize: %d, machineType: %s, node labels: %v, %v", input.nodeGroupID, input.minNodeSize, input.maxNodeSize, input.machineType, input.labels, input.systemLabels)
 
-	nodeGroup := &AutoScalerServerNodeGroup{
-		ServiceIdentifier:          s.configuration.ServiceIdentifier,
-		ProvisionnedNodeNamePrefix: s.configuration.ProvisionnedNodeNamePrefix,
-		ManagedNodeNamePrefix:      s.configuration.ManagedNodeNamePrefix,
-		ControlPlaneNamePrefix:     s.configuration.ControlPlaneNamePrefix,
-		NodeGroupIdentifier:        input.nodeGroupID,
-		InstanceType:               input.machineType,
-		Status:                     NodegroupNotCreated,
-		pendingNodes:               make(map[string]*AutoScalerServerNode),
-		Nodes:                      make(map[string]*AutoScalerServerNode),
-		MinNodeSize:                input.minNodeSize,
-		MaxNodeSize:                input.maxNodeSize,
-		NodeLabels:                 input.labels,
-		SystemLabels:               input.systemLabels,
-		AutoProvision:              input.autoProvision,
-		configuration:              s.configuration,
-		machines:                   s.machines,
-	}
+	nodeGroup := NewAutoScalerServerNodeGroup(input)
 
 	s.Groups[input.nodeGroupID] = nodeGroup
 
@@ -218,6 +205,8 @@ func (s *AutoScalerServerApp) doAutoProvision() error {
 					labels:        labels,
 					systemLabels:  systemLabels,
 					autoProvision: true,
+					configuration: s.configuration,
+					machines:      s.machines,
 				}
 
 				if _, err = s.newNodeGroup(&input); err != nil {
@@ -436,6 +425,10 @@ func (s *AutoScalerServerApp) run(config *types.AutoScalerServerConfig) {
 		}
 	}); err != nil {
 		glog.Fatalf("failed to start server: %v", err)
+	} else if phSaveState {
+		if err = s.Save(phSavedState); err != nil {
+			log.Fatalf(constantes.ErrFailedToSaveServerState, err)
+		}
 	}
 }
 

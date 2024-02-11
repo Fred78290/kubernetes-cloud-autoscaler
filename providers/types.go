@@ -96,6 +96,7 @@ type ProviderHandler interface {
 	GetTopologyLabels() map[string]string
 	InstanceCreate(input *InstanceCreateInput) (string, error)
 	InstanceWaitReady(callback CallbackWaitSSHReady) (string, error)
+	InstancePrimaryAddressIP() string
 	InstanceID() (string, error)
 	InstanceAutoStart() error
 	InstancePowerOn() error

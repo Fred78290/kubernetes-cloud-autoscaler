@@ -279,8 +279,7 @@ func (input *CloudInitInput) BuildGuestInfos() (GuestInfos, error) {
 }
 
 func (c CloudInit) Clone() (copy CloudInit, err error) {
-	copy = make(CloudInit)
-	err = constantes.Copy(copy, c)
+	err = constantes.Copy(&copy, c)
 
 	return
 }
@@ -352,13 +351,18 @@ func (c CloudInit) AddTextToWriteFile(text string, destination, owner string, pe
 }
 
 func (c CloudInit) AddRunCommand(command ...string) {
-	var oarr []string
+	var oarr []any
 
 	if runcmd, found := c["runcmd"]; found {
-		oarr = runcmd.([]string)
-		oarr = append(oarr, command...)
+		v := runcmd.([]any)
+		oarr = make([]any, 0, len(command)+len(v))
+		oarr = append(oarr, v...)
 	} else {
-		oarr = command
+		oarr = make([]any, 0, len(command))
+	}
+
+	for _, cmd := range command {
+		oarr = append(oarr, cmd)
 	}
 
 	c["runcmd"] = oarr

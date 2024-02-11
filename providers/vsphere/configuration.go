@@ -206,6 +206,10 @@ func (handler *vsphereHandler) InstanceWaitReady(callback providers.CallbackWait
 	}
 }
 
+func (handler *vsphereHandler) InstancePrimaryAddressIP() string {
+	return handler.network.PrimaryAddressIP()
+}
+
 func (handler *vsphereHandler) InstanceID() (string, error) {
 	if handler.instanceName == "" {
 		return "", fmt.Errorf(constantes.ErrInstanceIsNotAttachedToCloudProvider)
@@ -335,7 +339,7 @@ func (wrapper *vsphereWrapper) AttachInstance(instanceName string, nodeIndex int
 	} else {
 		return &vsphereHandler{
 			vsphereWrapper: wrapper,
-			network:        newVSphereNetwork(&wrapper.Network),
+			network:        newVSphereNetwork(&wrapper.Network, nodeIndex),
 			instanceName:   instanceName,
 			instanceID:     vmuuid,
 			nodeIndex:      nodeIndex,
@@ -351,7 +355,7 @@ func (wrapper *vsphereWrapper) CreateInstance(instanceName, instanceType string,
 
 	return &vsphereHandler{
 		vsphereWrapper: wrapper,
-		network:        newVSphereNetwork(&wrapper.Network),
+		network:        newVSphereNetwork(&wrapper.Network, nodeIndex),
 		instanceType:   instanceType,
 		instanceName:   instanceName,
 		nodeIndex:      nodeIndex,

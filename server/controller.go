@@ -179,9 +179,10 @@ func (c *Controller) waitCRDAccepted() error {
 			}
 
 			for _, condition := range crd.Status.Conditions {
-				if condition.Type == apiextensionv1.Established &&
-					condition.Status == apiextensionv1.ConditionTrue {
-					return true, nil
+				if condition.Type == apiextensionv1.Established {
+					if condition.Status == apiextensionv1.ConditionTrue {
+						return true, nil
+					}
 				}
 			}
 
@@ -221,6 +222,33 @@ func (c *Controller) CreateCRD() error {
 							Type:                   "object",
 							XPreserveUnknownFields: XPreserveUnknownFields,
 							Properties: map[string]apiextensionv1.JSONSchemaProps{
+								"status": {
+									Type:                   "object",
+									XPreserveUnknownFields: XPreserveUnknownFields,
+									Properties: map[string]apiextensionv1.JSONSchemaProps{
+										"lastUpdateTime": {
+											Type: "string",
+										},
+										"nodename": {
+											Type: "string",
+										},
+										"instancename": {
+											Type: "string",
+										},
+										"instanceid": {
+											Type: "string",
+										},
+										"message": {
+											Type: "string",
+										},
+										"reason": {
+											Type: "string",
+										},
+										"code": {
+											Type: "integer",
+										},
+									},
+								},
 								"spec": {
 									Type:                   "object",
 									XPreserveUnknownFields: XPreserveUnknownFields,
@@ -861,18 +889,21 @@ func (c *Controller) updateManagedNodeStatus(managedNode *v1alpha1.ManagedNode, 
 	// NEVER modify objects from the store. It's a read-only, local cache.
 	// You can use DeepCopy() to make a deep copy of original object and modify this copy
 	// Or create a copy manually for better performance
-	managedNodeCopy := managedNode.DeepCopy()
-	managedNodeCopy.Status = newStatus
+	if managedNodeCopy, err := nodeManagerClientset.NodemanagerV1alpha1().ManagedNodes().Get(context.TODO(), managedNode.Name, metav1.GetOptions{}); err != nil {
+		return err
+	} else {
+		managedNodeCopy.Status = newStatus
 
-	// If the CustomResourceSubresources feature gate is not enabled,
-	// we must use Update instead of UpdateStatus to update the Status block of the Foo resource.
-	// UpdateStatus will not allow changes to the Spec of the resource,
-	// which is ideal for ensuring nothing other than resource status has been updated.
-	_, err := nodeManagerClientset.NodemanagerV1alpha1().
-		ManagedNodes().
-		UpdateStatus(context.TODO(), managedNodeCopy, metav1.UpdateOptions{})
+		// If the CustomResourceSubresources feature gate is not enabled,
+		// we must use Update instead of UpdateStatus to update the Status block of the Foo resource.
+		// UpdateStatus will not allow changes to the Spec of the resource,
+		// which is ideal for ensuring nothing other than resource status has been updated.
+		_, err := nodeManagerClientset.NodemanagerV1alpha1().
+			ManagedNodes().
+			UpdateStatus(context.TODO(), managedNodeCopy, metav1.UpdateOptions{})
 
-	return err
+		return err
+	}
 }
 
 func (c *Controller) getManagedNodeFromKey(key string) (*v1alpha1.ManagedNode, error) {

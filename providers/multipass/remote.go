@@ -21,7 +21,7 @@ type remoteMultipassWrapper struct {
 func (wrapper *remoteMultipassWrapper) AttachInstance(instanceName string, nodeIndex int) (providers.ProviderHandler, error) {
 	return &multipassHandler{
 		multipassWrapper: wrapper,
-		network:          wrapper.Network.Clone(),
+		network:          wrapper.Network.Clone(nodeIndex),
 		instanceName:     instanceName,
 		nodeIndex:        nodeIndex,
 	}, nil
@@ -30,7 +30,7 @@ func (wrapper *remoteMultipassWrapper) AttachInstance(instanceName string, nodeI
 func (wrapper *remoteMultipassWrapper) CreateInstance(instanceName, instanceType string, nodeIndex int) (providers.ProviderHandler, error) {
 	return &multipassHandler{
 		multipassWrapper: wrapper,
-		network:          wrapper.Network.Clone(),
+		network:          wrapper.Network.Clone(nodeIndex),
 		instanceType:     instanceType,
 		instanceName:     instanceName,
 		nodeIndex:        nodeIndex,

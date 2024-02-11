@@ -226,6 +226,14 @@ func (handler *awsHandler) InstanceWaitReady(callback providers.CallbackWaitSSHR
 	return handler.runningInstance.WaitForIP(callback)
 }
 
+func (handler *awsHandler) InstancePrimaryAddressIP() string {
+	if handler.desiredENI != nil {
+		return handler.desiredENI.PrivateAddress
+	}
+
+	return ""
+}
+
 func (handler *awsHandler) InstanceID() (string, error) {
 	if handler.runningInstance == nil {
 		return "", fmt.Errorf(constantes.ErrInstanceIsNotAttachedToCloudProvider)

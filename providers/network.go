@@ -3,11 +3,13 @@ package providers
 import (
 	"crypto/rand"
 	"fmt"
+	"net"
 	"strings"
 	"sync"
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/cloudinit"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha1"
+	"github.com/praserx/ipconv"
 )
 
 type NetworkInterface struct {
@@ -83,14 +85,23 @@ func generateMacAddress(netName string) string {
 	return address
 }
 
-func (net *Network) Clone() *Network {
+func (vnet *Network) Clone(nodeIndex int) *Network {
 	copy := &Network{
-		Domain:     net.Domain,
-		DNS:        net.DNS,
-		Interfaces: make([]*NetworkInterface, len(net.Interfaces)),
+		Domain:     vnet.Domain,
+		DNS:        vnet.DNS,
+		Interfaces: make([]*NetworkInterface, len(vnet.Interfaces)),
 	}
 
-	for index, inf := range net.Interfaces {
+	for index, inf := range vnet.Interfaces {
+		address := inf.IPAddress
+		if !inf.DHCP {
+			if ip := net.ParseIP(inf.IPAddress).To4(); ip != nil {
+				if ipv4, err := ipconv.IPv4ToInt(net.ParseIP(inf.IPAddress).To4()); err == nil {
+					address = ipconv.IntToIPv4(ipv4 + uint32(nodeIndex)).String()
+				}
+			}
+		}
+
 		copy.Interfaces[index] = &NetworkInterface{
 			Enabled:        inf.Enabled,
 			Primary:        inf.Primary,
@@ -104,7 +115,7 @@ func (net *Network) Clone() *Network {
 			NicName:        inf.NicName,
 			DHCP:           inf.DHCP,
 			UseRoutes:      inf.UseRoutes,
-			IPAddress:      inf.IPAddress,
+			IPAddress:      address,
 			Netmask:        inf.Netmask,
 			Gateway:        inf.Gateway,
 			Routes:         inf.Routes,
@@ -114,15 +125,27 @@ func (net *Network) Clone() *Network {
 	return copy
 }
 
+func (vnet *Network) PrimaryAddressIP() (address string) {
+	for _, n := range vnet.Interfaces {
+		if n.Enabled && n.Primary {
+			if !n.DHCP {
+				address = n.IPAddress
+			}
+			break
+		}
+	}
+	return address
+}
+
 // GetCloudInitNetwork create cloud-init object
-func (net *Network) GetCloudInitNetwork(nodeIndex int) *cloudinit.NetworkDeclare {
+func (vnet *Network) GetCloudInitNetwork(nodeIndex int) *cloudinit.NetworkDeclare {
 
 	declare := &cloudinit.NetworkDeclare{
 		Version:   2,
-		Ethernets: make(map[string]*cloudinit.NetworkAdapter, len(net.Interfaces)),
+		Ethernets: make(map[string]*cloudinit.NetworkAdapter, len(vnet.Interfaces)),
 	}
 
-	for _, n := range net.Interfaces {
+	for _, n := range vnet.Interfaces {
 		if n.Enabled {
 			nicName := stringBefore(n.NicName, ":")
 			label := stringAfter(n.NicName, ":")
@@ -186,10 +209,10 @@ func (net *Network) GetCloudInitNetwork(nodeIndex int) *cloudinit.NetworkDeclare
 					ethernet.Routes = &n.Routes
 				}
 
-				if net.DNS != nil {
+				if vnet.DNS != nil {
 					ethernet.Nameservers = &cloudinit.Nameserver{
-						Addresses: net.DNS.Nameserver,
-						Search:    net.DNS.Search,
+						Addresses: vnet.DNS.Nameserver,
+						Search:    vnet.DNS.Search,
 					}
 				}
 
@@ -202,10 +225,10 @@ func (net *Network) GetCloudInitNetwork(nodeIndex int) *cloudinit.NetworkDeclare
 }
 
 // GetDeclaredExistingInterfaces return the declared existing interfaces
-func (net *Network) GetDeclaredExistingInterfaces() []*NetworkInterface {
+func (vnet *Network) GetDeclaredExistingInterfaces() []*NetworkInterface {
 
-	infs := make([]*NetworkInterface, 0, len(net.Interfaces))
-	for _, inf := range net.Interfaces {
+	infs := make([]*NetworkInterface, 0, len(vnet.Interfaces))
+	for _, inf := range vnet.Interfaces {
 		if inf.Enabled && inf.Existing {
 			infs = append(infs, inf)
 		}
@@ -214,8 +237,8 @@ func (net *Network) GetDeclaredExistingInterfaces() []*NetworkInterface {
 	return infs
 }
 
-func (net *Network) UpdateMacAddressTable(nodeIndex int) error {
-	for _, inf := range net.Interfaces {
+func (vnet *Network) UpdateMacAddressTable(nodeIndex int) error {
+	for _, inf := range vnet.Interfaces {
 		if inf.Enabled {
 			inf.updateMacAddressTable(nodeIndex)
 		}
@@ -224,8 +247,8 @@ func (net *Network) UpdateMacAddressTable(nodeIndex int) error {
 	return nil
 }
 
-func (net *Network) InterfaceByName(networkName string) *NetworkInterface {
-	for _, inf := range net.Interfaces {
+func (vnet *Network) InterfaceByName(networkName string) *NetworkInterface {
+	for _, inf := range vnet.Interfaces {
 		if inf.Enabled && inf.NetworkName == networkName {
 			return inf
 		}
@@ -234,37 +257,37 @@ func (net *Network) InterfaceByName(networkName string) *NetworkInterface {
 	return nil
 }
 
-func (net *NetworkInterface) netName(nodeIndex int) string {
-	return fmt.Sprintf("%s[%d]", net.NicName, nodeIndex)
+func (vnet *NetworkInterface) netName(nodeIndex int) string {
+	return fmt.Sprintf("%s[%d]", vnet.NicName, nodeIndex)
 }
 
-func (net *NetworkInterface) updateMacAddressTable(nodeIndex int) {
-	address := net.MacAddress
+func (vnet *NetworkInterface) updateMacAddressTable(nodeIndex int) {
+	address := vnet.MacAddress
 
 	if len(address) > 0 && strings.ToLower(address) != "generate" && strings.ToLower(address) != "ignore" {
-		attachMacAddress(net.netName(nodeIndex), address)
+		attachMacAddress(vnet.netName(nodeIndex), address)
 	}
 }
 
-func (net *NetworkInterface) AttachMacAddress(address string, nodeIndex int) {
-	attachMacAddress(net.netName(nodeIndex), address)
+func (vnet *NetworkInterface) AttachMacAddress(address string, nodeIndex int) {
+	attachMacAddress(vnet.netName(nodeIndex), address)
 }
 
 // GetMacAddress return a macaddress
-func (net *NetworkInterface) GetMacAddress(nodeIndex int) string {
-	if nodeIndex < 0 || !net.Enabled {
+func (vnet *NetworkInterface) GetMacAddress(nodeIndex int) string {
+	if nodeIndex < 0 || !vnet.Enabled {
 		return ""
 	}
 
-	address := net.MacAddress
+	address := vnet.MacAddress
 
 	if strings.ToLower(address) == "generate" {
-		address = generateMacAddress(net.netName(nodeIndex))
+		address = generateMacAddress(vnet.netName(nodeIndex))
 	} else if strings.ToLower(address) == "ignore" {
 		address = ""
 	}
 
-	net.MacAddress = address
+	vnet.MacAddress = address
 
 	return address
 }

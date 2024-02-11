@@ -18,8 +18,7 @@ import (
 type externalgrpcServerApp struct {
 	externalgrpc.UnimplementedCloudProviderServer
 
-	appServer        *AutoScalerServerApp
-	autoProvisionned bool
+	appServer *AutoScalerServerApp
 }
 
 func NewExternalgrpcServerApp(appServer *AutoScalerServerApp) (*externalgrpcServerApp, error) {
@@ -35,7 +34,7 @@ func (v *externalgrpcServerApp) RegisterCloudProviderServer(server *grpc.Server)
 }
 
 func (v *externalgrpcServerApp) doAutoProvision() error {
-	if !v.autoProvisionned {
+	if !v.appServer.AutoProvision {
 		nodegroupDef := &apigrpc.NodeGroupDef{
 			NodeGroupID:         *v.appServer.configuration.NodeGroup,
 			MinSize:             int32(*v.appServer.configuration.MinNode),
@@ -45,9 +44,9 @@ func (v *externalgrpcServerApp) doAutoProvision() error {
 			Provisionned:        true,
 		}
 
-		v.appServer.NodesDefinition = []*apigrpc.NodeGroupDef{nodegroupDef}
-		v.appServer.AutoProvision = true
-		v.autoProvisionned = true
+		v.appServer.NodesDefinition = []*apigrpc.NodeGroupDef{
+			nodegroupDef,
+		}
 
 		if err := v.appServer.doAutoProvision(); err != nil {
 			glog.Errorf(constantes.ErrUnableToAutoProvisionNodeGroup, err)

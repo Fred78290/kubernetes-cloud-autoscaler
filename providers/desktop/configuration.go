@@ -190,6 +190,10 @@ func (handler *desktopHandler) InstanceWaitReady(callback providers.CallbackWait
 	}
 }
 
+func (handler *desktopHandler) InstancePrimaryAddressIP() string {
+	return handler.network.PrimaryAddressIP()
+}
+
 func (handler *desktopHandler) InstanceID() (string, error) {
 	if handler.instanceID == "" {
 		return "", fmt.Errorf(constantes.ErrInstanceIsNotAttachedToCloudProvider)
@@ -323,7 +327,7 @@ func (wrapper *desktopWrapper) AttachInstance(instanceName string, nodeIndex int
 	} else {
 		return &desktopHandler{
 			desktopWrapper: wrapper,
-			network:        wrapper.Network.Clone(),
+			network:        wrapper.Network.Clone(nodeIndex),
 			instanceName:   instanceName,
 			instanceID:     vmuuid,
 			nodeIndex:      nodeIndex,
@@ -339,7 +343,7 @@ func (wrapper *desktopWrapper) CreateInstance(instanceName, instanceType string,
 
 	return &desktopHandler{
 		desktopWrapper: wrapper,
-		network:        wrapper.Network.Clone(),
+		network:        wrapper.Network.Clone(nodeIndex),
 		instanceType:   instanceType,
 		instanceName:   instanceName,
 		nodeIndex:      nodeIndex,

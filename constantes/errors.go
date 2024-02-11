@@ -279,6 +279,9 @@ const (
 
 	// ErrImageCredentialProviderConfigNotFound err msg
 	ErrImageCredentialProviderConfigNotFound = "credential provider plugin config file could not be loaded: %s, %v"
+
+	// ErrNodeInternalIPNotFound err msg
+	ErrNodeInternalIPNotFound = "unable to find internal ip for node: %s"
 )
 
 //update status managed node %s failed, reason: %v

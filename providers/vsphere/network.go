@@ -22,9 +22,9 @@ type vsphereNetworkInterface struct {
 	networkBacking   types.BaseVirtualDeviceBackingInfo
 }
 
-func newVSphereNetwork(net *providers.Network) *vsphereNetwork {
+func newVSphereNetwork(net *providers.Network, nodeIndex int) *vsphereNetwork {
 	result := &vsphereNetwork{
-		Network:           net.Clone(),
+		Network:           net.Clone(nodeIndex),
 		VSphereInterfaces: make([]vsphereNetworkInterface, len(net.Interfaces)),
 	}
 

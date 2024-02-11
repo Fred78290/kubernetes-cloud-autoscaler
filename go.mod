@@ -10,6 +10,7 @@ require (
 	github.com/drone/envsubst v1.0.3
 	github.com/joho/godotenv v1.5.1
 	github.com/linki/instrumented_http v0.3.0
+	github.com/praserx/ipconv v1.2.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.8.4
 	github.com/vmware/govmomi v0.34.2

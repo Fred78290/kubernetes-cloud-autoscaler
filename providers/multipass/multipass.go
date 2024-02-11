@@ -154,6 +154,10 @@ func (handler *multipassHandler) InstanceWaitReady(callback providers.CallbackWa
 	return handler.waitForIP(handler.instanceName, handler, callback)
 }
 
+func (handler *multipassHandler) InstancePrimaryAddressIP() string {
+	return handler.network.PrimaryAddressIP()
+}
+
 func (handler *multipassHandler) InstanceID() (string, error) {
 	return handler.instanceName, nil
 }
