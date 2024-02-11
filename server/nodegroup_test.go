@@ -336,11 +336,11 @@ func (m *baseTest) newTestConfig() (*AutoScalerServerConfigTest, error) {
 	godotenv.Overload("../.env")
 
 	if content, err := providers.LoadTextEnvSubst(fileName); err != nil {
-		glog.Errorf("failed to open config file:%s, error:%v", fileName, err)
+		glog.Errorf("failed to open config file: %s, error: %v", fileName, err)
 
 		return nil, err
 	} else if json.NewDecoder(strings.NewReader(content)).Decode(&config); err != nil {
-		glog.Errorf("failed to decode config file:%s, error:%v", fileName, err)
+		glog.Errorf("failed to decode config file: %s, error: %v", fileName, err)
 
 		return nil, err
 	} else {

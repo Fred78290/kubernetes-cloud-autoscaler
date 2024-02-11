@@ -56,7 +56,7 @@ func (vm *VirtualMachine) VirtualMachine(ctx *context.Context) *object.VirtualMa
 	v, err := f.ObjectReference(ctx, vm.Ref)
 
 	if err != nil {
-		glog.Fatalf("Can't find virtual machine:%s", vm.Name)
+		glog.Fatalf("Can't find virtual machine: %s", vm.Name)
 	}
 
 	//	v := object.NewVirtualMachine(vm.VimClient(), vm.Ref)
@@ -423,7 +423,7 @@ func (vm *VirtualMachine) waitForIP(ctx *context.Context, v *object.VirtualMachi
 		return "", err
 	}
 
-	return "", fmt.Errorf("VMWare tools is not running on the VM:%s, unable to retrieve IP", vm.Name)
+	return "", fmt.Errorf("VMWare tools is not running on the VM: %s, unable to retrieve IP", vm.Name)
 }
 
 // WaitForIP wait ip

@@ -56,7 +56,7 @@ func NewVSphereProviderConfiguration(fileName string) (providers.ProviderConfigu
 	var wrapper vsphereWrapper
 
 	if err := providers.LoadConfig(fileName, &wrapper.Configuration); err != nil {
-		glog.Errorf("Failed to open file:%s, error:%v", fileName, err)
+		glog.Errorf("Failed to open file: %s, error: %v", fileName, err)
 
 		return nil, err
 	} else if _, err = wrapper.UUID(wrapper.TemplateName); err != nil {

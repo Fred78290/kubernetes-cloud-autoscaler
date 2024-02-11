@@ -107,7 +107,7 @@ func (ds *Datastore) Datastore(ctx *context.Context) *object.Datastore {
 	d, err := f.ObjectReference(ctx, ds.Ref)
 
 	if err != nil {
-		glog.Fatalf("Can't find datastore:%s", ds.Name)
+		glog.Fatalf("Can't find datastore: %s", ds.Name)
 	}
 	//	d := object.NewDatastore(ds.Datacenter.VimClient(), ds.Ref)
 

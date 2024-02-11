@@ -20,9 +20,9 @@ func AuthMethodFromPrivateKeyFile(file string) (ssh.AuthMethod, error) {
 	var key ssh.Signer
 
 	if buffer, err = os.ReadFile(file); err != nil {
-		glog.Errorf("Can't read key file:%s, reason:%v", file, err)
+		glog.Errorf("Can't read key file: %s, reason: %v", file, err)
 	} else if key, err = ssh.ParsePrivateKey(buffer); err != nil {
-		glog.Errorf("Can't parse key file:%s, reason:%v", file, err)
+		glog.Errorf("Can't parse key file: %s, reason: %v", file, err)
 	} else {
 		return ssh.PublicKeys(key), nil
 	}
@@ -37,9 +37,9 @@ func AuthMethodFromPrivateKey(key string) (ssh.AuthMethod, error) {
 	var signer ssh.Signer
 
 	if pub, err = ssh.ParsePrivateKey([]byte(key)); err != nil {
-		glog.Errorf("AuthMethodFromPublicKey fatal error:%v", err)
+		glog.Errorf("AuthMethodFromPublicKey fatal error: %v", err)
 	} else if signer, err = ssh.NewSignerFromKey(pub); err != nil {
-		glog.Errorf("AuthMethodFromPublicKey fatal error:%v", err)
+		glog.Errorf("AuthMethodFromPublicKey fatal error: %v", err)
 	} else {
 		return ssh.PublicKeys(signer), nil
 	}
@@ -133,13 +133,13 @@ func Sudo(connect *sshutils.AutoScalerServerSSH, host string, timeoutInSeconds t
 	var out []byte
 
 	for _, cmd := range command {
-		glog.Debugf("Shell:%s", cmd)
+		glog.Debugf("Shell: %s", cmd)
 
 		if out, err = session.CombinedOutput(fmt.Sprintf("sudo %s", cmd)); err != nil {
 			if out != nil {
 				stdout.Write(out)
 			} else {
-				stdout.Write([]byte(fmt.Sprintf("An error occured during su command: %s, error:%v", cmd, err)))
+				stdout.Write([]byte(fmt.Sprintf("An error occured during su command: %s, error: %v", cmd, err)))
 			}
 			break
 		} else {
@@ -148,7 +148,7 @@ func Sudo(connect *sshutils.AutoScalerServerSSH, host string, timeoutInSeconds t
 	}
 
 	if glog.GetLevel() == glog.DebugLevel && err != nil {
-		glog.Debugf("sudo command:%s, output:%s, error:%v", strings.Join(command, ","), stdout.String(), err)
+		glog.Debugf("sudo command: %s, output: %s, error: %v", strings.Join(command, ","), stdout.String(), err)
 	}
 
 	return strings.TrimSpace(stdout.String()), err

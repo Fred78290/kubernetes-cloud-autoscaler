@@ -187,7 +187,7 @@ func (p *SingletonClientGenerator) WaitNodeToBeReady(nodeName string) error {
 			}
 		}
 
-		glog.Debugf("The kubernetes node:%s is not ready", nodeName)
+		glog.Debugf("The kubernetes node: %s is not ready", nodeName)
 
 		return false, nil
 	}); err == nil {
@@ -346,7 +346,7 @@ func (p *SingletonClientGenerator) cordonOrUncordonNode(nodeName string, flag bo
 		node.Spec.Unschedulable = flag
 
 		if _, err = kubeclient.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{}); err != nil {
-			glog.Warnf("Unschedulable node:%s is not ready, err = %s", nodeName, err)
+			glog.Warnf("Unschedulable node: %s is not ready, err = %s", nodeName, err)
 			return false, nil
 		}
 
@@ -399,7 +399,7 @@ func (p *SingletonClientGenerator) SetProviderID(nodeName, providerID string) er
 		}
 
 		if _, err = kubeclient.CoreV1().Nodes().Patch(ctx, nodeName, typesv1.ApplyPatchType, []byte(patch), patchOptions); err != nil {
-			glog.Warnf("Set providerID node:%s is not ready, err = %s", nodeName, err)
+			glog.Warnf("Set providerID node: %s is not ready, err = %s", nodeName, err)
 			return false, nil
 		}
 
@@ -454,7 +454,7 @@ func (p *SingletonClientGenerator) MarkDrainNode(nodeName string) error {
 		}
 
 		if _, err = kubeclient.CoreV1().Nodes().UpdateStatus(ctx, node, metav1.UpdateOptions{}); err != nil {
-			glog.Warnf("Drain node:%s is not ready, err = %s", nodeName, err)
+			glog.Warnf("Drain node: %s is not ready, err = %s", nodeName, err)
 			return false, nil
 		}
 
@@ -560,7 +560,7 @@ func (p *SingletonClientGenerator) AnnoteNode(nodeName string, annotations map[s
 		}
 
 		if _, err = kubeclient.CoreV1().Nodes().Update(ctx, nodeInfo, metav1.UpdateOptions{}); err != nil {
-			glog.Warnf("Annote node:%s is not ready, err = %s", nodeName, err)
+			glog.Warnf("Annote node: %s is not ready, err = %s", nodeName, err)
 			return false, nil
 		}
 
@@ -594,7 +594,7 @@ func (p *SingletonClientGenerator) LabelNode(nodeName string, labels map[string]
 		}
 
 		if _, err = kubeclient.CoreV1().Nodes().Update(ctx, nodeInfo, metav1.UpdateOptions{}); err != nil {
-			glog.Warnf("Label node:%s is not ready, err = %s", nodeName, err)
+			glog.Warnf("Label node: %s is not ready, err = %s", nodeName, err)
 			return false, nil
 		}
 
@@ -650,7 +650,7 @@ func (p *SingletonClientGenerator) TaintNode(nodeName string, taints ...apiv1.Ta
 		}
 
 		if _, err = kubeclient.CoreV1().Nodes().Update(ctx, nodeInfo, metav1.UpdateOptions{}); err != nil {
-			glog.Warnf("Label node:%s is not ready, err = %s", nodeName, err)
+			glog.Warnf("Label node: %s is not ready, err = %s", nodeName, err)
 			return false, nil
 		}
 

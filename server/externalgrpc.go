@@ -95,7 +95,7 @@ func (v *externalgrpcServerApp) NodeGroupForNode(ctx context.Context, request *e
 		}
 
 		if nodeGroup == nil {
-			glog.Infof("Nodegroup not found for node:%s", request.Node.Name)
+			glog.Infof("Nodegroup not found for node: %s", request.Node.Name)
 
 			return nil, fmt.Errorf(constantes.ErrNodeGroupForNodeNotFound, nodegroupName, request.Node.Name)
 		}

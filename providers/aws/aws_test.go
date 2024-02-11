@@ -27,7 +27,7 @@ type ConfigurationTest struct {
 var testConfig ConfigurationTest
 
 const (
-	cantFindEC2   = "Can't find ec2 instance named:%s"
+	cantFindEC2   = "Can't find ec2 instance named: %s"
 	cantGetStatus = "Can't get status on VM"
 )
 
@@ -52,11 +52,11 @@ func loadFromJson() *ConfigurationTest {
 		godotenv.Overload("../.env")
 
 		if content, err := providers.LoadTextEnvSubst(getTestFile()); err != nil {
-			glog.Fatalf("failed to open config file:%s, error:%v", getTestFile(), err)
+			glog.Fatalf("failed to open config file: %s, error: %v", getTestFile(), err)
 		} else if json.NewDecoder(strings.NewReader(content)).Decode(&testConfig.BasicConfiguration); err != nil {
-			glog.Fatalf("failed to decode config file:%s, error:%v", getTestFile(), err)
+			glog.Fatalf("failed to decode config file: %s, error: %v", getTestFile(), err)
 		} else if testConfig.provider, err = aws.NewAwsProviderConfiguration(getProviderConfFile()); err != nil {
-			glog.Fatalf("failed to open config file:%s, error:%v", getProviderConfFile(), err)
+			glog.Fatalf("failed to open config file: %s, error: %v", getProviderConfFile(), err)
 		} else {
 			testConfig.inited = true
 		}
@@ -115,7 +115,7 @@ func Test_getInstanceID(t *testing.T) {
 			status, err := instance.InstanceStatus()
 
 			if assert.NoErrorf(t, err, "Can't get status of VM") {
-				t.Logf("The power of vm is:%v", status.Powered())
+				t.Logf("The power of vm is: %v", status.Powered())
 			}
 		}
 	}
@@ -152,7 +152,7 @@ func Test_statusInstance(t *testing.T) {
 			status, err := instance.InstanceStatus()
 
 			if assert.NoError(t, err, "Can't get status VM") {
-				t.Logf("The power of vm %s is:%v", config.InstanceName, status.Powered())
+				t.Logf("The power of vm %s is: %v", config.InstanceName, status.Powered())
 			}
 		}
 	}
@@ -181,7 +181,7 @@ func Test_waitForIP(t *testing.T) {
 		if instance, err := config.provider.AttachInstance(config.InstanceName, 0); assert.NoError(t, err, fmt.Sprintf(cantFindEC2, config.InstanceName)) {
 			if status, err := instance.InstanceStatus(); assert.NoError(t, err, cantGetStatus) && status.Powered() {
 				if ipaddr, err := instance.InstanceWaitReady(config); assert.NoError(t, err, "Can't get IP") {
-					t.Logf("VM powered with IP:%s", ipaddr)
+					t.Logf("VM powered with IP: %s", ipaddr)
 				}
 			} else {
 				t.Log("VM is not powered")
@@ -201,11 +201,11 @@ func Test_powerOnInstance(t *testing.T) {
 						ipaddr, err := instance.InstanceWaitReady(config)
 
 						if assert.NoError(t, err, "Can't get IP") {
-							t.Logf("VM powered with IP:%s", ipaddr)
+							t.Logf("VM powered with IP: %s", ipaddr)
 						}
 					}
 				} else {
-					t.Logf("VM already powered with IP:%s", status.Address())
+					t.Logf("VM already powered with IP: %s", status.Address())
 				}
 			}
 		}

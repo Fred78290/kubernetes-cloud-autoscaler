@@ -53,7 +53,7 @@ func (wrapper *baseMultipassWrapper) waitForIP(instanceName string, status multi
 		if status, err := status.status(instanceName); err != nil {
 			return false, err
 		} else if status.Powered() && len(status.Address()) > 0 {
-			glog.Debugf("WaitForIP: instance %s, using IP:%s", instanceName, status.Address())
+			glog.Debugf("WaitForIP: instance %s, using IP: %s", instanceName, status.Address())
 
 			if err = callback.WaitSSHReady(instanceName, status.Address()); err != nil {
 				return false, err

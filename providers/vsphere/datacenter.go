@@ -30,7 +30,7 @@ func (dc *Datacenter) Datacenter(ctx *context.Context) *object.Datacenter {
 	d, err := f.Datacenter(ctx, dc.Name)
 
 	if err != nil {
-		glog.Fatalf("Can't find datacenter:%s", dc.Name)
+		glog.Fatalf("Can't find datacenter: %s", dc.Name)
 	}
 
 	ctx.WithValue(datacenterKey, d)

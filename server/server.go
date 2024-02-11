@@ -106,7 +106,7 @@ func (s *AutoScalerServerApp) newNodeGroup(input *nodegroupCreateInput) (*AutoSc
 
 	input.labels = types.MergeKubernetesLabel(s.configuration.NodeLabels, input.labels)
 
-	glog.Infof("New node group, ID:%s minSize:%d, maxSize:%d, machineType:%s, node labels:%v, %v", input.nodeGroupID, input.minNodeSize, input.maxNodeSize, input.machineType, input.labels, input.systemLabels)
+	glog.Infof("New node group, ID: %s minSize: %d, maxSize: %d, machineType: %s, node labels: %v, %v", input.nodeGroupID, input.minNodeSize, input.maxNodeSize, input.machineType, input.labels, input.systemLabels)
 
 	nodeGroup := &AutoScalerServerNodeGroup{
 		ServiceIdentifier:          s.configuration.ServiceIdentifier,
@@ -140,7 +140,7 @@ func (s *AutoScalerServerApp) deleteNodeGroup(nodeGroupID string) error {
 		return fmt.Errorf(constantes.ErrNodeGroupNotFound, nodeGroupID)
 	}
 
-	glog.Infof("Delete node group, ID:%s", nodeGroupID)
+	glog.Infof("Delete node group, ID: %s", nodeGroupID)
 
 	if err := nodeGroup.deleteNodeGroup(s.kubeClient); err != nil {
 		glog.Errorf(constantes.ErrUnableToDeleteNodeGroup, nodeGroupID, err)
@@ -167,7 +167,7 @@ func (s *AutoScalerServerApp) createNodeGroup(nodeGroupID string) (*AutoScalerSe
 		// Must launch minNode VM
 		if numberOfNodesToCreate > 0 {
 
-			glog.Infof("Create node group, ID:%s", nodeGroupID)
+			glog.Infof("Create node group, ID: %s", nodeGroupID)
 
 			if _, err := nodeGroup.addNodes(s.kubeClient, numberOfNodesToCreate); err != nil {
 				glog.Errorf(err.Error())
@@ -208,7 +208,7 @@ func (s *AutoScalerServerApp) doAutoProvision() error {
 					}
 				}
 
-				glog.Infof("Auto provision for nodegroup:%s, minSize:%d, maxSize:%d", nodeGroupIdentifier, nodeGroupDef.MinSize, nodeGroupDef.MaxSize)
+				glog.Infof("Auto provision for nodegroup: %s, minSize: %d, maxSize: %d", nodeGroupIdentifier, nodeGroupDef.MinSize, nodeGroupDef.MaxSize)
 
 				input := nodegroupCreateInput{
 					nodeGroupID:   nodeGroupIdentifier,
@@ -262,7 +262,7 @@ func (s *AutoScalerServerApp) Save(fileName string) error {
 	file, err := os.Create(fileName)
 
 	if err != nil {
-		glog.Errorf("Failed to open file:%s, error:%v", fileName, err)
+		glog.Errorf("Failed to open file: %s, error: %v", fileName, err)
 
 		return err
 	}
@@ -273,7 +273,7 @@ func (s *AutoScalerServerApp) Save(fileName string) error {
 	err = encoder.Encode(s)
 
 	if err != nil {
-		glog.Errorf("failed to encode AutoScalerServerApp to file:%s, error:%v", fileName, err)
+		glog.Errorf("failed to encode AutoScalerServerApp to file: %s, error: %v", fileName, err)
 
 		return err
 	}
@@ -286,7 +286,7 @@ func (s *AutoScalerServerApp) Load(fileName string) error {
 	file, err := os.Open(fileName)
 
 	if err != nil {
-		glog.Errorf("Failed to open file:%s, error:%v", fileName, err)
+		glog.Errorf("Failed to open file: %s, error: %v", fileName, err)
 
 		return err
 	}
@@ -297,12 +297,12 @@ func (s *AutoScalerServerApp) Load(fileName string) error {
 	err = decoder.Decode(s)
 
 	if err != nil {
-		glog.Errorf("failed to decode AutoScalerServerApp file:%s, error:%v", fileName, err)
+		glog.Errorf("failed to decode AutoScalerServerApp file: %s, error: %v", fileName, err)
 		return err
 	}
 
 	for _, ng := range s.Groups {
-		if err = ng.setConfiguration(s.configuration); err != nil {
+		if err = ng.setConfiguration(s.configuration, s.machines); err != nil {
 			return err
 		}
 	}
@@ -400,7 +400,7 @@ func (s *AutoScalerServerApp) runServer(config *types.AutoScalerServerConfig, re
 		} else if u.Scheme == "tcp" {
 			listen = u.Host
 		} else {
-			return fmt.Errorf("unsupported scheme:%s, %s", u.Scheme, *config.Listen)
+			return fmt.Errorf("unsupported scheme: %s, %s", u.Scheme, *config.Listen)
 		}
 
 		if len(listen) == 0 {
@@ -426,6 +426,7 @@ func (s *AutoScalerServerApp) createGrpListener() (cloudProviderServer, error) {
 		return NewGrpcServerApp(s)
 	}
 }
+
 func (s *AutoScalerServerApp) run(config *types.AutoScalerServerConfig) {
 	if err := s.runServer(config, func(server *grpc.Server) {
 		if grpcListener, err := s.createGrpListener(); err != nil {
@@ -478,17 +479,17 @@ func StartServer(kubeClient types.ClientGenerator, c *types.Config) {
 
 	content, err := providers.LoadTextEnvSubst(configFileName)
 	if err != nil {
-		glog.Fatalf("failed to open config file:%s, error:%v", configFileName, err)
+		glog.Fatalf("failed to open config file: %s, error: %v", configFileName, err)
 	}
 
 	decoder := json.NewDecoder(strings.NewReader(content))
 	err = decoder.Decode(&config)
 	if err != nil {
-		glog.Fatalf("failed to decode config file:%s, error:%v", configFileName, err)
+		glog.Fatalf("failed to decode config file: %s, error: %v", configFileName, err)
 	}
 
 	if _, err = kubeClient.KubeClient(); err != nil {
-		glog.Fatalf("failed to get kubernetes client, error:%v", err)
+		glog.Fatalf("failed to get kubernetes client, error: %v", err)
 	}
 
 	if config.Optionals == nil {
@@ -543,11 +544,11 @@ func StartServer(kubeClient types.ClientGenerator, c *types.Config) {
 	}
 
 	if err = config.SetupCloudConfiguration(c.ProviderConfig); err != nil {
-		glog.Fatalf("Can't setup cloud provider, reason:%s", err)
+		glog.Fatalf("Can't setup cloud provider, reason: %s", err)
 	}
 
 	if _, err = config.GetAutoScalingOptions(); err != nil {
-		glog.Fatalf("Can't setup autoscaling options, reason:%s", err)
+		glog.Fatalf("Can't setup autoscaling options, reason: %s", err)
 	}
 
 	switch *config.Distribution {
@@ -667,7 +668,7 @@ func StartServer(kubeClient types.ClientGenerator, c *types.Config) {
 	}
 
 	if err = autoScalerServer.startController(); err != nil {
-		glog.Fatalf("Can't start controller, reason:%s", err)
+		glog.Fatalf("Can't start controller, reason: %s", err)
 	}
 
 	autoScalerServer.run(&config)

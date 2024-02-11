@@ -173,7 +173,7 @@ func (m *serverTest) NewNodeGroup() {
 		} else if got.GetError() != nil {
 			m.t.Errorf("AutoScalerServerApp.NewNodeGroup() return an error, code = %v, reason = %s", got.GetError().GetCode(), got.GetError().GetReason())
 		} else {
-			m.t.Logf("AutoScalerServerApp.NewNodeGroup() return node group created :%v", got.GetNodeGroup().GetId())
+			m.t.Logf("AutoScalerServerApp.NewNodeGroup() return node group created : %v", got.GetNodeGroup().GetId())
 		}
 	}
 }

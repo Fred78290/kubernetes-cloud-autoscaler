@@ -195,10 +195,10 @@ func (vm *AutoScalerServerNode) executeCommands(args []string, restartKubelet bo
 			}
 
 			if restartKubelet {
-				glog.Infof("Restart kubelet for node:%s for nodegroup: %s", vm.NodeName, vm.NodeGroup)
+				glog.Infof("Restart kubelet for node: %s for nodegroup: %s", vm.NodeName, vm.NodeGroup)
 
 				if out, err := utils.Sudo(config.SSH, vm.IPAddress, timeout, "systemctl restart kubelet"); err != nil {
-					return false, fmt.Errorf("unable to restart kubelet, output: %s, reason:%v", out, err)
+					return false, fmt.Errorf("unable to restart kubelet, output: %s, reason: %v", out, err)
 				}
 			}
 
@@ -503,7 +503,7 @@ func (vm *AutoScalerServerNode) WaitSSHReady(nodename, address string) error {
 	if nodeName, err := vm.providerHandler.PrivateDNSName(); err == nil {
 		vm.NodeName = nodeName
 
-		glog.Debugf("Launch VM:%s set to nodeName: %s", nodename, nodeName)
+		glog.Debugf("Launch VM: %s set to nodeName: %s", nodename, nodeName)
 	} else {
 		return err
 	}
@@ -780,21 +780,19 @@ func (vm *AutoScalerServerNode) launchVM(c types.ClientGenerator, nodeLabels, sy
 	}
 
 	if err == nil {
-		glog.Infof("Launched VM:%s nodename:%s for nodegroup: %s", vm.InstanceName, vm.NodeName, vm.NodeGroup)
+		glog.Infof("Launched VM: %s nodename: %s for nodegroup: %s", vm.InstanceName, vm.NodeName, vm.NodeGroup)
 	} else {
-		glog.Errorf("Unable to launch VM:%s for nodegroup: %s. Reason: %v", vm.InstanceName, vm.NodeGroup, err.Error())
+		glog.Errorf("Unable to launch VM: %s for nodegroup: %s. Reason: %v", vm.InstanceName, vm.NodeGroup, err.Error())
 	}
 
 	return err
 }
 
 func (vm *AutoScalerServerNode) startVM(c types.ClientGenerator) error {
-	glog.Debugf("AutoScalerNode::startVM, node:%s", vm.InstanceName)
+	glog.Infof("Start VM: %s", vm.InstanceName)
 
 	var err error
 	var state AutoScalerServerNodeState
-
-	glog.Infof("Start VM:%s", vm.InstanceName)
 
 	providerHandler := vm.providerHandler
 
@@ -843,21 +841,19 @@ func (vm *AutoScalerServerNode) startVM(c types.ClientGenerator) error {
 	}
 
 	if err == nil {
-		glog.Infof("Started VM:%s", vm.InstanceName)
+		glog.Infof("Started VM: %s", vm.InstanceName)
 	} else {
-		glog.Errorf("Unable to start VM:%s. Reason: %v", vm.InstanceName, err)
+		glog.Errorf("Unable to start VM: %s. Reason: %v", vm.InstanceName, err)
 	}
 
 	return err
 }
 
 func (vm *AutoScalerServerNode) stopVM(c types.ClientGenerator) error {
-	glog.Debugf("AutoScalerNode::stopVM, node:%s", vm.InstanceName)
+	glog.Infof("Stop VM: %s", vm.InstanceName)
 
 	var err error
 	var state AutoScalerServerNodeState
-
-	glog.Infof("Stop VM:%s", vm.InstanceName)
 
 	providerHandler := vm.providerHandler
 
@@ -888,16 +884,16 @@ func (vm *AutoScalerServerNode) stopVM(c types.ClientGenerator) error {
 	}
 
 	if err == nil {
-		glog.Infof("Stopped VM:%s", vm.InstanceName)
+		glog.Infof("Stopped VM: %s", vm.InstanceName)
 	} else {
-		glog.Errorf("Could not stop VM:%s. Reason: %s", vm.InstanceName, err)
+		glog.Errorf("Could not stop VM: %s. Reason: %s", vm.InstanceName, err)
 	}
 
 	return err
 }
 
 func (vm *AutoScalerServerNode) deleteVM(c types.ClientGenerator) error {
-	glog.Debugf("AutoScalerNode::deleteVM, node:%s", vm.InstanceName)
+	glog.Infof("Delete VM: %s", vm.InstanceName)
 
 	var err error
 	var status providers.InstanceStatus
@@ -948,12 +944,12 @@ func (vm *AutoScalerServerNode) deleteVM(c types.ClientGenerator) error {
 	}
 
 	if err == nil {
-		glog.Infof("Deleted VM:%s", vm.InstanceName)
+		glog.Infof("Deleted VM: %s", vm.InstanceName)
 		vm.State = AutoScalerServerNodeStateDeleted
 	} else if !strings.HasPrefix(err.Error(), "InvalidInstanceID.NotFound: The instance ID") {
-		glog.Errorf("Could not delete VM:%s. Reason: %s", vm.InstanceName, err)
+		glog.Errorf("Could not delete VM: %s. Reason: %s", vm.InstanceName, err)
 	} else {
-		glog.Warnf("Could not delete VM:%s. does not exist", vm.InstanceName)
+		glog.Warnf("Could not delete VM: %s. does not exist", vm.InstanceName)
 		err = fmt.Errorf(constantes.ErrVMNotFound, vm.InstanceName)
 	}
 
@@ -961,7 +957,7 @@ func (vm *AutoScalerServerNode) deleteVM(c types.ClientGenerator) error {
 }
 
 func (vm *AutoScalerServerNode) statusVM() (AutoScalerServerNodeState, error) {
-	glog.Debugf("AutoScalerNode::statusVM, node:%s", vm.InstanceName)
+	glog.Debugf("AutoScalerNode::statusVM, node: %s", vm.InstanceName)
 
 	// Get VM infos
 	var status providers.InstanceStatus

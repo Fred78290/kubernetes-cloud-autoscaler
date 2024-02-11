@@ -75,7 +75,7 @@ func NewMultipassProviderConfiguration(fileName string) (providers.ProviderConfi
 	var err error
 
 	if err = providers.LoadConfig(fileName, &config); err != nil {
-		glog.Errorf("Failed to open file:%s, error:%v", fileName, err)
+		glog.Errorf("Failed to open file: %s, error: %v", fileName, err)
 
 		return nil, err
 	}

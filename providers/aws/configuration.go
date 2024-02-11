@@ -118,7 +118,7 @@ func NewAwsProviderConfiguration(fileName string) (providers.ProviderConfigurati
 	var wrapper awsWrapper
 
 	if err := providers.LoadConfig(fileName, &wrapper.Configuration); err != nil {
-		glog.Errorf("Failed to open file:%s, error:%v", fileName, err)
+		glog.Errorf("Failed to open file: %s, error: %v", fileName, err)
 
 		return nil, err
 	}
@@ -321,7 +321,7 @@ func (handler *awsHandler) RegisterDNS(address string) error {
 		vm := handler.runningInstance
 		hostname := fmt.Sprintf("%s.%s", vm.InstanceName, handler.Network.PrivateZoneName)
 
-		glog.Infof("Register route53 entry for instance %s, hostname: %s with IP:%s", vm.InstanceName, hostname, address)
+		glog.Infof("Register route53 entry for instance %s, hostname: %s with IP: %s", vm.InstanceName, hostname, address)
 
 		err = vm.RegisterDNS(hostname, address, handler.TestMode)
 	}
@@ -337,7 +337,7 @@ func (handler *awsHandler) UnregisterDNS(address string) error {
 		vm := handler.runningInstance
 		hostname := fmt.Sprintf("%s.%s", vm.InstanceName, handler.Network.PrivateZoneName)
 
-		glog.Infof("Unregister route53 entry for instance %s, hostname: %s with IP:%s", vm.InstanceName, hostname, address)
+		glog.Infof("Unregister route53 entry for instance %s, hostname: %s with IP: %s", vm.InstanceName, hostname, address)
 
 		err = vm.UnRegisterDNS(hostname, false)
 	}

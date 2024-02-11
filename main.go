@@ -50,16 +50,16 @@ func main() {
 	glog.Infof("config: %s", cfg)
 
 	if cfg.DisplayVersion {
-		glog.Infof("The current version is:%s, build at:%s", phVersion, phBuildDate)
+		glog.Infof("The current version is: %s, build at: %s", phVersion, phBuildDate)
 	} else {
 		var err error
 
-		glog.Infof("Start controller version: %s, build at:%s", phVersion, phBuildDate)
+		glog.Infof("Start controller version: %s, build at: %s", phVersion, phBuildDate)
 
 		generator := client.NewClientGenerator(cfg)
 
 		if _, err = generator.NodeList(); err != nil {
-			glog.Fatalf("Can't validate config, reason:%s", err)
+			glog.Fatalf("Can't validate config, reason: %s", err)
 		}
 
 		server.StartServer(generator, cfg)

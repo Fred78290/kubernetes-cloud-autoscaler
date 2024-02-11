@@ -169,16 +169,16 @@ func GeneratePublicKey(authKey string) (publicKey string, err error) {
 	var publicRsaKey ssh.PublicKey
 
 	if priv, err = os.ReadFile(authKey); err != nil {
-		glog.Errorf("unable to read:%s, reason: %v", authKey, err)
+		glog.Errorf("unable to read: %s, reason: %v", authKey, err)
 	} else {
 		block, _ := pem.Decode([]byte(priv))
 
 		if block == nil || block.Type != "RSA PRIVATE KEY" {
 			glog.Errorf("failed to decode PEM block containing public key")
 		} else if key, err = x509.ParsePKCS1PrivateKey(block.Bytes); err != nil {
-			glog.Errorf("unable to parse private key:%s, reason: %v", authKey, err)
+			glog.Errorf("unable to parse private key: %s, reason: %v", authKey, err)
 		} else if publicRsaKey, err = ssh.NewPublicKey(&key.PublicKey); err != nil {
-			glog.Errorf("unable to generate public key:%s, reason: %v", authKey, err)
+			glog.Errorf("unable to generate public key: %s, reason: %v", authKey, err)
 		} else {
 			publicKey = string(ssh.MarshalAuthorizedKey(publicRsaKey))
 		}

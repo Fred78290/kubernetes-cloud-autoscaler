@@ -27,7 +27,7 @@ type ConfigurationTest struct {
 var testConfig ConfigurationTest
 
 const (
-	cantFindInstanceName = "Can't find instance named:%s"
+	cantFindInstanceName = "Can't find instance named: %s"
 	cantGetStatus        = "Can't get status on VM"
 )
 
@@ -56,11 +56,11 @@ func loadFromJson() *ConfigurationTest {
 		godotenv.Overload("../.env")
 
 		if content, err := providers.LoadTextEnvSubst(getTestFile()); err != nil {
-			glog.Fatalf("failed to open config file:%s, error:%v", getTestFile(), err)
+			glog.Fatalf("failed to open config file: %s, error: %v", getTestFile(), err)
 		} else if json.NewDecoder(strings.NewReader(content)).Decode(&testConfig.BasicConfiguration); err != nil {
-			glog.Fatalf("failed to decode config file:%s, error:%v", getTestFile(), err)
+			glog.Fatalf("failed to decode config file: %s, error: %v", getTestFile(), err)
 		} else if testConfig.provider, err = vsphere.NewVSphereProviderConfiguration(getProviderConfFile()); err != nil {
-			glog.Fatalf("failed to open config file:%s, error:%v", getProviderConfFile(), err)
+			glog.Fatalf("failed to open config file: %s, error: %v", getProviderConfFile(), err)
 		} else {
 			testConfig.inited = true
 		}
@@ -140,7 +140,7 @@ func Test_statusVM(t *testing.T) {
 
 		if instance, err := config.provider.AttachInstance(config.InstanceName, 0); err == nil {
 			if status, err := instance.InstanceStatus(); assert.NoError(t, err, "Can't get status VM") {
-				t.Logf("The power of vm %s is:%v", config.InstanceName, status.Powered())
+				t.Logf("The power of vm %s is: %v", config.InstanceName, status.Powered())
 			}
 		} else {
 			assert.NoError(t, err, fmt.Sprintf(cantFindInstanceName, config.InstanceName))
@@ -156,7 +156,7 @@ func Test_powerOnVM(t *testing.T) {
 			if status, err := instance.InstanceStatus(); assert.NoError(t, err, cantGetStatus) && status.Powered() == false {
 				if err = instance.InstancePowerOn(); assert.NoError(t, err, "Can't power on VM") {
 					if ipaddr, err := instance.InstanceWaitReady(config); assert.NoError(t, err, "Can't get IP") {
-						t.Logf("VM powered with IP:%s", ipaddr)
+						t.Logf("VM powered with IP: %s", ipaddr)
 					}
 				}
 			}

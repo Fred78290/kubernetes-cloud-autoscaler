@@ -73,7 +73,7 @@ func (wrapper *remoteMultipassWrapper) powerOn(instanceName string) error {
 	if response, err := wrapper.client.HostStartInstance(ctx, &api.HostInstanceRequest{Driver: multipassCommandLine, InstanceName: instanceName}); err != nil {
 		return err
 	} else if response.GetError() != nil {
-		return fmt.Errorf("powerOn failed. Code:%d, reason: %v", response.GetError().Code, response.GetError().Reason)
+		return fmt.Errorf("powerOn failed. Code: %d, reason: %v", response.GetError().Code, response.GetError().Reason)
 	}
 
 	return nil
@@ -86,7 +86,7 @@ func (wrapper *remoteMultipassWrapper) powerOff(instanceName string) error {
 	if response, err := wrapper.client.HostStopInstance(ctx, &api.HostInstanceRequest{Driver: multipassCommandLine, InstanceName: instanceName}); err != nil {
 		return err
 	} else if response.GetError() != nil {
-		return fmt.Errorf("powerOff failed. Code:%d, reason: %v", response.GetError().Code, response.GetError().Reason)
+		return fmt.Errorf("powerOff failed. Code: %d, reason: %v", response.GetError().Code, response.GetError().Reason)
 	}
 
 	return nil
@@ -99,7 +99,7 @@ func (wrapper *remoteMultipassWrapper) delete(instanceName string) error {
 	if response, err := wrapper.client.HostDeleteInstance(ctx, &api.HostInstanceRequest{Driver: multipassCommandLine, InstanceName: instanceName}); err != nil {
 		return err
 	} else if response.GetError() != nil {
-		return fmt.Errorf("delete failed. Code:%d, reason: %v", response.GetError().Code, response.GetError().Reason)
+		return fmt.Errorf("delete failed. Code: %d, reason: %v", response.GetError().Code, response.GetError().Reason)
 	}
 
 	return nil
@@ -114,7 +114,7 @@ func (wrapper *remoteMultipassWrapper) status(instanceName string) (providers.In
 	if response, err := wrapper.client.HostInfoInstance(ctx, &api.HostInstanceRequest{Driver: multipassCommandLine, InstanceName: instanceName}); err != nil {
 		return nil, err
 	} else if response.GetError() != nil {
-		return nil, fmt.Errorf("status failed. Code:%d, reason: %v", response.GetError().Code, response.GetError().Reason)
+		return nil, fmt.Errorf("status failed. Code: %d, reason: %v", response.GetError().Code, response.GetError().Reason)
 	} else if err = json.NewDecoder(strings.NewReader(response.GetResult().Output)).Decode(&infos); err != nil {
 		return nil, err
 	} else if vminfo, found := infos.Info[instanceName]; found {
@@ -203,7 +203,7 @@ func (wrapper *remoteMultipassWrapper) create(input *createInstanceInput) (strin
 		if response, err := wrapper.client.HostCreateInstance(ctx, &request); err != nil {
 			return "", err
 		} else if response.GetError() != nil {
-			return "", fmt.Errorf("create failed. Code:%d, reason: %v", response.GetError().Code, response.GetError().Reason)
+			return "", fmt.Errorf("create failed. Code: %d, reason: %v", response.GetError().Code, response.GetError().Reason)
 		} else {
 			return response.GetResult().Output, nil
 		}

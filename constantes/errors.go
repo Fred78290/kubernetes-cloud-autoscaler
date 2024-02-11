@@ -50,7 +50,7 @@ const (
 	ErrUnableToDeleteNodeGroup = "can't delete node group: %s, reason: %v"
 
 	// ErrCantUnmarshallNodeWithReason error msg
-	ErrCantUnmarshallNodeWithReason = "can't unmarshall node definition:%s, reason: %v"
+	ErrCantUnmarshallNodeWithReason = "can't unmarshall node definition: %s, reason: %v"
 
 	// ErrCantUnmarshallNode error msg
 	ErrCantUnmarshallNode = "can't unmarshall node definition[%d] in group %s"
@@ -92,7 +92,7 @@ const (
 	ErrVMAlreadyExists = "the vm named: %s is already exists"
 
 	// ErrUnableToMountPath error msg
-	ErrUnableToMountPath = "unable to mount host path:%s into guest:%s for node:%s, reason: %v"
+	ErrUnableToMountPath = "unable to mount host path: %s into guest: %s for node: %s, reason: %v"
 
 	// ErrTempFile error msg
 	ErrTempFile = "can't create temp file, reason: %v"
@@ -112,11 +112,11 @@ const (
 	// ErrManagedInfoNotFound error msg
 	ErrManagedNodeNotFound = "can't find the VM info from AutoScaler for UID: %s"
 
-	// ErrKubeAdmJoinFailed error msg
-	ErrKubeAdmJoinFailed = "unable to join the master kubernetes node for VM: %s, reason: %v"
+	// ErrNodeJoinClusterFailed error msg
+	ErrNodeJoinClusterFailed = "unable to join the master kubernetes node for VM: %s, reason: %v"
 
-	// ErrKubeAdmJoinNotRunning error msg
-	ErrKubeAdmJoinNotRunning = "could not join kubernetes master node, the VM: %s is not running"
+	// ErrNodeAgentNotRunning error msg
+	ErrNodeAgentNotRunning = "could not join kubernetes master node, the VM: %s is not running"
 
 	// ErrStopVMFailed error msg
 	ErrStopVMFailed = "could not stop VM: %s, reason: %v"
@@ -215,22 +215,22 @@ const (
 	ErrUnableToEncodeGuestInfo = "unable to encode vmware guest info: %s, reason: %v"
 
 	// ErrUnableToAddHardDrive error msg
-	ErrUnableToAddHardDrive = "unable to add hard drive to VM:%s, reason: %v"
+	ErrUnableToAddHardDrive = "unable to add hard drive to VM: %s, reason: %v"
 
 	// ErrUnableToAddNetworkCard error msg
-	ErrUnableToAddNetworkCard = "unable to add network card to VM:%s, reason: %v"
+	ErrUnableToAddNetworkCard = "unable to add network card to VM: %s, reason: %v"
 
 	// ErrUnableToCreateDeviceChangeOp error msg
-	ErrUnableToCreateDeviceChangeOp = "unable to create device change operation for VM:%s, reason: %v"
+	ErrUnableToCreateDeviceChangeOp = "unable to create device change operation for VM: %s, reason: %v"
 
 	// ErrCloudInitFailCreation error msg
-	ErrCloudInitFailCreation = "unable to create cloud-init data for VM:%s, reason: %v"
+	ErrCloudInitFailCreation = "unable to create cloud-init data for VM: %s, reason: %v"
 
 	// ErrUnableToReconfigureVM error msg
-	ErrUnableToReconfigureVM = "unable to reconfigure VM:%s, reason: %v"
+	ErrUnableToReconfigureVM = "unable to reconfigure VM: %s, reason: %v"
 
 	// WarnFailedVMNotDeleted warn msg
-	WarnFailedVMNotDeleted = "the failed VM:%s is not deleted because status is:%v"
+	WarnFailedVMNotDeleted = "the failed VM: %s is not deleted because status is: %v"
 
 	// ErrPodEvictionAborted
 	ErrPodEvictionAborted = "pod eviction aborted"

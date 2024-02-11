@@ -571,5 +571,5 @@ func (cfg *Config) ParseFlags(args []string, version string) error {
 }
 
 func (cfg *Config) String() string {
-	return fmt.Sprintf("APIServerURL:%s KubeConfig:%s RequestTimeout:%s Config:%s SaveLocation:%s DisplayVersion:%s", cfg.APIServerURL, cfg.KubeConfig, cfg.RequestTimeout, cfg.Config, cfg.SaveLocation, strconv.FormatBool(cfg.DisplayVersion))
+	return fmt.Sprintf("APIServerURL: %s KubeConfig: %s RequestTimeout: %s Config: %s SaveLocation: %s DisplayVersion: %s", cfg.APIServerURL, cfg.KubeConfig, cfg.RequestTimeout, cfg.Config, cfg.SaveLocation, strconv.FormatBool(cfg.DisplayVersion))
 }

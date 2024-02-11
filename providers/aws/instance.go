@@ -165,7 +165,7 @@ func (instance *Ec2Instance) WaitForIP(callback providers.CallbackWaitSSHReady) 
 				instance.AddressIP = ec2Instance.PrivateIpAddress
 			}
 
-			glog.Debugf("WaitForIP: instance %s id (%s), using IP:%s", instance.InstanceName, instance.getInstanceID(), *instance.AddressIP)
+			glog.Debugf("WaitForIP: instance %s id (%s), using IP: %s", instance.InstanceName, instance.getInstanceID(), *instance.AddressIP)
 
 			if err = callback.WaitSSHReady(instance.InstanceName, *instance.AddressIP); err != nil {
 				return false, err
@@ -602,7 +602,7 @@ func (instance *Ec2Instance) getRegisteredRecordSetAddress(name string) (*string
 			if len(output.ResourceRecordSets) > 0 && len(output.ResourceRecordSets[0].ResourceRecords) > 0 {
 				return output.ResourceRecordSets[0].ResourceRecords[0].Value, nil
 			} else {
-				return nil, fmt.Errorf("route53 entry:%s not found", name)
+				return nil, fmt.Errorf("route53 entry: %s not found", name)
 			}
 		} else {
 			return nil, err

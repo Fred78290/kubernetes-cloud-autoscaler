@@ -162,7 +162,7 @@ func (s *grpcServerApp) NodeGroupForNode(ctx context.Context, request *apigrpc.N
 		}
 
 		if nodeGroup == nil {
-			glog.Errorf("Nodegroup not found for node:%s", node.Name)
+			glog.Errorf("Nodegroup not found for node: %s", node.Name)
 
 			return &apigrpc.NodeGroupForNodeReply{
 				Response: &apigrpc.NodeGroupForNodeReply_NodeGroup{
@@ -471,7 +471,7 @@ func (s *grpcServerApp) HasInstance(ctx context.Context, request *apigrpc.HasIns
 				},
 			}, nil
 		} else if nodeGroup == nil {
-			glog.Infof("Nodegroup not found for node:%s", node.Name)
+			glog.Infof("Nodegroup not found for node: %s", node.Name)
 
 			return &apigrpc.HasInstanceReply{
 				Response: &apigrpc.HasInstanceReply_Error{
