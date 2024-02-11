@@ -94,10 +94,13 @@ func (vnet *Network) Clone(nodeIndex int) *Network {
 
 	for index, inf := range vnet.Interfaces {
 		address := inf.IPAddress
-		if !inf.DHCP {
-			if ip := net.ParseIP(inf.IPAddress).To4(); ip != nil {
-				if ipv4, err := ipconv.IPv4ToInt(net.ParseIP(inf.IPAddress).To4()); err == nil {
-					address = ipconv.IntToIPv4(ipv4 + uint32(nodeIndex)).String()
+
+		if nodeIndex >= 0 {
+			if !inf.DHCP || len(address) > 0 {
+				if ip := net.ParseIP(address).To4(); ip != nil {
+					if ipv4, err := ipconv.IPv4ToInt(net.ParseIP(address).To4()); err == nil {
+						address = ipconv.IntToIPv4(ipv4 + uint32(nodeIndex)).String()
+					}
 				}
 			}
 		}
@@ -128,7 +131,7 @@ func (vnet *Network) Clone(nodeIndex int) *Network {
 func (vnet *Network) PrimaryAddressIP() (address string) {
 	for _, n := range vnet.Interfaces {
 		if n.Enabled && n.Primary {
-			if !n.DHCP {
+			if !n.DHCP || len(n.IPAddress) > 0 {
 				address = n.IPAddress
 			}
 			break
@@ -153,6 +156,7 @@ func (vnet *Network) GetCloudInitNetwork(nodeIndex int) *cloudinit.NetworkDeclar
 			if len(nicName) > 0 {
 				var ethernet *cloudinit.NetworkAdapter
 				var macAddress = n.GetMacAddress(nodeIndex)
+				var address = n.IPAddress
 
 				if n.DHCP || len(n.IPAddress) == 0 {
 					ethernet = &cloudinit.NetworkAdapter{
@@ -166,13 +170,12 @@ func (vnet *Network) GetCloudInitNetwork(nodeIndex int) *cloudinit.NetworkDeclar
 					} else if len(n.Gateway) > 0 {
 						ethernet.Gateway4 = &n.Gateway
 					}
-
 				}
 
-				if len(n.IPAddress) > 0 {
+				if len(address) > 0 {
 					if len(label) > 0 {
 						addr := map[string]any{}
-						addr[cloudinit.ToCIDR(n.IPAddress, n.Netmask)] = map[string]any{
+						addr[cloudinit.ToCIDR(address, n.Netmask)] = map[string]any{
 							"label": label,
 						}
 
@@ -185,7 +188,7 @@ func (vnet *Network) GetCloudInitNetwork(nodeIndex int) *cloudinit.NetworkDeclar
 					} else {
 						ethernet = &cloudinit.NetworkAdapter{
 							Addresses: &[]any{
-								cloudinit.ToCIDR(n.IPAddress, n.Netmask),
+								cloudinit.ToCIDR(address, n.Netmask),
 							},
 						}
 					}
