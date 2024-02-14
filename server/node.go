@@ -80,6 +80,8 @@ const (
 	mkdirFailed              = "mkdir failed: %v"
 	moveFailed               = "mv failed: %v"
 	chownFailed              = "chown failed: %v"
+	copyFiles                = "cp -r /tmp/%s/* %s"
+	changeOwner              = "chown -R %s %s"
 )
 
 // AutoScalerServerNode Describe a AutoScaler VM
@@ -144,26 +146,35 @@ func (vm *AutoScalerServerNode) waitReady(c types.ClientGenerator) error {
 	return c.WaitNodeToBeReady(vm.NodeName)
 }
 
+func (vm *AutoScalerServerNode) recopyDirectory(srcDir, dstDir string) (err error) {
+	config := vm.serverConfig
+	timeout := vm.providerHandler.GetTimeout()
+	dirName := filepath.Base(srcDir)
+
+	if err = utils.Scp(config.SSH, vm.IPAddress, srcDir, "/tmp"); err != nil {
+		glog.Errorf(scpFailed, err)
+	} else if _, err = utils.Sudo(config.SSH, vm.IPAddress, timeout, fmt.Sprintf(mkdirCmd, dstDir)); err != nil {
+		glog.Errorf(mkdirFailed, err)
+	} else if _, err = utils.Sudo(config.SSH, vm.IPAddress, timeout, fmt.Sprintf(copyFiles, dirName, dstDir)); err != nil {
+		glog.Errorf(moveFailed, err)
+	} else if _, err = utils.Sudo(config.SSH, vm.IPAddress, timeout, fmt.Sprintf(changeOwner, *config.CloudInitFileOwner, dstDir)); err != nil {
+		glog.Errorf(chownFailed, err)
+	}
+
+	return err
+}
+
 func (vm *AutoScalerServerNode) recopyEtcdSslFilesIfNeeded() (err error) {
 	config := vm.serverConfig
 
-	if !config.UseCloudInitToConfigure() {
-		if config.KubernetesDistribution() != providers.RKE2DistributionName && (vm.ControlPlaneNode || *config.UseExternalEtdc) {
+	if !vm.serverConfig.UseCloudInitToConfigure() {
+		if config.KubernetesDistribution() != providers.RKE2DistributionName && vm.ControlPlaneNode && config.UseExternalEtdcServer() {
 			glog.Infof("Recopy Etcd ssl files for instance: %s in node group: %s", vm.InstanceName, vm.NodeGroup)
 
-			timeout := vm.providerHandler.GetTimeout()
-
-			if err = utils.Scp(config.SSH, vm.IPAddress, config.ExtSourceEtcdSslDir, "."); err != nil {
-				glog.Errorf(scpFailed, err)
-			} else if _, err = utils.Sudo(config.SSH, vm.IPAddress, timeout, fmt.Sprintf(mkdirCmd, config.ExtDestinationEtcdSslDir)); err != nil {
-				glog.Errorf(mkdirFailed, err)
-			} else if _, err = utils.Sudo(config.SSH, vm.IPAddress, timeout, fmt.Sprintf("cp -r %s/* %s", filepath.Base(config.ExtSourceEtcdSslDir), config.ExtDestinationEtcdSslDir)); err != nil {
-				glog.Errorf(moveFailed, err)
-			} else if _, err = utils.Sudo(config.SSH, vm.IPAddress, timeout, fmt.Sprintf("chown -R %s %s", *config.CloudInitFileOwner, config.ExtDestinationEtcdSslDir)); err != nil {
-				glog.Errorf(chownFailed, err)
-			}
+			err = vm.recopyDirectory(config.ExtSourceEtcdSslDir, config.ExtDestinationEtcdSslDir)
 		}
 	}
+
 	return err
 }
 
@@ -171,21 +182,10 @@ func (vm *AutoScalerServerNode) recopyKubernetesPKIIfNeeded() (err error) {
 	config := vm.serverConfig
 
 	if !config.UseCloudInitToConfigure() {
-
-		if config.KubernetesDistribution() != providers.RKE2DistributionName && vm.ControlPlaneNode {
+		if config.KubernetesDistribution() == providers.KubeAdmDistributionName && vm.ControlPlaneNode {
 			glog.Infof("Recopy PKI for instance: %s in node group: %s", vm.InstanceName, vm.NodeGroup)
 
-			timeout := vm.providerHandler.GetTimeout()
-
-			if err = utils.Scp(config.SSH, vm.IPAddress, config.KubernetesPKISourceDir, "."); err != nil {
-				glog.Errorf(scpFailed, err)
-			} else if _, err = utils.Sudo(config.SSH, vm.IPAddress, timeout, fmt.Sprintf(mkdirCmd, config.KubernetesPKIDestDir)); err != nil {
-				glog.Errorf(mkdirFailed, err)
-			} else if _, err = utils.Sudo(config.SSH, vm.IPAddress, timeout, fmt.Sprintf("cp -r %s/* %s", filepath.Base(config.KubernetesPKISourceDir), config.KubernetesPKIDestDir)); err != nil {
-				glog.Errorf(moveFailed, err)
-			} else if _, err = utils.Sudo(config.SSH, vm.IPAddress, timeout, fmt.Sprintf("chown -R %s %s", *config.CloudInitFileOwner, config.KubernetesPKIDestDir)); err != nil {
-				glog.Errorf(chownFailed, err)
-			}
+			err = vm.recopyDirectory(config.KubernetesPKISourceDir, config.KubernetesPKIDestDir)
 		}
 	}
 
@@ -317,12 +317,11 @@ func (vm *AutoScalerServerNode) externalAgentConfig() any {
 	config := vm.serverConfig
 	external := config.External
 	externalConfig := map[string]any{
-		"provider-id":              vm.generateProviderID(),
-		"max-pods":                 vm.MaxPods,
-		"node-name":                vm.NodeName,
-		"server":                   external.Address,
-		"token":                    external.Token,
-		"disable-cloud-controller": vm.ControlPlaneNode && config.UseControllerManager(),
+		"provider-id": vm.generateProviderID(),
+		"max-pods":    vm.MaxPods,
+		"node-name":   vm.NodeName,
+		"server":      external.Address,
+		"token":       external.Token,
 	}
 
 	if external.ExtraConfig != nil {
@@ -331,11 +330,18 @@ func (vm *AutoScalerServerNode) externalAgentConfig() any {
 		}
 	}
 
-	if vm.ControlPlaneNode && config.UseExternalEtdc != nil && *config.UseExternalEtdc {
-		externalConfig["datastore-endpoint"] = external.DatastoreEndpoint
-		externalConfig["datastore-cafile"] = fmt.Sprintf("%s/ca.pem", config.ExtDestinationEtcdSslDir)
-		externalConfig["datastore-certfile"] = fmt.Sprintf("%s/etcd.pem", config.ExtDestinationEtcdSslDir)
-		externalConfig["datastore-keyfile"] = fmt.Sprintf("%s/etcd-key.pem", config.ExtDestinationEtcdSslDir)
+	if vm.ControlPlaneNode {
+		if config.UseControllerManager() {
+			externalConfig["disable-cloud-controller"] = config.DisableCloudController()
+			externalConfig["cloud-provider-name"] = config.GetCloudProviderName()
+		}
+
+		if config.UseExternalEtdcServer() {
+			externalConfig["datastore-endpoint"] = external.DatastoreEndpoint
+			externalConfig["datastore-cafile"] = fmt.Sprintf("%s/ca.pem", config.ExtDestinationEtcdSslDir)
+			externalConfig["datastore-certfile"] = fmt.Sprintf("%s/etcd.pem", config.ExtDestinationEtcdSslDir)
+			externalConfig["datastore-keyfile"] = fmt.Sprintf("%s/etcd-key.pem", config.ExtDestinationEtcdSslDir)
+		}
 	}
 
 	return externalConfig
@@ -366,9 +372,9 @@ func (vm *AutoScalerServerNode) rke2AgentConfig() any {
 	}
 
 	if vm.ControlPlaneNode {
-		if config.CloudProvider != nil && len(*config.CloudProvider) > 0 {
-			rke2Config["disable-cloud-controller"] = *config.CloudProvider == "external"
-			rke2Config["cloud-provider-name"] = *config.CloudProvider
+		if config.UseControllerManager() {
+			rke2Config["disable-cloud-controller"] = config.DisableCloudController()
+			rke2Config["cloud-provider-name"] = config.GetCloudProviderName()
 		}
 
 		rke2Config["disable"] = []string{
@@ -421,13 +427,13 @@ func (vm *AutoScalerServerNode) k3sAgentCommand() []string {
 	}
 
 	if vm.ControlPlaneNode {
-		if config.UseControllerManager() {
+		if config.DisableCloudController() {
 			command = append(command, "echo 'K3S_MODE=server' > /etc/default/k3s", "echo K3S_DISABLE_ARGS='--disable-cloud-controller --disable=servicelb --disable=traefik --disable=metrics-server' > /etc/systemd/system/k3s.disabled.env")
 		} else {
 			command = append(command, "echo 'K3S_MODE=server' > /etc/default/k3s", "echo K3S_DISABLE_ARGS='--disable=servicelb --disable=traefik --disable=metrics-server' > /etc/systemd/system/k3s.disabled.env")
 		}
 
-		if config.UseExternalEtdc != nil && *config.UseExternalEtdc {
+		if config.UseExternalEtdcServer() {
 			command = append(command, fmt.Sprintf("echo K3S_SERVER_ARGS='--datastore-endpoint=%s --datastore-cafile=%s/ca.pem --datastore-certfile=%s/etcd.pem --datastore-keyfile=%s/etcd-key.pem' > /etc/systemd/system/k3s.server.env", k3s.DatastoreEndpoint, config.ExtDestinationEtcdSslDir, config.ExtDestinationEtcdSslDir, config.ExtDestinationEtcdSslDir))
 		}
 	}
@@ -558,7 +564,7 @@ func (vm *AutoScalerServerNode) WaitForIP() (string, error) {
 func (vm *AutoScalerServerNode) appendEtcdSslFilesIfNeededInCloudInit() error {
 	config := vm.serverConfig
 
-	if config.KubernetesDistribution() != providers.RKE2DistributionName && (vm.ControlPlaneNode || *config.UseExternalEtdc) {
+	if config.KubernetesDistribution() != providers.RKE2DistributionName && (vm.ControlPlaneNode && config.UseExternalEtdcServer()) {
 		glog.Infof("Put in cloud-init Etcd ssl files for instance: %s in node group: %s", vm.InstanceName, vm.NodeGroup)
 
 		return vm.CloudInit.AddDirectoryToWriteFile(config.ExtSourceEtcdSslDir, config.ExtDestinationEtcdSslDir, *config.CloudInitFileOwner)
@@ -630,13 +636,13 @@ func (vm *AutoScalerServerNode) prepareCloudInit() (err error) {
 		return fmt.Errorf(constantes.ErrUnableToRetrieveMaxPodsForInstanceType, vm.InstanceName, err)
 	}
 
-	if config.UseCloudInitToConfigure() {
-		if vm.serverConfig.CloudInit == nil {
-			vm.CloudInit = make(cloudinit.CloudInit)
-		} else if vm.CloudInit, err = vm.serverConfig.CloudInit.Clone(); err != nil {
-			return err
-		}
+	if vm.serverConfig.CloudInit == nil {
+		vm.CloudInit = make(cloudinit.CloudInit)
+	} else if vm.CloudInit, err = vm.serverConfig.CloudInit.Clone(); err != nil {
+		return err
+	}
 
+	if config.UseCloudInitToConfigure() {
 		if err = vm.appendEtcdSslFilesIfNeededInCloudInit(); err != nil {
 			return err
 		}
@@ -1011,7 +1017,7 @@ func (vm *AutoScalerServerNode) statusVM() (AutoScalerServerNodeState, error) {
 }
 
 func (vm *AutoScalerServerNode) setProviderID(c types.ClientGenerator) error {
-	if vm.serverConfig.UseControllerManager() {
+	if vm.serverConfig.DisableCloudController() {
 		providerID := vm.generateProviderID()
 
 		if len(providerID) > 0 {
@@ -1023,7 +1029,7 @@ func (vm *AutoScalerServerNode) setProviderID(c types.ClientGenerator) error {
 }
 
 func (vm *AutoScalerServerNode) generateProviderID() string {
-	if vm.serverConfig.UseControllerManager() {
+	if vm.serverConfig.DisableCloudController() {
 		return vm.providerHandler.GenerateProviderID()
 	}
 
@@ -1051,7 +1057,7 @@ func (vm *AutoScalerServerNode) findInstanceUUID() string {
 func (vm *AutoScalerServerNode) setServerConfiguration(config *types.AutoScalerServerConfig) error {
 	var err error
 
-	if vm.providerHandler, err = config.GetCloudConfiguration().AttachInstance(vm.InstanceName, vm.NodeIndex); err == nil {
+	if vm.providerHandler, err = config.GetCloudConfiguration().AttachInstance(vm.InstanceName, vm.ControlPlaneNode, vm.NodeIndex); err == nil {
 		vm.serverConfig = config
 		vm.providerHandler.UpdateMacAddressTable()
 	}
