@@ -282,6 +282,15 @@ const (
 
 	// ErrNodeInternalIPNotFound err msg
 	ErrNodeInternalIPNotFound = "unable to find internal ip for node: %s"
+
+	// ErrUnableToDeleteControlPlaneNode err msg
+	ErrUnableToDeleteControlPlaneNode = "unable to delete control plane node: %s"
+
+	// ErrNetworkInterfaceNotFoundToConfigure err msg
+	ErrNetworkInterfaceNotFoundToConfigure = "network interface not found: %s"
+
+	// WarnNetworkInterfaceIsDisabled warn msg
+	WarnNetworkInterfaceIsDisabled = "network interface is disabled: %s"
 )
 
 //update status managed node %s failed, reason: %v
