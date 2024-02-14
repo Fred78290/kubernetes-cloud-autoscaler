@@ -46,7 +46,7 @@
                 "--config=${workspaceFolder}/.config/vsphere/vsphere-test-k3s/autoscaler.json",
                 "--save=${workspaceFolder}/.config/vsphere/vsphere-test-k3s/state.json",
                 "--kubeconfig=${workspaceFolder}/.config/vsphere/vsphere-test-k3s/config",
-                "--log-level=info"
+                "--log-level=debug"
             ]
         },
         {
@@ -90,7 +90,7 @@
                 "--config=${workspaceFolder}/.config/desktop/desktop-ca-k8s/autoscaler.json",
                 "--save=${workspaceFolder}/.config/desktop/desktop-ca-k8s/state.json",
                 "--kubeconfig=${workspaceFolder}/.config/desktop/desktop-ca-k8s/config",
-                "--log-level=info"
+                "--log-level=debug"
             ]
         },
         {
