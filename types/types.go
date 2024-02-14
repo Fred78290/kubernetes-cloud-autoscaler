@@ -407,11 +407,27 @@ func (conf *AutoScalerServerConfig) UseCloudInitToConfigure() bool {
 }
 
 func (conf *AutoScalerServerConfig) UseControllerManager() bool {
+	if conf.CloudProvider != nil && len(*conf.CloudProvider) > 0 {
+		return true
+	}
+
+	return false
+}
+
+func (conf *AutoScalerServerConfig) DisableCloudController() bool {
 	if conf.CloudProvider != nil && *conf.CloudProvider == "external" {
 		return true
 	}
 
 	return false
+}
+
+func (conf *AutoScalerServerConfig) GetCloudProviderName() string {
+	if conf.CloudProvider != nil {
+		return *conf.CloudProvider
+	}
+
+	return ""
 }
 
 func (conf *AutoScalerServerConfig) GetCloudConfiguration() providers.ProviderConfiguration {
@@ -442,6 +458,14 @@ func (conf *AutoScalerServerConfig) GetAutoScalingOptions() (*apigrpc.Autoscalin
 	}
 
 	return conf.autoScalingOptions, nil
+}
+
+func (conf *AutoScalerServerConfig) UseExternalEtdcServer() bool {
+	if conf.UseExternalEtdc != nil {
+		return *conf.UseExternalEtdc
+	}
+
+	return false
 }
 
 // NewConfig returns new Config object
