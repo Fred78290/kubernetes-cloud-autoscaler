@@ -52,6 +52,8 @@ func (v *externalgrpcServerApp) doAutoProvision() error {
 			glog.Errorf(constantes.ErrUnableToAutoProvisionNodeGroup, err)
 
 			return err
+		} else {
+			v.appServer.syncState()
 		}
 	}
 
