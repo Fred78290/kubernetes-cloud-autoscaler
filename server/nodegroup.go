@@ -805,19 +805,23 @@ func (g *AutoScalerServerNodeGroup) autoDiscoveryNodes(client types.ClientGenera
 func (g *AutoScalerServerNodeGroup) deleteNode(c types.ClientGenerator, node *AutoScalerServerNode) error {
 	var err error
 
-	g.RunningNodes[node.NodeIndex] = ServerNodeStateDeleting
-
-	if err = node.deleteVM(c); err != nil {
-		glog.Errorf(constantes.ErrUnableToDeleteVM, node.InstanceName, err)
-	}
-
-	g.RunningNodes[node.NodeIndex] = ServerNodeStateDeleted
-	g.removeNamedNode(node.InstanceName)
-
-	if node.NodeType == AutoScalerServerNodeAutoscaled {
-		g.numOfProvisionnedNodes--
+	if node.ControlPlaneNode {
+		err = fmt.Errorf(constantes.ErrUnableToDeleteControlPlaneNode, node.NodeName)
 	} else {
-		g.numOfManagedNodes--
+		g.RunningNodes[node.NodeIndex] = ServerNodeStateDeleting
+
+		if err = node.deleteVM(c); err != nil {
+			glog.Errorf(constantes.ErrUnableToDeleteVM, node.InstanceName, err)
+		}
+
+		g.RunningNodes[node.NodeIndex] = ServerNodeStateDeleted
+		g.removeNamedNode(node.InstanceName)
+
+		if node.NodeType == AutoScalerServerNodeAutoscaled {
+			g.numOfProvisionnedNodes--
+		} else {
+			g.numOfManagedNodes--
+		}
 	}
 
 	return err
