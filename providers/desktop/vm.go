@@ -14,13 +14,14 @@ type VirtualMachine struct {
 	Memory int64
 }
 
-func BuildNetworkInterface(interfaces []*providers.NetworkInterface, nodeIndex int) []*api.NetworkInterface {
-	result := make([]*api.NetworkInterface, 0, len(interfaces))
+func BuildNetworkInterface(network *providers.Network) []*api.NetworkInterface {
 
-	for _, inf := range interfaces {
+	result := make([]*api.NetworkInterface, 0, len(network.Interfaces))
+
+	for _, inf := range network.Interfaces {
 		if inf.Enabled {
 			result = append(result, &api.NetworkInterface{
-				Macaddress:  inf.GetMacAddress(nodeIndex),
+				Macaddress:  inf.GetMacAddress(),
 				Vnet:        inf.NetworkName,
 				Type:        inf.ConnectionType,
 				Device:      inf.Adapter,

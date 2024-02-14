@@ -60,9 +60,9 @@ func (ng *autoScalerServerNodeGroupTest) createTestNode(nodeName string, desired
 	}
 
 	if ng.testConfig.InstanceExists(nodeName) {
-		node.providerHandler, _ = ng.testConfig.AttachInstance(nodeName, 1)
+		node.providerHandler, _ = ng.testConfig.AttachInstance(nodeName, false, 1)
 	} else {
-		node.providerHandler, _ = ng.testConfig.CreateInstance(nodeName, "small", 1)
+		node.providerHandler, _ = ng.testConfig.CreateInstance(nodeName, "small", false, 1)
 	}
 
 	if vmuuid := node.findInstanceUUID(); len(vmuuid) > 0 {

@@ -109,6 +109,7 @@ type awsHandler struct {
 	*awsWrapper
 	instanceName    string
 	instanceType    string
+	controlPlane    bool
 	nodeIndex       int
 	runningInstance *Ec2Instance
 	desiredENI      *UserDefinedNetworkInterface
@@ -207,11 +208,11 @@ func (handler *awsHandler) InstanceCreate(input *providers.InstanceCreateInput) 
 		return "", err
 	}
 
-	if handler.runningInstance, err = handler.newEc2Instance(handler.instanceName); err != nil {
+	if handler.runningInstance, err = handler.newEc2Instance(handler.instanceName, handler.nodeIndex); err != nil {
 		return "", err
 	}
 
-	if err = handler.runningInstance.Create(handler.nodeIndex, input.NodeGroup, handler.instanceType, userData, handler.DiskType, input.Machine.DiskSize, handler.desiredENI); err != nil {
+	if err = handler.runningInstance.Create(input.NodeGroup, handler.instanceType, userData, handler.DiskType, input.Machine.DiskSize, handler.desiredENI); err != nil {
 		return "", err
 	}
 
@@ -365,20 +366,22 @@ func (handler *awsHandler) UUID(instanceName string) (string, error) {
 	}
 }
 
-func (wrapper *awsWrapper) AttachInstance(instanceName string, nodeIndex int) (providers.ProviderHandler, error) {
+func (wrapper *awsWrapper) AttachInstance(instanceName string, controlPlane bool, nodeIndex int) (providers.ProviderHandler, error) {
 	if instance, err := wrapper.GetEc2Instance(instanceName); err != nil {
+		instance.NodeIndex = nodeIndex
 		return nil, err
 	} else {
 		return &awsHandler{
 			awsWrapper:      wrapper,
 			runningInstance: instance,
 			instanceName:    instanceName,
+			controlPlane:    controlPlane,
 			nodeIndex:       nodeIndex,
 		}, nil
 	}
 }
 
-func (wrapper *awsWrapper) CreateInstance(instanceName, instanceType string, nodeIndex int) (providers.ProviderHandler, error) {
+func (wrapper *awsWrapper) CreateInstance(instanceName, instanceType string, controlPlane bool, nodeIndex int) (providers.ProviderHandler, error) {
 	if wrapper.InstanceExists(instanceName) {
 		glog.Warnf(constantes.ErrVMAlreadyExists, instanceName)
 		return nil, fmt.Errorf(constantes.ErrVMAlreadyExists, instanceName)
@@ -388,6 +391,7 @@ func (wrapper *awsWrapper) CreateInstance(instanceName, instanceType string, nod
 		awsWrapper:   wrapper,
 		instanceType: instanceType,
 		instanceName: instanceName,
+		controlPlane: controlPlane,
 		nodeIndex:    nodeIndex,
 	}, nil
 }
@@ -568,13 +572,14 @@ func (wrapper *awsWrapper) GetRoute53Region() string {
 	return wrapper.Region
 }
 
-func (wrapper *awsWrapper) newEc2Instance(instanceName string) (*Ec2Instance, error) {
+func (wrapper *awsWrapper) newEc2Instance(instanceName string, nodeIndex int) (*Ec2Instance, error) {
 	if client, err := wrapper.createClient(); err != nil {
 		return nil, err
 	} else {
 		return &Ec2Instance{
 			awsWrapper:   wrapper,
 			client:       client,
+			NodeIndex:    nodeIndex,
 			InstanceName: instanceName,
 		}, nil
 	}

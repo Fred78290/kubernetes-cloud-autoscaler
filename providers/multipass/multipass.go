@@ -16,6 +16,7 @@ type multipassHandler struct {
 	network      *providers.Network
 	instanceType string
 	instanceName string
+	controlPlane bool
 	nodeIndex    int
 }
 

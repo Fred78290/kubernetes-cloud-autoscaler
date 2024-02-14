@@ -72,8 +72,8 @@ type MachineCharacteristic struct {
 type MachineCharacteristics map[string]*MachineCharacteristic
 
 type ProviderConfiguration interface {
-	AttachInstance(instanceName string, nodeIndex int) (ProviderHandler, error)
-	CreateInstance(instanceName, instanceType string, nodeIndex int) (ProviderHandler, error)
+	AttachInstance(instanceName string, controlPlane bool, nodeIndex int) (ProviderHandler, error)
+	CreateInstance(instanceName, instanceType string, controlPlane bool, nodeIndex int) (ProviderHandler, error)
 	GetAvailableGpuTypes() map[string]string
 	InstanceExists(name string) bool
 	UUID(name string) (string, error)

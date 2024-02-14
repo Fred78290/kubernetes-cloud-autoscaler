@@ -85,7 +85,7 @@ func (vm *VirtualMachine) collectNetworkInfos(ctx *context.Context, network *vsp
 					if inf.Enabled {
 						card := ethernet.GetVirtualEthernetCard()
 						if match, err := inf.MatchInterface(ctx, vm.Datastore.Datacenter, card); match && err == nil {
-							inf.AttachMacAddress(card.MacAddress, nodeIndex)
+							inf.AttachMacAddress(card.MacAddress)
 						}
 					}
 				}
@@ -100,7 +100,7 @@ func (vm *VirtualMachine) addNetwork(ctx *context.Context, network *vsphereNetwo
 	var err error
 
 	if network != nil && len(network.VSphereInterfaces) > 0 {
-		devices, err = network.Devices(ctx, devices, vm.Datastore.Datacenter, nodeIndex)
+		devices, err = network.Devices(ctx, devices, vm.Datastore.Datacenter)
 	}
 
 	return devices, err

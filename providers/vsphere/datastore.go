@@ -211,7 +211,7 @@ func (ds *Datastore) CreateVirtualMachine(ctx *context.Context, input *CreateVir
 				if input.VSphereNetwork != nil {
 					if devices, err := templateVM.Device(ctx); err == nil {
 						for _, inf := range input.VSphereNetwork.VSphereInterfaces {
-							if inf.NeedToReconfigure(input.NodeIndex) {
+							if inf.NeedToReconfigure() {
 								// In case we dont find the preconfigured net card, we add it
 								inf.Existing = false
 
@@ -219,11 +219,12 @@ func (ds *Datastore) CreateVirtualMachine(ctx *context.Context, input *CreateVir
 								for _, device := range devices {
 									// It's an ether device?
 									if ethernet, ok := device.(types.BaseVirtualEthernetCard); ok {
+										virtualNetworkCard := ethernet.GetVirtualEthernetCard()
 										// Match my network?
-										if match, err := inf.MatchInterface(ctx, ds.Datacenter, ethernet.GetVirtualEthernetCard()); match && err == nil {
+										if match, err := inf.MatchInterface(ctx, ds.Datacenter, virtualNetworkCard); match && err == nil {
 
 											// Change the mac address
-											if inf.ChangeAddress(ethernet.GetVirtualEthernetCard(), input.NodeIndex) {
+											if inf.ChangeAddress(virtualNetworkCard) {
 												configSpecs = append(configSpecs, &types.VirtualDeviceConfigSpec{
 													Operation: types.VirtualDeviceConfigSpecOperationEdit,
 													Device:    device,
@@ -232,7 +233,6 @@ func (ds *Datastore) CreateVirtualMachine(ctx *context.Context, input *CreateVir
 
 											// Ok don't need to add one
 											inf.Existing = true
-
 											break
 										} else if err != nil {
 											return vm, err

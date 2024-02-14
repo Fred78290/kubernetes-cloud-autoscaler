@@ -36,6 +36,7 @@ type instanceStatus struct {
 type Ec2Instance struct {
 	*awsWrapper
 	client         *ec2.EC2
+	NodeIndex      int
 	InstanceName   string
 	PrivateDNSName string
 	InstanceID     *string
@@ -217,7 +218,7 @@ func (instance *Ec2Instance) WaitForPowered() error {
 	})
 }
 
-func (instance *Ec2Instance) buildNetworkInterfaces(nodeIndex int, desiredENI *UserDefinedNetworkInterface) ([]*ec2.InstanceNetworkInterfaceSpecification, error) {
+func (instance *Ec2Instance) buildNetworkInterfaces(desiredENI *UserDefinedNetworkInterface) ([]*ec2.InstanceNetworkInterfaceSpecification, error) {
 	var err error
 
 	if desiredENI != nil {
@@ -260,7 +261,7 @@ func (instance *Ec2Instance) buildNetworkInterfaces(nodeIndex int, desiredENI *U
 			if len(desiredENI.SubnetID) > 0 {
 				subnetID = aws.String(desiredENI.SubnetID)
 			} else {
-				subnetID = aws.String(instance.Network.ENI[0].GetNextSubnetsID(nodeIndex))
+				subnetID = aws.String(instance.Network.ENI[0].GetNextSubnetsID(instance.NodeIndex))
 			}
 
 			if len(desiredENI.SecurityGroupID) > 0 {
@@ -294,7 +295,7 @@ func (instance *Ec2Instance) buildNetworkInterfaces(nodeIndex int, desiredENI *U
 				DeleteOnTermination:      aws.Bool(true),
 				Description:              aws.String(instance.InstanceName),
 				DeviceIndex:              aws.Int64(int64(index)),
-				SubnetId:                 aws.String(eni.GetNextSubnetsID(nodeIndex)),
+				SubnetId:                 aws.String(eni.GetNextSubnetsID(instance.NodeIndex)),
 				Groups: []*string{
 					aws.String(eni.SecurityGroupID),
 				},
@@ -335,7 +336,7 @@ func (instance *Ec2Instance) buildBlockDeviceMappings(diskType string, diskSize 
 	return nil, nil
 }
 
-func (instance *Ec2Instance) buildTagSpecifications(nodeIndex int, nodeGroup string) ([]*ec2.TagSpecification, error) {
+func (instance *Ec2Instance) buildTagSpecifications(nodeGroup string) ([]*ec2.TagSpecification, error) {
 	instanceTags := make([]*ec2.Tag, 0, len(instance.Tags)+3)
 
 	instanceTags = append(instanceTags, &ec2.Tag{
@@ -350,7 +351,7 @@ func (instance *Ec2Instance) buildTagSpecifications(nodeIndex int, nodeGroup str
 
 	instanceTags = append(instanceTags, &ec2.Tag{
 		Key:   aws.String("NodeIndex"),
-		Value: aws.String(strconv.Itoa(nodeIndex)),
+		Value: aws.String(strconv.Itoa(instance.NodeIndex)),
 	})
 
 	instanceTags = append(instanceTags, &ec2.Tag{
@@ -379,7 +380,7 @@ func (instance *Ec2Instance) buildTagSpecifications(nodeIndex int, nodeGroup str
 
 // Create will create a named VM not powered
 // memory and disk are in megabytes
-func (instance *Ec2Instance) Create(nodeIndex int, nodeGroup, instanceType string, userData *string, diskType string, diskSize int, desiredENI *UserDefinedNetworkInterface) error {
+func (instance *Ec2Instance) Create(nodeGroup, instanceType string, userData *string, diskType string, diskSize int, desiredENI *UserDefinedNetworkInterface) error {
 	var err error
 	var result *ec2.Reservation
 
@@ -409,12 +410,12 @@ func (instance *Ec2Instance) Create(nodeIndex int, nodeGroup, instanceType strin
 	}
 
 	// Add tags
-	if input.TagSpecifications, err = instance.buildTagSpecifications(nodeIndex, nodeGroup); err != nil {
+	if input.TagSpecifications, err = instance.buildTagSpecifications(nodeGroup); err != nil {
 		return err
 	}
 
 	// Add ENI
-	if input.NetworkInterfaces, err = instance.buildNetworkInterfaces(nodeIndex, desiredENI); err != nil {
+	if input.NetworkInterfaces, err = instance.buildNetworkInterfaces(desiredENI); err != nil {
 		return err
 	}
 

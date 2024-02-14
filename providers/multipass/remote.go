@@ -18,21 +18,23 @@ type remoteMultipassWrapper struct {
 	client api.DesktopAutoscalerServiceClient
 }
 
-func (wrapper *remoteMultipassWrapper) AttachInstance(instanceName string, nodeIndex int) (providers.ProviderHandler, error) {
+func (wrapper *remoteMultipassWrapper) AttachInstance(instanceName string, controlPlane bool, nodeIndex int) (providers.ProviderHandler, error) {
 	return &multipassHandler{
 		multipassWrapper: wrapper,
-		network:          wrapper.Network.Clone(nodeIndex),
+		network:          wrapper.Network.Clone(controlPlane, nodeIndex),
 		instanceName:     instanceName,
+		controlPlane:     controlPlane,
 		nodeIndex:        nodeIndex,
 	}, nil
 }
 
-func (wrapper *remoteMultipassWrapper) CreateInstance(instanceName, instanceType string, nodeIndex int) (providers.ProviderHandler, error) {
+func (wrapper *remoteMultipassWrapper) CreateInstance(instanceName, instanceType string, controlPlane bool, nodeIndex int) (providers.ProviderHandler, error) {
 	return &multipassHandler{
 		multipassWrapper: wrapper,
-		network:          wrapper.Network.Clone(nodeIndex),
+		network:          wrapper.Network.Clone(controlPlane, nodeIndex),
 		instanceType:     instanceType,
 		instanceName:     instanceName,
+		controlPlane:     controlPlane,
 		nodeIndex:        nodeIndex,
 	}, nil
 }
@@ -141,7 +143,7 @@ func (wrapper *remoteMultipassWrapper) create(input *createInstanceInput) (strin
 	}
 
 	if input.network != nil && len(input.network.Interfaces) > 0 {
-		cloudInitInput.Network = input.network.GetCloudInitNetwork(-1)
+		cloudInitInput.Network = input.network.GetCloudInitNetwork(false)
 	}
 
 	if cloudInitOut, err := cloudInitInput.BuildUserData(input.netplanFile); err != nil {
@@ -169,7 +171,7 @@ func (wrapper *remoteMultipassWrapper) create(input *createInstanceInput) (strin
 			for _, inf := range wrapper.baseMultipassWrapper.Network.Interfaces {
 				if inf.Enabled && !inf.Existing {
 					mode := inf.ConnectionType
-					mac := inf.GetMacAddress(input.nodeIndex)
+					mac := inf.GetMacAddress()
 
 					if !inf.DHCP {
 						mode = "manual"

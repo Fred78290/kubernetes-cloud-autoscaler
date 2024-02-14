@@ -143,7 +143,7 @@ func (handler *vsphereHandler) UpdateMacAddressTable() error {
 		return fmt.Errorf(constantes.ErrInstanceIsNotAttachedToCloudProvider)
 	}
 
-	return handler.network.UpdateMacAddressTable(handler.nodeIndex)
+	return handler.network.UpdateMacAddressTable()
 }
 
 func (handler *vsphereHandler) GenerateProviderID() string {
@@ -333,21 +333,22 @@ func (handler *vsphereHandler) findPreferredIPAddress(interfaces []providers.Net
 	return address
 }
 
-func (wrapper *vsphereWrapper) AttachInstance(instanceName string, nodeIndex int) (providers.ProviderHandler, error) {
+func (wrapper *vsphereWrapper) AttachInstance(instanceName string, controlPlane bool, nodeIndex int) (providers.ProviderHandler, error) {
 	if vmuuid, err := wrapper.UUID(instanceName); err != nil {
 		return nil, err
 	} else {
 		return &vsphereHandler{
 			vsphereWrapper: wrapper,
-			network:        newVSphereNetwork(&wrapper.Network, nodeIndex),
+			network:        newVSphereNetwork(&wrapper.Network, controlPlane, nodeIndex),
 			instanceName:   instanceName,
 			instanceID:     vmuuid,
+			controlPlane:   controlPlane,
 			nodeIndex:      nodeIndex,
 		}, nil
 	}
 }
 
-func (wrapper *vsphereWrapper) CreateInstance(instanceName, instanceType string, nodeIndex int) (providers.ProviderHandler, error) {
+func (wrapper *vsphereWrapper) CreateInstance(instanceName, instanceType string, controlPlane bool, nodeIndex int) (providers.ProviderHandler, error) {
 	if wrapper.InstanceExists(instanceName) {
 		glog.Warnf(constantes.ErrVMAlreadyExists, instanceName)
 		return nil, fmt.Errorf(constantes.ErrVMAlreadyExists, instanceName)
@@ -355,7 +356,7 @@ func (wrapper *vsphereWrapper) CreateInstance(instanceName, instanceType string,
 
 	return &vsphereHandler{
 		vsphereWrapper: wrapper,
-		network:        newVSphereNetwork(&wrapper.Network, nodeIndex),
+		network:        newVSphereNetwork(&wrapper.Network, controlPlane, nodeIndex),
 		instanceType:   instanceType,
 		instanceName:   instanceName,
 		nodeIndex:      nodeIndex,

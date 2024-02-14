@@ -120,9 +120,9 @@ func (g *AutoScalerServerNodeGroup) Machine() *providers.MachineCharacteristic {
 	return g.machines[g.InstanceType]
 }
 
-func (g *AutoScalerServerNodeGroup) findNextNodeIndex(managed bool) int {
+func (g *AutoScalerServerNodeGroup) findNextNodeIndex() int {
 
-	for index := 1; index <= g.MaxNodeSize; index++ {
+	for index := 0; index < g.MaxNodeSize; index++ {
 		if run, found := g.RunningNodes[index]; !found || run < ServerNodeStateCreating {
 			return index
 		}
@@ -288,7 +288,7 @@ func (g *AutoScalerServerNodeGroup) deleteNodes(c types.ClientGenerator, delta i
 
 func (g *AutoScalerServerNodeGroup) addManagedNode(crd *v1alpha1.ManagedNode) (*AutoScalerServerNode, error) {
 	controlPlane := crd.Spec.ControlPlane
-	nodeName, nodeIndex := g.nodeName(g.findNextNodeIndex(true), controlPlane, true)
+	nodeName, nodeIndex := g.nodeName(g.findNextNodeIndex(), controlPlane, true)
 	instanceType := crd.Spec.InstanceType
 
 	if len(instanceType) == 0 {
@@ -297,7 +297,7 @@ func (g *AutoScalerServerNodeGroup) addManagedNode(crd *v1alpha1.ManagedNode) (*
 
 	if machine, found := g.machines[instanceType]; found {
 		// Clone the config to allow increment IP address for vmware
-		if providerHandler, err := g.configuration.GetCloudConfiguration().CreateInstance(nodeName, instanceType, nodeIndex); err == nil {
+		if providerHandler, err := g.configuration.GetCloudConfiguration().CreateInstance(nodeName, instanceType, crd.Spec.ControlPlane, nodeIndex); err == nil {
 			g.RunningNodes[nodeIndex] = ServerNodeStateCreating
 
 			resLimit := g.configuration.ManagedNodeResourceLimiter
@@ -375,10 +375,10 @@ func (g *AutoScalerServerNodeGroup) prepareNodes(c types.ClientGenerator, delta 
 	}
 
 	for {
-		nodeName, nodeIndex := g.nodeName(g.findNextNodeIndex(false), false, false)
+		nodeName, nodeIndex := g.nodeName(g.findNextNodeIndex(), false, false)
 
 		// Clone the vsphere config to allow increment IP address
-		if providerHandler, err := config.CreateInstance(nodeName, g.InstanceType, nodeIndex); err == nil {
+		if providerHandler, err := config.CreateInstance(nodeName, g.InstanceType, false, nodeIndex); err == nil {
 
 			g.RunningNodes[nodeIndex] = ServerNodeStateCreating
 
@@ -713,7 +713,7 @@ func (g *AutoScalerServerNodeGroup) autoDiscoveryNodes(client types.ClientGenera
 					}
 
 					// Node name and instance name could be differ when using AWS cloud provider
-					if handler, err = g.configuration.GetCloudConfiguration().AttachInstance(instanceName, lastNodeIndex); err == nil {
+					if handler, err = g.configuration.GetCloudConfiguration().AttachInstance(instanceName, controlPlane, lastNodeIndex); err == nil {
 						if node == nil {
 							glog.Infof("Create node: %s with IP: %s to nodegroup: %s", instanceName, runningIP, g.NodeGroupIdentifier)
 

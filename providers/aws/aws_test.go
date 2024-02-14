@@ -107,7 +107,7 @@ func Test_getInstanceID(t *testing.T) {
 	if utils.ShouldTestFeature("Test_getInstanceID") {
 		config := loadFromJson()
 
-		if instance, err := config.provider.AttachInstance(config.InstanceName, 0); err != nil {
+		if instance, err := config.provider.AttachInstance(config.InstanceName, false, 0); err != nil {
 			if !strings.HasPrefix(err.Error(), "unable to find VM:") {
 				assert.NoError(t, err, fmt.Sprintf(cantFindEC2, config.InstanceName))
 			}
@@ -126,7 +126,7 @@ func Test_createInstance(t *testing.T) {
 		config := loadFromJson()
 
 		if machine, found := config.Machines[config.InstanceType]; assert.True(t, found, fmt.Sprintf("machine: %s not found", config.InstanceType)) {
-			if handler, err := config.provider.CreateInstance(config.InstanceName, config.InstanceType, 0); assert.NoError(t, err, "Can't create VM") && err == nil {
+			if handler, err := config.provider.CreateInstance(config.InstanceName, config.InstanceType, false, 0); assert.NoError(t, err, "Can't create VM") && err == nil {
 
 				createInput := &providers.InstanceCreateInput{
 					NodeGroup: config.NodeGroup,
@@ -148,7 +148,7 @@ func Test_statusInstance(t *testing.T) {
 	if utils.ShouldTestFeature("Test_statusInstance") {
 		config := loadFromJson()
 
-		if instance, err := config.provider.AttachInstance(config.InstanceName, 0); assert.NoError(t, err, fmt.Sprintf(cantFindEC2, config.InstanceName)) {
+		if instance, err := config.provider.AttachInstance(config.InstanceName, false, 0); assert.NoError(t, err, fmt.Sprintf(cantFindEC2, config.InstanceName)) {
 			status, err := instance.InstanceStatus()
 
 			if assert.NoError(t, err, "Can't get status VM") {
@@ -162,7 +162,7 @@ func Test_waitForPowered(t *testing.T) {
 	if utils.ShouldTestFeature("Test_waitForPowered") {
 		config := loadFromJson()
 
-		if instance, err := config.provider.AttachInstance(config.InstanceName, 0); assert.NoError(t, err, fmt.Sprintf(cantFindEC2, config.InstanceName)) {
+		if instance, err := config.provider.AttachInstance(config.InstanceName, false, 0); assert.NoError(t, err, fmt.Sprintf(cantFindEC2, config.InstanceName)) {
 			if status, err := instance.InstanceStatus(); assert.NoError(t, err, cantGetStatus) && status.Powered() {
 				if err := instance.InstanceWaitForPowered(); assert.NoError(t, err, "Can't WaitForPowered") {
 					t.Log("VM powered")
@@ -178,7 +178,7 @@ func Test_waitForIP(t *testing.T) {
 	if utils.ShouldTestFeature("Test_waitForIP") {
 		config := loadFromJson()
 
-		if instance, err := config.provider.AttachInstance(config.InstanceName, 0); assert.NoError(t, err, fmt.Sprintf(cantFindEC2, config.InstanceName)) {
+		if instance, err := config.provider.AttachInstance(config.InstanceName, false, 0); assert.NoError(t, err, fmt.Sprintf(cantFindEC2, config.InstanceName)) {
 			if status, err := instance.InstanceStatus(); assert.NoError(t, err, cantGetStatus) && status.Powered() {
 				if ipaddr, err := instance.InstanceWaitReady(config); assert.NoError(t, err, "Can't get IP") {
 					t.Logf("VM powered with IP: %s", ipaddr)
@@ -194,7 +194,7 @@ func Test_powerOnInstance(t *testing.T) {
 	if utils.ShouldTestFeature("Test_powerOnInstance") {
 		config := loadFromJson()
 
-		if instance, err := config.provider.AttachInstance(config.InstanceName, 0); assert.NoError(t, err, fmt.Sprintf(cantFindEC2, config.InstanceName)) {
+		if instance, err := config.provider.AttachInstance(config.InstanceName, false, 0); assert.NoError(t, err, fmt.Sprintf(cantFindEC2, config.InstanceName)) {
 			if status, err := instance.InstanceStatus(); assert.NoError(t, err, cantGetStatus) {
 				if status.Powered() == false {
 					if err = instance.InstancePowerOn(); assert.NoError(t, err, "Can't power on VM") {
@@ -216,7 +216,7 @@ func Test_powerOffInstance(t *testing.T) {
 	if utils.ShouldTestFeature("Test_powerOffInstance") {
 		config := loadFromJson()
 
-		if instance, err := config.provider.AttachInstance(config.InstanceName, 0); assert.NoError(t, err, fmt.Sprintf(cantFindEC2, config.InstanceName)) {
+		if instance, err := config.provider.AttachInstance(config.InstanceName, false, 0); assert.NoError(t, err, fmt.Sprintf(cantFindEC2, config.InstanceName)) {
 			if status, err := instance.InstanceStatus(); assert.NoError(t, err, cantGetStatus) && status.Powered() {
 				if err = instance.InstancePowerOff(); assert.NoError(t, err, "Can't power off VM") {
 					t.Logf("VM shutdown")
@@ -230,7 +230,7 @@ func Test_shutdownInstance(t *testing.T) {
 	if utils.ShouldTestFeature("Test_shutdownInstance") {
 		config := loadFromJson()
 
-		if instance, err := config.provider.AttachInstance(config.InstanceName, 0); assert.NoError(t, err, fmt.Sprintf(cantFindEC2, config.InstanceName)) {
+		if instance, err := config.provider.AttachInstance(config.InstanceName, false, 0); assert.NoError(t, err, fmt.Sprintf(cantFindEC2, config.InstanceName)) {
 			if status, err := instance.InstanceStatus(); assert.NoError(t, err, cantGetStatus) && status.Powered() {
 				if err = instance.InstanceShutdownGuest(); assert.NoError(t, err, "Can't power off VM") {
 					t.Logf("VM shutdown")
@@ -244,7 +244,7 @@ func Test_deleteInstance(t *testing.T) {
 	if utils.ShouldTestFeature("Test_deleteInstance") {
 		config := loadFromJson()
 
-		if instance, err := config.provider.AttachInstance(config.InstanceName, 0); assert.NoError(t, err, fmt.Sprintf(cantFindEC2, config.InstanceName)) {
+		if instance, err := config.provider.AttachInstance(config.InstanceName, false, 0); assert.NoError(t, err, fmt.Sprintf(cantFindEC2, config.InstanceName)) {
 			if assert.NotEmpty(t, instance) {
 				if err := instance.InstanceDelete(); assert.NoError(t, err, "Can't delete VM") {
 					t.Logf("VM deleted")

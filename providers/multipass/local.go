@@ -37,21 +37,23 @@ func (wrapper *hostMultipassWrapper) shell(args ...string) (string, error) {
 	return stdout.String(), nil
 }
 
-func (wrapper *hostMultipassWrapper) AttachInstance(instanceName string, nodeIndex int) (providers.ProviderHandler, error) {
+func (wrapper *hostMultipassWrapper) AttachInstance(instanceName string, controlPlane bool, nodeIndex int) (providers.ProviderHandler, error) {
 	return &multipassHandler{
 		multipassWrapper: wrapper,
-		network:          wrapper.Network.Clone(nodeIndex),
+		network:          wrapper.Network.Clone(controlPlane, nodeIndex),
 		instanceName:     instanceName,
+		controlPlane:     controlPlane,
 		nodeIndex:        nodeIndex,
 	}, nil
 }
 
-func (wrapper *hostMultipassWrapper) CreateInstance(instanceName, instanceType string, nodeIndex int) (providers.ProviderHandler, error) {
+func (wrapper *hostMultipassWrapper) CreateInstance(instanceName, instanceType string, controlPlane bool, nodeIndex int) (providers.ProviderHandler, error) {
 	return &multipassHandler{
 		multipassWrapper: wrapper,
-		network:          wrapper.Network.Clone(nodeIndex),
+		network:          wrapper.Network.Clone(controlPlane, nodeIndex),
 		instanceType:     instanceType,
 		instanceName:     instanceName,
+		controlPlane:     controlPlane,
 		nodeIndex:        nodeIndex,
 	}, nil
 }
@@ -155,7 +157,7 @@ func (wrapper *hostMultipassWrapper) writeCloudFile(input *createInstanceInput) 
 	}
 
 	if input.network != nil && len(input.network.Interfaces) > 0 {
-		cloudInitInput.Network = input.network.GetCloudInitNetwork(-1)
+		cloudInitInput.Network = input.network.GetCloudInitNetwork(false)
 	}
 
 	if cloudInit, err := cloudInitInput.BuildUserData(input.netplanFile); err != nil {
@@ -216,7 +218,7 @@ func (wrapper *hostMultipassWrapper) create(input *createInstanceInput) (string,
 						mode = "manual"
 					}
 
-					mac := network.GetMacAddress(input.nodeIndex)
+					mac := network.GetMacAddress()
 					if len(mac) > 0 {
 						sb.WriteString(fmt.Sprintf(",mac=%s", mac))
 					}
