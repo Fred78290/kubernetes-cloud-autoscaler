@@ -28,8 +28,8 @@ type Configuration struct {
 	Network           *providers.Network `json:"network"`
 	AvailableGPUTypes map[string]string  `json:"gpu-types"`
 	AllowUpgrade      bool               `default:"true" json:"allow-upgrade"`
-	Region            string             `default:"home"`
-	Zone              string             `default:"office"`
+	VMWareRegion      string             `default:"home" json:"csi-region"`
+	VMWareZone        string             `default:"office" json:"csi-zone"`
 	TestMode          bool               `json:"test-mode"`
 }
 

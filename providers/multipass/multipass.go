@@ -130,10 +130,10 @@ func (handler *multipassHandler) GenerateProviderID() string {
 
 func (handler *multipassHandler) GetTopologyLabels() map[string]string {
 	return map[string]string{
-		constantes.NodeLabelTopologyRegion:  handler.getConfiguration().Region,
-		constantes.NodeLabelTopologyZone:    handler.getConfiguration().Zone,
-		constantes.NodeLabelVMWareCSIRegion: handler.getConfiguration().Region,
-		constantes.NodeLabelVMWareCSIZone:   handler.getConfiguration().Zone,
+		constantes.NodeLabelTopologyRegion:  handler.getConfiguration().VMWareRegion,
+		constantes.NodeLabelTopologyZone:    handler.getConfiguration().VMWareZone,
+		constantes.NodeLabelVMWareCSIRegion: handler.getConfiguration().VMWareRegion,
+		constantes.NodeLabelVMWareCSIZone:   handler.getConfiguration().VMWareZone,
 	}
 }
 
