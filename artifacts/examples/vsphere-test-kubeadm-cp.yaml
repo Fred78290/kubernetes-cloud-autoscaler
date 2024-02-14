@@ -27,3 +27,33 @@ spec:
         network: "VM Private"
         dhcp: true
         use-dhcp-routes: false
+---
+apiVersion: "nodemanager.aldunelabs.com/v1alpha1"
+kind: "ManagedNode"
+metadata:
+  name: "vsphere-test-kubeadm-master-03"
+spec:
+  nodegroup: vsphere-test-kubeadm
+  controlPlane: true
+  allowDeployment: true
+  instanceType: small
+  diskSizeInMB: 10240
+  diskType: gp3
+  labels:
+  - demo-label.acme.com=demo
+  - sample-label.acme.com=sample
+  annotations:
+  - demo-annotation.acme.com=demo
+  - sample-annotation.acme.com=sample
+  network:
+    vmware:
+      -
+        network: "VLAN20"
+        dhcp: false
+        address: 192.168.2.82
+        netmask: 255.255.255.0
+        gateway: 192.168.2.254
+      -
+        network: "VM Private"
+        dhcp: true
+        use-dhcp-routes: false
