@@ -49,6 +49,7 @@ type vsphereHandler struct {
 	instanceType string
 	instanceName string
 	instanceID   string
+	controlPlane bool
 	nodeIndex    int
 }
 

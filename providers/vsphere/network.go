@@ -22,13 +22,14 @@ type vsphereNetworkInterface struct {
 	networkBacking   types.BaseVirtualDeviceBackingInfo
 }
 
-func newVSphereNetwork(net *providers.Network, nodeIndex int) *vsphereNetwork {
+func newVSphereNetwork(net *providers.Network, controlPlane bool, nodeIndex int) *vsphereNetwork {
+	copy := net.Clone(controlPlane, nodeIndex)
 	result := &vsphereNetwork{
-		Network:           net.Clone(nodeIndex),
+		Network:           copy,
 		VSphereInterfaces: make([]vsphereNetworkInterface, len(net.Interfaces)),
 	}
 
-	for index, inf := range net.Interfaces {
+	for index, inf := range copy.Interfaces {
 		result.VSphereInterfaces[index] = vsphereNetworkInterface{
 			NetworkInterface: inf,
 		}
@@ -38,14 +39,14 @@ func newVSphereNetwork(net *providers.Network, nodeIndex int) *vsphereNetwork {
 }
 
 // Devices return all devices
-func (net *vsphereNetwork) Devices(ctx *context.Context, devices object.VirtualDeviceList, dc *Datacenter, nodeIndex int) (object.VirtualDeviceList, error) {
+func (net *vsphereNetwork) Devices(ctx *context.Context, devices object.VirtualDeviceList, dc *Datacenter) (object.VirtualDeviceList, error) {
 	var err error
 	var device types.BaseVirtualDevice
 
 	for _, n := range net.VSphereInterfaces {
 		if n.Enabled && !n.Existing {
-			if device, err = n.Device(ctx, dc, nodeIndex); err == nil {
-				devices = append(devices, n.SetMacAddress(nodeIndex, device))
+			if device, err = n.Device(ctx, dc); err == nil {
+				devices = append(devices, n.SetMacAddress(device))
 			} else {
 				break
 			}
@@ -138,8 +139,8 @@ func (net *vsphereNetworkInterface) MatchInterface(ctx *context.Context, dc *Dat
 }
 
 // SetMacAddress put mac address in the device
-func (net *vsphereNetworkInterface) SetMacAddress(nodeIndex int, device types.BaseVirtualDevice) types.BaseVirtualDevice {
-	adress := net.GetMacAddress(nodeIndex)
+func (net *vsphereNetworkInterface) SetMacAddress(device types.BaseVirtualDevice) types.BaseVirtualDevice {
+	adress := net.GetMacAddress()
 
 	if len(adress) != 0 {
 		card := device.(types.BaseVirtualEthernetCard).GetVirtualEthernetCard()
@@ -165,7 +166,7 @@ func (net *vsphereNetworkInterface) Reference(ctx *context.Context, dc *Datacent
 }
 
 // Device return a device
-func (net *vsphereNetworkInterface) Device(ctx *context.Context, dc *Datacenter, nodeIndex int) (types.BaseVirtualDevice, error) {
+func (net *vsphereNetworkInterface) Device(ctx *context.Context, dc *Datacenter) (types.BaseVirtualDevice, error) {
 	var backing types.BaseVirtualDeviceBackingInfo
 
 	network, err := net.Reference(ctx, dc)
@@ -211,7 +212,7 @@ func (net *vsphereNetworkInterface) Device(ctx *context.Context, dc *Datacenter,
 		Connected:         net.Enabled,
 	}
 
-	macAddress := net.GetMacAddress(nodeIndex)
+	macAddress := net.GetMacAddress()
 
 	if len(macAddress) != 0 {
 		card := device.(types.BaseVirtualEthernetCard).GetVirtualEthernetCard()
@@ -239,8 +240,8 @@ func (net *vsphereNetworkInterface) Change(device types.BaseVirtualDevice, updat
 }
 
 // ChangeAddress just the mac adress
-func (net *vsphereNetworkInterface) ChangeAddress(card *types.VirtualEthernetCard, nodeIndex int) bool {
-	macAddress := net.GetMacAddress(nodeIndex)
+func (net *vsphereNetworkInterface) ChangeAddress(card *types.VirtualEthernetCard) bool {
+	macAddress := net.GetMacAddress()
 
 	if len(macAddress) != 0 {
 		card.Backing = net.networkBacking
@@ -254,6 +255,6 @@ func (net *vsphereNetworkInterface) ChangeAddress(card *types.VirtualEthernetCar
 }
 
 // NeedToReconfigure tell that we must set the mac address
-func (net *vsphereNetworkInterface) NeedToReconfigure(nodeIndex int) bool {
-	return len(net.GetMacAddress(nodeIndex)) != 0 && net.Enabled && net.Existing
+func (net *vsphereNetworkInterface) NeedToReconfigure() bool {
+	return len(net.GetMacAddress()) != 0 && net.Enabled && net.Existing
 }
