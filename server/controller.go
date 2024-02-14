@@ -174,19 +174,27 @@ func (c *Controller) waitCRDAccepted() error {
 
 	err := wait.PollUntilContextTimeout(context.Background(), 1*time.Second, 10*time.Second, true, func(context.Context) (bool, error) {
 		if crd, err := apiextensionClientset.ApiextensionsV1().CustomResourceDefinitions().Get(context.TODO(), nodemanager.FullCRDName, metav1.GetOptions{}); err == nil {
+			accepted := false
+			etablished := false
+
 			if len(crd.Status.Conditions) == 0 {
 				return false, nil
 			}
 
 			for _, condition := range crd.Status.Conditions {
-				if condition.Type == apiextensionv1.Established {
-					if condition.Status == apiextensionv1.ConditionTrue {
-						return true, nil
-					}
+				switch condition.Type {
+				case apiextensionv1.NamesAccepted:
+					accepted = condition.Status == apiextensionv1.ConditionTrue
+				case apiextensionv1.Established:
+					etablished = condition.Status == apiextensionv1.ConditionTrue
 				}
 			}
 
-			return false, fmt.Errorf("CRD is not accepted")
+			if accepted {
+				return etablished, nil
+			} else {
+				return false, fmt.Errorf("CRD is not accepted")
+			}
 		} else {
 			return false, err
 		}
