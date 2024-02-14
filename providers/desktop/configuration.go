@@ -117,10 +117,10 @@ func (handler *desktopHandler) GenerateProviderID() string {
 
 func (handler *desktopHandler) GetTopologyLabels() map[string]string {
 	return map[string]string{
-		constantes.NodeLabelTopologyRegion:  handler.Region,
-		constantes.NodeLabelTopologyZone:    handler.Zone,
-		constantes.NodeLabelVMWareCSIRegion: handler.Region,
-		constantes.NodeLabelVMWareCSIZone:   handler.Zone,
+		constantes.NodeLabelTopologyRegion:  handler.VMWareRegion,
+		constantes.NodeLabelTopologyZone:    handler.VMWareZone,
+		constantes.NodeLabelVMWareCSIRegion: handler.VMWareRegion,
+		constantes.NodeLabelVMWareCSIZone:   handler.VMWareZone,
 	}
 }
 
