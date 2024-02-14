@@ -132,6 +132,10 @@ func EncodeCloudInit(name string, object any) (string, error) {
 		zw.Name = name
 		zw.ModTime = time.Now()
 
+		if glog.GetLevel() > glog.InfoLevel {
+			fmt.Fprintf(os.Stderr, "name: %s\n%s", name, out.String())
+		}
+
 		if _, err = zw.Write(out.Bytes()); err == nil {
 			if err = zw.Close(); err == nil {
 				result = base64.StdEncoding.EncodeToString(stdout.Bytes())
@@ -152,6 +156,10 @@ func EncodeObject(name string, object any) (string, error) {
 
 		zw.Name = name
 		zw.ModTime = time.Now()
+
+		if glog.GetLevel() > glog.InfoLevel {
+			fmt.Fprintf(os.Stderr, "name: %s\n%s", name, string(out))
+		}
 
 		if _, err = zw.Write(out); err == nil {
 			if err = zw.Close(); err == nil {
