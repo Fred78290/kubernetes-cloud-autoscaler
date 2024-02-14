@@ -92,33 +92,7 @@ func (handler *desktopHandler) GetTimeout() time.Duration {
 }
 
 func (handler *desktopHandler) ConfigureNetwork(network v1alpha1.ManagedNetworkConfig) {
-	if len(network.VMWare) > 0 {
-		for _, network := range network.VMWare {
-			if inf := handler.network.InterfaceByName(network.NetworkName); inf != nil {
-				if inf.Enabled {
-					inf.DHCP = network.DHCP
-					inf.UseRoutes = network.UseRoutes
-					inf.Routes = network.Routes
-
-					if len(network.IPV4Address) > 0 {
-						inf.IPAddress = network.IPV4Address
-					}
-
-					if len(network.Netmask) > 0 {
-						inf.Netmask = network.Netmask
-					}
-
-					if len(network.Gateway) > 0 {
-						inf.Gateway = network.Gateway
-					}
-
-					if len(network.MacAddress) > 0 {
-						inf.MacAddress = network.MacAddress
-					}
-				}
-			}
-		}
-	}
+	handler.network.ConfigureNetwork(network)
 }
 
 func (handler *desktopHandler) RetrieveNetworkInfos() error {
