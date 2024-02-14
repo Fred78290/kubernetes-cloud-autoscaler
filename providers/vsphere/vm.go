@@ -197,13 +197,13 @@ func (vm *VirtualMachine) Configure(ctx *context.Context, input *CreateInput) er
 	var task *object.Task
 
 	virtualMachine := vm.VirtualMachine(ctx)
-
+	uuid := virtualMachine.UUID(ctx)
 	vmConfigSpec := types.VirtualMachineConfigSpec{
 		NumCPUs:      int32(input.Machine.Vcpu),
 		MemoryMB:     int64(input.Machine.Memory),
 		Annotation:   input.Annotation,
-		InstanceUuid: virtualMachine.UUID(ctx),
-		Uuid:         virtualMachine.UUID(ctx),
+		InstanceUuid: uuid,
+		Uuid:         uuid,
 	}
 
 	if devices, err = vm.addOrExpandHardDrive(ctx, virtualMachine, input.Machine.DiskSize, input.ExpandHardDrive, devices); err != nil {
@@ -556,7 +556,7 @@ func (vm *VirtualMachine) SetGuestInfo(ctx *context.Context, input *CreateInput)
 	tz, _ := time.Now().Zone()
 	v := vm.VirtualMachine(ctx)
 
-	cloundInitInput := cloudinit.CloudInitInput{
+	cloudInitInput := cloudinit.CloudInitInput{
 		InstanceName: input.NodeName,
 		InstanceID:   v.UUID(ctx),
 		UserName:     input.UserName,
@@ -569,10 +569,10 @@ func (vm *VirtualMachine) SetGuestInfo(ctx *context.Context, input *CreateInput)
 	}
 
 	if input.VSphereNetwork != nil && len(input.VSphereNetwork.Interfaces) > 0 {
-		cloundInitInput.Network = input.VSphereNetwork.GetCloudInitNetwork(input.NodeIndex)
+		cloudInitInput.Network = input.VSphereNetwork.GetCloudInitNetwork(true)
 	}
 
-	if guestInfos, err := cloundInitInput.BuildGuestInfos(); err != nil {
+	if guestInfos, err := cloudInitInput.BuildGuestInfos(); err != nil {
 		return nil, err
 	} else {
 		extraConfig := make([]types.BaseOptionValue, len(guestInfos))
