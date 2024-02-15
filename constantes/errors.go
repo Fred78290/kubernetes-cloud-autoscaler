@@ -154,6 +154,9 @@ const (
 	// ErrUncordonNodeReturnError error msg
 	ErrUncordonNodeReturnError = "uncordon node: %s got error: %s"
 
+	// ErrPrepareNodeDeletionFailed err msg
+	ErrPrepareNodeDeletionFailed = "prepare node: %s deletion failed: %v"
+
 	// ErrCordonNodeReturnError error msg
 	ErrCordonNodeReturnError = "cordon node: %s got error: %s"
 

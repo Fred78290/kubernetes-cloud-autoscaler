@@ -124,7 +124,11 @@ func (handler *vsphereHandler) UpdateMacAddressTable() error {
 }
 
 func (handler *vsphereHandler) GenerateProviderID() string {
-	return fmt.Sprintf("vsphere://%s", handler.instanceID)
+	if len(handler.instanceID) > 0 {
+		return fmt.Sprintf("vsphere://%s", handler.instanceID)
+	} else {
+		return ""
+	}
 }
 
 func (handler *vsphereHandler) GetTopologyLabels() map[string]string {

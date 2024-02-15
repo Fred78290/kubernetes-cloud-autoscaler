@@ -328,6 +328,10 @@ func (c CloudInit) AddObjectToWriteFile(object any, destination, owner string, p
 	if out, err := yaml.Marshal(object); err != nil {
 		return err
 	} else {
+		if glog.GetLevel() >= glog.DebugLevel {
+			fmt.Fprintf(os.Stderr, "\n%s:\n%s\n", destination, string(out))
+		}
+
 		c.AddToWriteFile(out, destination, owner, permissions)
 	}
 

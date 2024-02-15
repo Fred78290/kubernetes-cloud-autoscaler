@@ -163,6 +163,14 @@ func (handler *awsHandler) UpdateMacAddressTable() error {
 }
 
 func (handler *awsHandler) GenerateProviderID() string {
+	if handler.runningInstance.Zone == nil || handler.runningInstance.InstanceID == nil {
+		return ""
+	}
+
+	if isNullOrEmpty(*handler.runningInstance.Zone) || isNullOrEmpty(*handler.runningInstance.InstanceID) {
+		return ""
+	}
+
 	return fmt.Sprintf("aws://%s/%s", *handler.runningInstance.Zone, *handler.runningInstance.InstanceID)
 }
 

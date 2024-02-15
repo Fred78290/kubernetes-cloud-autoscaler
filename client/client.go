@@ -658,6 +658,17 @@ func (p *SingletonClientGenerator) TaintNode(nodeName string, taints ...apiv1.Ta
 	})
 }
 
+func (p *SingletonClientGenerator) DeleteSecret(secretName, namespace string) error {
+	ctx := p.newRequestContext()
+	defer ctx.Cancel()
+
+	if kubeclient, err := p.KubeClient(); err != nil {
+		return err
+	} else {
+		return kubeclient.CoreV1().Secrets(namespace).Delete(ctx, secretName, metav1.DeleteOptions{})
+	}
+}
+
 func NewClientGenerator(cfg *types.Config) types.ClientGenerator {
 	return &SingletonClientGenerator{
 		KubeConfig:       cfg.KubeConfig,

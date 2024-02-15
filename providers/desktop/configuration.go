@@ -112,7 +112,11 @@ func (handler *desktopHandler) UpdateMacAddressTable() error {
 }
 
 func (handler *desktopHandler) GenerateProviderID() string {
-	return fmt.Sprintf("desktop://%s", handler.instanceID)
+	if len(handler.instanceID) > 0 {
+		return fmt.Sprintf("desktop://%s", handler.instanceID)
+	} else {
+		return ""
+	}
 }
 
 func (handler *desktopHandler) GetTopologyLabels() map[string]string {
