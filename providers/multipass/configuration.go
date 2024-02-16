@@ -46,13 +46,13 @@ type VMStatus struct {
 			Used  string `json:"used"`
 		} `json:"sda1"`
 	} `json:"disks"`
-	ImageHash    string   `json:"image_hash"`
-	ImageRelease string   `json:"image_release"`
-	Ipv4         []string `json:"ipv4"`
-	Load         []int    `json:"load"`
+	ImageHash    string    `json:"image_hash"`
+	ImageRelease string    `json:"image_release"`
+	Ipv4         []string  `json:"ipv4"`
+	Load         []float64 `json:"load"`
 	Memory       struct {
-		Total int `json:"total"`
-		Used  int `json:"used"`
+		Total int64 `json:"total"`
+		Used  int64 `json:"used"`
 	} `json:"memory"`
 	Mounts struct {
 		Home struct {
