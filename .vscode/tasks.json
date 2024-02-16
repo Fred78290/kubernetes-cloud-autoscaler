@@ -1,65 +1,125 @@
 {
-	"version": "2.0.0",
-    "tasks": [
-		{
-            "label": "k3s multipass",
-            "type": "shell",
-            "command": "${workspaceFolder}/scripts/prepare.sh multipass multipass-dev-k3s",
-            "problemMatcher": [],
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            }
-        },
-		{
-            "label": "k3s desktop",
-            "type": "shell",
-            "command": "${workspaceFolder}/scripts/prepare.sh desktop desktop-ca-k8s",
-            "problemMatcher": [],
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            }
-        },
-		{
-            "label": "k3s vsphere",
-            "type": "shell",
-            "command": "${workspaceFolder}/scripts/prepare.sh vsphere vsphere-test-k3s",
-            "problemMatcher": [],
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            }
-        },
-		{
-            "label": "kubeadm vsphere",
-            "type": "shell",
-            "command": "${workspaceFolder}/scripts/prepare.sh vsphere vsphere-test-kubeadm",
-            "problemMatcher": [],
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            }
-        },
-		{
-            "label": "rke2 vsphere",
-            "type": "shell",
-            "command": "${workspaceFolder}/scripts/prepare.sh vsphere vsphere-test-rke2",
-            "problemMatcher": [],
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            }
-        },
-		{
-            "label": "k3s aws",
-            "type": "shell",
-            "command": "${workspaceFolder}/scripts/prepare.sh aws aws-ca-k8s",
-            "problemMatcher": [],
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            }
-        }
-	]
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "k3s aws",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/prepare.sh aws aws-dev-k3s",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "k3s desktop",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/prepare.sh desktop desktop-dev-k3s",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "k3s multipass",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/prepare.sh multipass multipass-dev-k3s",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "k3s vsphere",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/prepare.sh vsphere vsphere-test-k3s",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "kubeadm aws",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/prepare.sh vsphere aws-dev-kubeadm",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "kubeadm desktop",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/prepare.sh vsphere desktop-dev-kubeadm",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "kubeadm multipass",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/prepare.sh vsphere multipass-dev-kubeadm",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "kubeadm vsphere",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/prepare.sh vsphere vsphere-test-kubeadm",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "rke2 aws",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/prepare.sh aws aws-dev-rke2",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "rke2 desktop",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/prepare.sh aws desktop-dev-rke2",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "rke2 multipass",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/prepare.sh multipass multipass-dev-rke2",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "rke2 vsphere",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/prepare.sh vsphere vsphere-test-rke2",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    }
+  ]
 }
