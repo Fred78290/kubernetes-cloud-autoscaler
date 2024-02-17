@@ -64,6 +64,8 @@ func NewVSphereProviderConfiguration(fileName string) (providers.ProviderConfigu
 		return nil, err
 	}
 
+	wrapper.Configuration.Network.ConfigurationDidLoad()
+
 	return &wrapper, nil
 }
 

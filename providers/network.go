@@ -288,16 +288,36 @@ func (vnet *Network) InterfaceByName(networkName string) *NetworkInterface {
 	return nil
 }
 
+func (vnet *Network) ConfigurationDidLoad() {
+	for _, inet := range vnet.Interfaces {
+		if strings.ToLower(inet.IPAddress) == "none" {
+			inet.IPAddress = ""
+			inet.Enabled = false
+		} else if strings.ToLower(inet.IPAddress) == "dhcp" {
+			inet.DHCP = true
+			inet.IPAddress = ""
+		}
+	}
+}
+
 func (vnet *Network) ConfigureNetwork(network v1alpha1.ManagedNetworkConfig) {
 	if len(network.VMWare) > 0 {
 		for _, network := range network.VMWare {
 			if inet := vnet.InterfaceByName(network.NetworkName); inet != nil {
+				inet.Enabled = network.Enabled
+
 				if inet.Enabled {
 					inet.DHCP = network.DHCP
 					inet.UseRoutes = network.UseRoutes
 					inet.Routes = network.Routes
 
-					if len(network.IPV4Address) > 0 {
+					if strings.ToLower(network.IPV4Address) == "none" {
+						inet.Enabled = false
+						inet.IPAddress = ""
+					} else if strings.ToLower(network.IPV4Address) == "dhcp" {
+						inet.DHCP = true
+						inet.IPAddress = ""
+					} else if len(network.IPV4Address) > 0 {
 						inet.IPAddress = network.IPV4Address
 					}
 

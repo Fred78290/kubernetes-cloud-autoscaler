@@ -71,6 +71,8 @@ func NewDesktopProviderConfiguration(fileName string) (providers.ProviderConfigu
 		wrapper.TemplateName, err = wrapper.Name(wrapper.templateUUID)
 	}
 
+	wrapper.Configuration.Network.ConfigurationDidLoad()
+
 	return &wrapper, err
 }
 

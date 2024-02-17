@@ -98,6 +98,8 @@ func NewMultipassProviderConfiguration(fileName string) (providers.ProviderConfi
 		return nil, err
 	}
 
+	wrapper.Configuration.Network.ConfigurationDidLoad()
+
 	return &wrapper, nil
 }
 
