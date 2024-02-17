@@ -255,6 +255,10 @@ func (m *baseTest) WaitNodeToBeReady(nodeName string) error {
 	return nil
 }
 
+func (m *baseTest) DeleteSecret(secretName, namespace string) error {
+	return nil
+}
+
 func (m *baseTest) newTestNodeNamedWithState(nodeName string, state AutoScalerServerNodeState) (*autoScalerServerNodeGroupTest, *AutoScalerServerNode, error) {
 
 	if ng, err := m.newTestNodeGroup(); err == nil {
