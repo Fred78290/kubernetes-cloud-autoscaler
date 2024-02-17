@@ -323,7 +323,7 @@ func (c *Controller) CreateCRD() error {
 														Schema: &apiextensionv1.JSONSchemaProps{
 															Type: "object",
 															Properties: map[string]apiextensionv1.JSONSchemaProps{
-																"enable": {
+																"enabled": {
 																	Type:        "boolean",
 																	Description: "Allow to disable the network interface",
 																	Default: &apiextensionv1.JSON{
