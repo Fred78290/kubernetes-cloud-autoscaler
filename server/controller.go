@@ -262,34 +262,41 @@ func (c *Controller) CreateCRD() error {
 									XPreserveUnknownFields: XPreserveUnknownFields,
 									Properties: map[string]apiextensionv1.JSONSchemaProps{
 										"nodegroup": {
-											Type: "string",
+											Type:        "string",
+											Description: "Nodegroup to join",
 										},
 										"controlPlane": {
-											Type: "boolean",
+											Type:        "boolean",
+											Description: "Tell if the managed is a control plane",
 										},
 										"allowDeployment": {
-											Type: "boolean",
+											Type:        "boolean",
+											Description: "Tell the managed as control plane allows pods deployment",
 										},
 										"instanceType": {
-											Type: "string",
+											Type:        "string",
+											Description: "Instance type",
 											Default: &apiextensionv1.JSON{
 												Raw: []byte("\"t2.micro\""),
 											},
 										},
 										"diskSizeInMB": {
-											Type: "integer",
+											Type:        "integer",
+											Description: "The disk size in MiB",
 											Default: &apiextensionv1.JSON{
 												Raw: []byte("10240"),
 											},
 										},
 										"diskType": {
-											Type: "string",
+											Type:        "string",
+											Description: "Disk type on AWS",
 											Default: &apiextensionv1.JSON{
 												Raw: []byte("\"gp3\""),
 											},
 										},
 										"labels": {
-											Type: "array",
+											Type:        "array",
+											Description: "Apprend node labels",
 											Items: &apiextensionv1.JSONSchemaPropsOrArray{
 												Schema: &apiextensionv1.JSONSchemaProps{
 													Type: "string",
@@ -297,7 +304,8 @@ func (c *Controller) CreateCRD() error {
 											},
 										},
 										"annotations": {
-											Type: "array",
+											Type:        "array",
+											Description: "Append node annotations",
 											Items: &apiextensionv1.JSONSchemaPropsOrArray{
 												Schema: &apiextensionv1.JSONSchemaProps{
 													Type: "string",
@@ -306,6 +314,7 @@ func (c *Controller) CreateCRD() error {
 										},
 										"network": {
 											Type:                   "object",
+											Description:            "Describe network interface for this node, allow to override configuration",
 											XPreserveUnknownFields: XPreserveUnknownFields,
 											Properties: map[string]apiextensionv1.JSONSchemaProps{
 												"vmware": {
@@ -314,41 +323,57 @@ func (c *Controller) CreateCRD() error {
 														Schema: &apiextensionv1.JSONSchemaProps{
 															Type: "object",
 															Properties: map[string]apiextensionv1.JSONSchemaProps{
+																"enable": {
+																	Type:        "boolean",
+																	Description: "Allow to disable the network interface",
+																	Default: &apiextensionv1.JSON{
+																		Raw: []byte("true"),
+																	},
+																},
 																"network": {
-																	Type: "string",
+																	Type:        "string",
+																	Description: "Network name for vpshere or local interface for multipas and desktop, vmnetX...",
 																},
 																"device": {
-																	Type: "string",
+																	Type:        "string",
+																	Description: "Adapter type",
 																	Default: &apiextensionv1.JSON{
 																		Raw: []byte("\"vmxnet3\""),
 																	},
 																},
 																"dhcp": {
-																	Type: "boolean",
+																	Type:        "boolean",
+																	Description: "Tell if interface use dhcp to obtain address",
 																	Default: &apiextensionv1.JSON{
 																		Raw: []byte("true"),
 																	},
 																},
 																"use-dhcp-routes": {
-																	Type: "boolean",
+																	Type:        "boolean",
+																	Description: "Tell if we use routes declared by dhcp server",
 																	Default: &apiextensionv1.JSON{
 																		Raw: []byte("true"),
 																	},
 																},
 																"mac-address": {
-																	Type: "string",
+																	Type:        "string",
+																	Description: "Give a mac address, empty to let hypervisor manage mac address or generate to generate mac address by controller",
 																},
 																"address": {
-																	Type: "string",
+																	Type:        "string",
+																	Description: "Valid ip v4 address or DHCP or NONE",
 																},
 																"gateway": {
-																	Type: "string",
+																	Type:        "string",
+																	Description: "Valid ip v4 address for gateway",
 																},
 																"netmask": {
-																	Type: "string",
+																	Type:        "string",
+																	Description: "Netmask in format xxx.xxx.xxx.xxx",
 																},
 																"routes": {
-																	Type: "array",
+																	Type:        "array",
+																	Description: "Override network routes",
 																	Items: &apiextensionv1.JSONSchemaPropsOrArray{
 																		Schema: &apiextensionv1.JSONSchemaProps{
 																			Type: "object",
@@ -371,22 +396,28 @@ func (c *Controller) CreateCRD() error {
 													},
 												},
 												"eni": {
-													Type: "object",
+													Type:        "object",
+													Description: "Create or use existing ENI",
 													Properties: map[string]apiextensionv1.JSONSchemaProps{
 														"subnetID": {
-															Type: "string",
+															Type:        "string",
+															Description: "Existing VPC subnet identifier",
 														},
 														"securityGroup": {
-															Type: "string",
+															Type:        "string",
+															Description: "Existing security group identifier",
 														},
 														"networkInterfaceID": {
-															Type: "string",
+															Type:        "string",
+															Description: "Existing ENI identifier",
 														},
 														"privateAddress": {
-															Type: "string",
+															Type:        "string",
+															Description: "Set ip v4 address for this interface",
 														},
 														"publicIP": {
-															Type: "boolean",
+															Type:        "boolean",
+															Description: "Use a public ip v4 address",
 														},
 													},
 												},
