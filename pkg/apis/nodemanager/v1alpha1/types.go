@@ -34,6 +34,7 @@ type NetworkRoutes struct {
 
 // ManagedNodeNetwork is a specification for a network ManagedNode resource
 type VMWareManagedNodeNetwork struct {
+	Enabled     bool            `default:"true" json:"enabled,omitempty"`
 	NetworkName string          `json:"network,omitempty"` //vnet for desktop
 	VirtualDev  string          `default:"vmxnet3" json:"device,omitempty" yaml:"device,omitempty"`
 	DHCP        bool            `json:"dhcp,omitempty"`
