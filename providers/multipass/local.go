@@ -51,7 +51,6 @@ func (wrapper *hostMultipassWrapper) CreateInstance(instanceName, instanceType s
 	return &multipassHandler{
 		multipassWrapper: wrapper,
 		network:          wrapper.Network.Clone(controlPlane, nodeIndex),
-		instanceType:     instanceType,
 		instanceName:     instanceName,
 		controlPlane:     controlPlane,
 		nodeIndex:        nodeIndex,
@@ -236,8 +235,8 @@ func (wrapper *hostMultipassWrapper) create(input *createInstanceInput) (string,
 			args = append(args, fmt.Sprintf("--mount=%s:%s", mount.LocalPath, mount.InstancePath))
 		}
 
-		if len(input.instanceType) > 0 {
-			args = append(args, input.instanceType)
+		if len(input.template) > 0 {
+			args = append(args, input.template)
 		}
 
 		if out, err := wrapper.shell(args...); err != nil {

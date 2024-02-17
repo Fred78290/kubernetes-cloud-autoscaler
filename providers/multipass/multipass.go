@@ -14,7 +14,6 @@ import (
 type multipassHandler struct {
 	multipassWrapper
 	network      *providers.Network
-	instanceType string
 	instanceName string
 	controlPlane bool
 	nodeIndex    int
@@ -43,7 +42,7 @@ type createInstanceInput struct {
 	network      *providers.Network
 	netplanFile  string
 	instanceName string
-	instanceType string
+	template     string
 	nodeIndex    int
 }
 
@@ -117,7 +116,7 @@ func (handler *multipassHandler) InstanceCreate(input *providers.InstanceCreateI
 		InstanceCreateInput: input,
 		network:             handler.network,
 		instanceName:        handler.instanceName,
-		instanceType:        handler.instanceType,
+		template:            handler.getConfiguration().TemplateName,
 		nodeIndex:           handler.nodeIndex,
 		netplanFile:         handler.getConfiguration().NetplanFileName,
 	}

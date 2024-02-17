@@ -32,7 +32,6 @@ func (wrapper *remoteMultipassWrapper) CreateInstance(instanceName, instanceType
 	return &multipassHandler{
 		multipassWrapper: wrapper,
 		network:          wrapper.Network.Clone(controlPlane, nodeIndex),
-		instanceType:     instanceType,
 		instanceName:     instanceName,
 		controlPlane:     controlPlane,
 		nodeIndex:        nodeIndex,
@@ -158,7 +157,7 @@ func (wrapper *remoteMultipassWrapper) create(input *createInstanceInput) (strin
 		request := api.HostCreateInstanceRequest{
 			Driver:       multipassCommandLine,
 			InstanceName: input.instanceName,
-			InstanceType: input.instanceType,
+			Template:     input.template,
 			Memory:       int32(input.Machine.Memory),
 			Vcpu:         int32(input.Machine.Vcpu),
 			DiskSize:     int32(input.Machine.DiskSize),

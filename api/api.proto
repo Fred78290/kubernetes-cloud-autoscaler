@@ -308,7 +308,7 @@ message HostNetworkInterface {
 message HostCreateInstanceRequest {
 	string driver = 1;
 	string instanceName = 2;
-	string instanceType = 3;
+	string template = 3;
 	int32 memory = 4;
 	int32 vcpu  = 5;
 	int32 diskSize = 6;
