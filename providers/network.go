@@ -66,7 +66,7 @@ func stringBefore(str string, char string) string {
 
 func stringAfter(str string, char string) string {
 	if index := strings.LastIndex(str, char); index >= 0 {
-		return str[index:]
+		return str[index+1:]
 	} else {
 		return ""
 	}
@@ -202,7 +202,7 @@ func (vnet *Network) GetCloudInitNetwork(useMacAddress bool) *cloudinit.NetworkD
 					if len(label) > 0 {
 						addr := map[string]any{}
 						addr[cloudinit.ToCIDR(address, n.Netmask)] = map[string]any{
-							"label": label,
+							"label": n.NicName,
 						}
 
 						ethernet = &cloudinit.NetworkAdapter{
