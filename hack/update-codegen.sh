@@ -48,3 +48,8 @@ kube::codegen::gen_client \
     --output-pkg-root github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/generated \
     --output-base "${OUTPUT_BASE}" \
     --boilerplate "${SCRIPT_ROOT}/hack/boilerplate.go.txt"
+
+rm -rf vendor
+
+go mod tidy -v
+go mod vendor
