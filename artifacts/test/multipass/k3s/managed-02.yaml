@@ -1,9 +1,9 @@
 apiVersion: "nodemanager.aldunelabs.com/v1alpha1"
 kind: "ManagedNode"
 metadata:
-  name: "multipass-test-k3s-managed-02"
+  name: "multipass-dev-k3s-managed-02"
 spec:
-  nodegroup: multipass-test-k3s
+  nodegroup: multipass-dev-k3s
   controlPlane: false
   allowDeployment: true
   instanceType: small

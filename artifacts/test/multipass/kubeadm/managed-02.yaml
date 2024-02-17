@@ -1,9 +1,9 @@
 apiVersion: "nodemanager.aldunelabs.com/v1alpha1"
 kind: "ManagedNode"
 metadata:
-  name: "multipass-test-kubeadm-managed-02"
+  name: "multipass-dev-kubeadm-managed-02"
 spec:
-  nodegroup: multipass-test-kubeadm
+  nodegroup: multipass-dev-kubeadm
   controlPlane: false
   allowDeployment: true
   instanceType: small

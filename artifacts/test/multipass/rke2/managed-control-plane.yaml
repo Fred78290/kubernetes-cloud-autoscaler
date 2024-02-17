@@ -1,9 +1,9 @@
 apiVersion: "nodemanager.aldunelabs.com/v1alpha1"
 kind: "ManagedNode"
 metadata:
-  name: "multipass-test-rke2-master-02"
+  name: "multipass-dev-rke2-master-02"
 spec:
-  nodegroup: multipass-test-rke2
+  nodegroup: multipass-dev-rke2
   controlPlane: true
   allowDeployment: true
   instanceType: small
@@ -31,9 +31,9 @@ spec:
 apiVersion: "nodemanager.aldunelabs.com/v1alpha1"
 kind: "ManagedNode"
 metadata:
-  name: "multipass-test-rke2-master-03"
+  name: "multipass-dev-rke2-master-03"
 spec:
-  nodegroup: multipass-test-rke2
+  nodegroup: multipass-dev-rke2
   controlPlane: true
   allowDeployment: true
   instanceType: small

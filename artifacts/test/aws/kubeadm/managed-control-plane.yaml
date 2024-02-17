@@ -1,10 +1,10 @@
 apiVersion: "nodemanager.aldunelabs.com/v1alpha1"
 kind: "ManagedNode"
 metadata:
-  name: "multipass-dev-kubeadm-managed-01"
+  name: "aws-dev-kubeadm-master-02"
 spec:
-  nodegroup: multipass-dev-kubeadm
-  controlPlane: false
+  nodegroup: aws-dev-kubeadm
+  controlPlane: true
   allowDeployment: true
   instanceType: small
   diskSizeInMB: 10240
@@ -18,20 +18,23 @@ spec:
   network:
     vmware:
       -
-        network: "lxdbr0"
-        dhcp: true
+        network: "vmnet8"
+        dhcp: false
+        address: 192.168.2.81
+        netmask: 255.255.255.0
+        gateway: 192.168.2.254
       -
-        network: "mpbr0"
+        network: "VM Private"
         dhcp: true
         use-dhcp-routes: false
 ---
 apiVersion: "nodemanager.aldunelabs.com/v1alpha1"
 kind: "ManagedNode"
 metadata:
-  name: "multipass-dev-kubeadm-managed-02"
+  name: "aws-dev-kubeadm-master-03"
 spec:
-  nodegroup: multipass-dev-kubeadm
-  controlPlane: false
+  nodegroup: aws-dev-kubeadm
+  controlPlane: true
   allowDeployment: true
   instanceType: small
   diskSizeInMB: 10240
@@ -45,9 +48,12 @@ spec:
   network:
     vmware:
       -
-        network: "lxdbr0"
-        dhcp: true
+        network: "vmnet8"
+        dhcp: false
+        address: 192.168.2.82
+        netmask: 255.255.255.0
+        gateway: 192.168.2.254
       -
-        network: "mpbr0"
+        network: "VM Private"
         dhcp: true
         use-dhcp-routes: false

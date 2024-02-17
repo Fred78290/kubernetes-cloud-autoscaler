@@ -1,9 +1,9 @@
 apiVersion: "nodemanager.aldunelabs.com/v1alpha1"
 kind: "ManagedNode"
 metadata:
-  name: "multipass-dev-kubeadm-managed-01"
+  name: "desktop-dev-kubeadm-managed-01"
 spec:
-  nodegroup: multipass-dev-kubeadm
+  nodegroup: desktop-dev-kubeadm
   controlPlane: false
   allowDeployment: true
   instanceType: small
@@ -18,9 +18,9 @@ spec:
   network:
     vmware:
       -
-        network: "lxdbr0"
+        network: "vmnet8"
         dhcp: true
       -
-        network: "mpbr0"
+        network: "vmnet0"
         dhcp: true
         use-dhcp-routes: false
