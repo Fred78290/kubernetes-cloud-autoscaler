@@ -377,7 +377,7 @@ func (wrapper *desktopWrapper) CreateWithContext(ctx *context.Context, input *Cr
 	var err error
 
 	request := &api.CreateRequest{
-		Template:     wrapper.TemplateName,
+		Template:     wrapper.templateUUID,
 		Name:         input.NodeName,
 		Vcpus:        int32(input.Machine.Vcpu),
 		Memory:       int64(input.Machine.Memory),
