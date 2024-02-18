@@ -182,10 +182,10 @@ func (wrapper *remoteMultipassWrapper) create(input *createInstanceInput) (strin
 			CloudInit:    buffer.Bytes(),
 		}
 
-		if wrapper.baseMultipassWrapper.Network != nil {
-			networks := make([]*api.HostNetworkInterface, 0, len(wrapper.baseMultipassWrapper.Network.Interfaces))
+		if input.network != nil {
+			networks := make([]*api.HostNetworkInterface, 0, len(input.network.Interfaces))
 
-			for _, inf := range wrapper.baseMultipassWrapper.Network.Interfaces {
+			for _, inf := range input.network.Interfaces {
 				if inf.Enabled && !inf.Existing {
 					mode := inf.ConnectionType
 					mac := inf.GetMacAddress()
