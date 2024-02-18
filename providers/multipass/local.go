@@ -23,6 +23,9 @@ func (wrapper *hostMultipassWrapper) shell(args ...string) (string, error) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
+	wrapper.Lock()
+	defer wrapper.Unlock()
+
 	glog.Debugf("Shell: %v", args)
 
 	cmd := exec.Command(args[0], args[1:]...)

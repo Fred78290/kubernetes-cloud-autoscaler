@@ -39,6 +39,9 @@ func (wrapper *remoteMultipassWrapper) CreateInstance(instanceName, instanceType
 }
 
 func (wrapper *remoteMultipassWrapper) InstanceExists(name string) bool {
+	wrapper.Lock()
+	defer wrapper.Unlock()
+
 	ctx := context.NewContext(wrapper.Timeout)
 	defer ctx.Cancel()
 
@@ -68,6 +71,9 @@ func (wrapper *remoteMultipassWrapper) getConfiguration() *Configuration {
 }
 
 func (wrapper *remoteMultipassWrapper) powerOn(instanceName string) error {
+	wrapper.Lock()
+	defer wrapper.Unlock()
+
 	ctx := context.NewContext(wrapper.Timeout)
 	defer ctx.Cancel()
 
@@ -81,6 +87,9 @@ func (wrapper *remoteMultipassWrapper) powerOn(instanceName string) error {
 }
 
 func (wrapper *remoteMultipassWrapper) powerOff(instanceName string) error {
+	wrapper.Lock()
+	defer wrapper.Unlock()
+
 	ctx := context.NewContext(wrapper.Timeout)
 	defer ctx.Cancel()
 
@@ -94,6 +103,9 @@ func (wrapper *remoteMultipassWrapper) powerOff(instanceName string) error {
 }
 
 func (wrapper *remoteMultipassWrapper) delete(instanceName string) error {
+	wrapper.Lock()
+	defer wrapper.Unlock()
+
 	ctx := context.NewContext(wrapper.Timeout)
 	defer ctx.Cancel()
 
@@ -107,6 +119,9 @@ func (wrapper *remoteMultipassWrapper) delete(instanceName string) error {
 }
 
 func (wrapper *remoteMultipassWrapper) status(instanceName string) (providers.InstanceStatus, error) {
+	wrapper.Lock()
+	defer wrapper.Unlock()
+
 	ctx := context.NewContext(wrapper.Timeout)
 	defer ctx.Cancel()
 
@@ -126,6 +141,9 @@ func (wrapper *remoteMultipassWrapper) status(instanceName string) (providers.In
 }
 
 func (wrapper *remoteMultipassWrapper) create(input *createInstanceInput) (string, error) {
+	wrapper.Lock()
+	defer wrapper.Unlock()
+
 	ctx := context.NewContext(wrapper.Timeout)
 	defer ctx.Cancel()
 

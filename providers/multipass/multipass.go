@@ -2,6 +2,7 @@ package multipass
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
@@ -35,6 +36,7 @@ type multipassWrapper interface {
 
 type baseMultipassWrapper struct {
 	*Configuration
+	sync.Mutex
 }
 
 type createInstanceInput struct {
