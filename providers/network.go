@@ -321,6 +321,10 @@ func (vnet *Network) ConfigureNetwork(network v1alpha1.ManagedNetworkConfig) {
 						inet.IPAddress = network.IPV4Address
 					}
 
+					if len(network.Adapter) > 0 {
+						inet.Adapter = network.Adapter
+					}
+
 					if len(network.Netmask) > 0 {
 						inet.Netmask = network.Netmask
 					}

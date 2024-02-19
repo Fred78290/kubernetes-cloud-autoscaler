@@ -36,7 +36,7 @@ type NetworkRoutes struct {
 type VMWareManagedNodeNetwork struct {
 	Enabled     bool            `default:"true" json:"enabled,omitempty"`
 	NetworkName string          `json:"network,omitempty"` //vnet for desktop
-	VirtualDev  string          `default:"vmxnet3" json:"device,omitempty" yaml:"device,omitempty"`
+	Adapter     string          `json:"adapter,omitempty" yaml:"adapter,omitempty"`
 	DHCP        bool            `json:"dhcp,omitempty"`
 	UseRoutes   bool            `default:"true" json:"use-dhcp-routes,omitempty" yaml:"use-dhcp-routes,omitempty"`
 	IPV4Address string          `json:"address,omitempty"`
