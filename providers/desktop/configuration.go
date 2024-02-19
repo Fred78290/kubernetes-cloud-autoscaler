@@ -150,7 +150,11 @@ func (handler *desktopHandler) InstanceCreate(input *providers.InstanceCreateInp
 }
 
 func (handler *desktopHandler) InstanceWaitReady(callback providers.CallbackWaitSSHReady) (string, error) {
-	if ip, err := handler.WaitForIP(handler.instanceName, handler.Timeout); err != nil {
+	if handler.instanceID == "" {
+		return "", fmt.Errorf(constantes.ErrInstanceIsNotAttachedToCloudProvider)
+	}
+
+	if ip, err := handler.WaitForIP(handler.instanceID, handler.Timeout); err != nil {
 		return ip, err
 	} else {
 		if err := context.PollImmediate(time.Second, handler.Timeout*time.Second, func() (bool, error) {
