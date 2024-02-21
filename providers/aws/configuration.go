@@ -44,7 +44,7 @@ type Configuration struct {
 	ImageID           string            `json:"ami"`
 	IamRole           string            `json:"iam-role-arn"`
 	KeyName           string            `json:"keyName"`
-	DiskType          string            `default:"gp2" json:"disk-type"`
+	VolumeType        string            `default:"gp3" json:"volume-type"`
 	Tags              []Tag             `json:"tags,omitempty"`
 	Network           Network           `json:"network"`
 	AvailableGPUTypes map[string]string `json:"gpu-types"`
@@ -221,7 +221,7 @@ func (handler *awsHandler) InstanceCreate(input *providers.InstanceCreateInput) 
 		return "", err
 	}
 
-	if err = handler.runningInstance.Create(input.NodeGroup, handler.instanceType, userData, handler.DiskType, input.Machine.DiskSize, handler.desiredENI); err != nil {
+	if err = handler.runningInstance.Create(input.NodeGroup, handler.instanceType, userData, handler.VolumeType, input.Machine.DiskSize, handler.desiredENI); err != nil {
 		return "", err
 	}
 
