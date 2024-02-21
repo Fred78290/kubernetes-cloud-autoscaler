@@ -44,7 +44,7 @@
     {
       "label": "kubeadm aws",
       "type": "shell",
-      "command": "${workspaceFolder}/scripts/prepare.sh vsphere aws-dev-kubeadm",
+      "command": "${workspaceFolder}/scripts/prepare.sh aws aws-dev-kubeadm",
       "problemMatcher": [],
       "group": {
         "kind": "build",
@@ -54,7 +54,7 @@
     {
       "label": "kubeadm desktop",
       "type": "shell",
-      "command": "${workspaceFolder}/scripts/prepare.sh vsphere desktop-dev-kubeadm",
+      "command": "${workspaceFolder}/scripts/prepare.sh desktop desktop-dev-kubeadm",
       "problemMatcher": [],
       "group": {
         "kind": "build",
@@ -64,7 +64,7 @@
     {
       "label": "kubeadm multipass",
       "type": "shell",
-      "command": "${workspaceFolder}/scripts/prepare.sh vsphere multipass-dev-kubeadm",
+      "command": "${workspaceFolder}/scripts/prepare.sh multipass multipass-dev-kubeadm",
       "problemMatcher": [],
       "group": {
         "kind": "build",
@@ -94,7 +94,7 @@
     {
       "label": "rke2 desktop",
       "type": "shell",
-      "command": "${workspaceFolder}/scripts/prepare.sh aws desktop-dev-rke2",
+      "command": "${workspaceFolder}/scripts/prepare.sh desktop desktop-dev-rke2",
       "problemMatcher": [],
       "group": {
         "kind": "build",

@@ -13,6 +13,7 @@
             "program": "${workspaceFolder}",
             "cwd": "${env:HOME}/go/src/github.com/Fred78290/kubernetes-cloud-autoscaler",
             "args": [
+                "--debug",
                 "--listen=unix:/tmp/autoscaler.sock",
                 "--request-timeout=120s",
                 "--grpc-provider=externalgrpc",
@@ -23,7 +24,7 @@
                 "--config=${workspaceFolder}/.config/aws/aws-dev-k3s/autoscaler.json",
                 "--save=${workspaceFolder}/.config/aws/aws-dev-k3s/state.json",
                 "--kubeconfig=${workspaceFolder}/.config/aws/aws-dev-k3s/config",
-                "--log-level=info"
+                "--log-level=debug"
             ]
         },
         {
@@ -215,7 +216,7 @@
                 "--config=${workspaceFolder}/.config/aws/aws-dev-rke2/autoscaler.json",
                 "--save=${workspaceFolder}/.config/aws/aws-dev-rke2/state.json",
                 "--kubeconfig=${workspaceFolder}/.config/aws/aws-dev-rke2/config",
-                "--log-level=debug"
+                "--log-level=info"
             ]
         },
         {
