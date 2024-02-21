@@ -454,7 +454,6 @@ func (wrapper *awsWrapper) AmiExists(ami string) bool {
 		return false
 	} else {
 		input := ec2.DescribeImagesInput{
-			MaxResults: aws.Int64(1),
 			ImageIds: []*string{
 				aws.String(ami),
 			},
