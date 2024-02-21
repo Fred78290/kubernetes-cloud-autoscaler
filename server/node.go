@@ -193,8 +193,6 @@ func (vm *AutoScalerServerNode) recopyKubernetesPKIIfNeeded() (err error) {
 }
 
 func (vm *AutoScalerServerNode) executeCommands(args []string, restartKubelet bool, c types.ClientGenerator) error {
-	glog.Infof(joinClusterInfo, vm.NodeName, vm.NodeGroup)
-
 	config := vm.serverConfig
 	command := fmt.Sprintf("sh -c \"%s\"", strings.Join(args, " && "))
 
@@ -289,10 +287,16 @@ func (vm *AutoScalerServerNode) kubeAdmConfig() any {
 	}
 }
 
-func (vm *AutoScalerServerNode) kubeAdmJoinCommand() string {
+func (vm *AutoScalerServerNode) kubeAdmJoinCommand() []string {
+	config := vm.serverConfig
+	commands := make([]string, 0, 2)
 	kubeAdm := vm.serverConfig.KubeAdm
 
-	args := []string{
+	if config.UseImageCredentialProviderConfig() {
+		commands = append(commands, fmt.Sprintf("echo KUBELET_EXTRA_ARGS='--image-credential-provider-config=%s --image-credential-provider-bin-dir=%s' > /etc/default/kubelet", *config.ImageCredentialProviderConfig, *config.ImageCredentialProviderBinDir))
+	}
+
+	join := []string{
 		"kubeadm",
 		"join",
 		kubeAdm.Address,
@@ -307,23 +311,23 @@ func (vm *AutoScalerServerNode) kubeAdmJoinCommand() string {
 	}
 
 	if vm.ControlPlaneNode {
-		args = append(args, "--control-plane")
+		join = append(join, "--control-plane")
 
 		if len(vm.IPAddress) > 0 {
-			args = append(args, "--apiserver-advertise-address", vm.IPAddress)
+			join = append(join, "--apiserver-advertise-address", vm.IPAddress)
 		}
 	}
 
 	// Append extras arguments
 	if len(kubeAdm.ExtraArguments) > 0 {
-		args = append(args, kubeAdm.ExtraArguments...)
+		join = append(join, kubeAdm.ExtraArguments...)
 	}
 
-	return strings.Join(args, " ")
+	return append(commands, strings.Join(join, " "))
 }
 
 func (vm *AutoScalerServerNode) kubeAdmJoin(c types.ClientGenerator) error {
-	return vm.joinClusterWithConfig(vm.kubeAdmConfig(), "/etc/kubernetes/patches/kubeletconfiguration0+merge.yaml", c, true, vm.kubeAdmJoinCommand())
+	return vm.joinClusterWithConfig(vm.kubeAdmConfig(), "/etc/kubernetes/patches/kubeletconfiguration0+merge.yaml", c, true, vm.kubeAdmJoinCommand()...)
 }
 
 func (vm *AutoScalerServerNode) externalAgentConfig() any {
@@ -336,7 +340,7 @@ func (vm *AutoScalerServerNode) externalAgentConfig() any {
 		"token":     external.Token,
 	}
 
-	if !config.UseCloudInitToConfigure() {
+	if config.UseControllerManager() && !config.UseCloudInitToConfigure() {
 		externalConfig["provider-id"] = vm.generateProviderID()
 	}
 
@@ -375,7 +379,7 @@ func (vm *AutoScalerServerNode) rke2AgentConfig() any {
 		fmt.Sprintf("max-pods=%d", vm.MaxPods),
 	}
 
-	if !config.UseCloudInitToConfigure() {
+	if config.UseControllerManager() && !config.UseCloudInitToConfigure() {
 		kubeletArgs = append(kubeletArgs, fmt.Sprintf("provider-id=%s", vm.generateProviderID()))
 	}
 
@@ -485,11 +489,13 @@ func (vm *AutoScalerServerNode) joinCluster(c types.ClientGenerator) (err error)
 
 	config := vm.serverConfig
 
-	if config.CredentialProviderConfig != nil && config.ImageCredentialProviderConfig != nil {
+	if config.UseImageCredentialProviderConfig() {
 		err = vm.putFile(config.CredentialProviderConfig, *config.ImageCredentialProviderConfig)
 	}
 
 	if err == nil {
+		glog.Infof(joinClusterInfo, vm.NodeName, vm.NodeGroup)
+
 		switch config.KubernetesDistribution() {
 		case providers.K3SDistributionName:
 			err = vm.k3sAgentJoin(c)
@@ -557,13 +563,13 @@ func (vm *AutoScalerServerNode) WaitSSHReady(nodename, address string) error {
 	config := vm.serverConfig
 
 	// Node name and instance name could be differ when using AWS cloud provider
-	if nodeName, err := vm.providerHandler.PrivateDNSName(); err == nil {
-		vm.NodeName = nodeName
-
-		glog.Debugf("Launch VM: %s set to nodeName: %s", nodename, nodeName)
-	} else {
-		return err
-	}
+	//	if nodeName, err := vm.providerHandler.PrivateDNSName(); err == nil {
+	//		vm.NodeName = nodeName
+	//
+	//		glog.Debugf("Launch VM: %s set to nodeName: %s", nodename, nodeName)
+	//	} else {
+	//		return err
+	//	}
 
 	// We never use ssh in cloud-init mode
 	if config.UseCloudInitToConfigure() {
@@ -618,7 +624,7 @@ func (vm *AutoScalerServerNode) appendKubeAdmConfigInCloudInit() (err error) {
 	config := vm.serverConfig
 
 	if err = vm.CloudInit.AddObjectToWriteFile(vm.kubeAdmConfig(), "/etc/kubernetes/patches/kubeletconfiguration0+merge.yaml", *config.CloudInitFileOwner, *config.CloudInitFileMode); err == nil {
-		vm.CloudInit.AddRunCommand(vm.kubeAdmJoinCommand())
+		vm.CloudInit.AddRunCommand(vm.kubeAdmJoinCommand()...)
 	}
 
 	return err
@@ -666,7 +672,10 @@ func (vm *AutoScalerServerNode) prepareCloudInit() (err error) {
 	}
 
 	if vm.serverConfig.CloudInit == nil {
-		vm.CloudInit = make(cloudinit.CloudInit)
+		vm.CloudInit = cloudinit.CloudInit{
+			"package_update":  false,
+			"package_upgrade": false,
+		}
 	} else if vm.CloudInit, err = vm.serverConfig.CloudInit.Clone(); err != nil {
 		return err
 	}
@@ -680,7 +689,7 @@ func (vm *AutoScalerServerNode) prepareCloudInit() (err error) {
 			return err
 		}
 
-		if config.CredentialProviderConfig != nil && config.ImageCredentialProviderConfig != nil {
+		if config.UseImageCredentialProviderConfig() {
 			if err = vm.CloudInit.AddObjectToWriteFile(config.CredentialProviderConfig, *config.ImageCredentialProviderConfig, *config.CloudInitFileOwner, *config.CloudInitFileMode); err != nil {
 				return err
 			}
@@ -1073,11 +1082,13 @@ func (vm *AutoScalerServerNode) statusVM() (AutoScalerServerNodeState, error) {
 }
 
 func (vm *AutoScalerServerNode) setProviderID(c types.ClientGenerator) error {
-	if vm.serverConfig.DisableCloudController() {
+	// provider is set by config in ssh config mode
+	if vm.serverConfig.DisableCloudController() && vm.serverConfig.UseCloudInitToConfigure() {
 		providerID := vm.providerHandler.GenerateProviderID()
 
+		// Well ignore error, the controller can set it earlier
 		if len(providerID) > 0 {
-			return c.SetProviderID(vm.NodeName, providerID)
+			c.SetProviderID(vm.NodeName, providerID)
 		}
 	}
 
