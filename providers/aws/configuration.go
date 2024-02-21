@@ -443,10 +443,10 @@ func (wrapper *awsWrapper) GetFileName() string {
 
 func (wrapper *awsWrapper) Exists(name string) bool {
 	if _, err := wrapper.GetEc2Instance(name); err != nil {
-		return true
+		return false
 	}
 
-	return false
+	return true
 }
 
 func (wrapper *awsWrapper) AmiExists(ami string) bool {
