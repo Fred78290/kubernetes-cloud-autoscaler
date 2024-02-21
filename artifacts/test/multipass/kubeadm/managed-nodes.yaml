@@ -20,10 +20,6 @@ spec:
       -
         network: "lxdbr0"
         dhcp: true
-      -
-        network: "mpbr0"
-        dhcp: true
-        use-dhcp-routes: false
 ---
 apiVersion: "nodemanager.aldunelabs.com/v1alpha1"
 kind: "ManagedNode"
@@ -47,7 +43,3 @@ spec:
       -
         network: "lxdbr0"
         dhcp: true
-      -
-        network: "mpbr0"
-        dhcp: true
-        use-dhcp-routes: false

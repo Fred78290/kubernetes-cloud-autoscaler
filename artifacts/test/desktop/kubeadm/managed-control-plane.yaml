@@ -24,7 +24,7 @@ spec:
         netmask: 255.255.255.0
         gateway: 192.168.2.254
       -
-        network: "VM Private"
+        network: "vmnet0"
         dhcp: true
         use-dhcp-routes: false
 ---
@@ -54,6 +54,6 @@ spec:
         netmask: 255.255.255.0
         gateway: 192.168.2.254
       -
-        network: "VM Private"
+        network: "vmnet0"
         dhcp: true
         use-dhcp-routes: false

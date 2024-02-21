@@ -23,10 +23,6 @@ spec:
         address: 192.168.2.81
         netmask: 255.255.255.0
         gateway: 192.168.2.254
-      -
-        network: "VM Private"
-        dhcp: true
-        use-dhcp-routes: false
 ---
 apiVersion: "nodemanager.aldunelabs.com/v1alpha1"
 kind: "ManagedNode"
@@ -53,7 +49,3 @@ spec:
         address: 192.168.2.82
         netmask: 255.255.255.0
         gateway: 192.168.2.254
-      -
-        network: "VM Private"
-        dhcp: true
-        use-dhcp-routes: false

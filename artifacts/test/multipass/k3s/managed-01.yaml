@@ -20,7 +20,3 @@ spec:
       -
         network: "lxdbr0"
         dhcp: true
-      -
-        network: "mpbr0"
-        dhcp: true
-        use-dhcp-routes: false
