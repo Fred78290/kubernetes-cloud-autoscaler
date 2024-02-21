@@ -2,6 +2,7 @@ package aws
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"strings"
 	"time"
@@ -201,9 +202,9 @@ func (handler *awsHandler) encodeCloudInit(object any) (*string, error) {
 		return nil, err
 	}
 
-	result := out.String()
+	result := base64.StdEncoding.EncodeToString(out.Bytes())
 
-	return &result, nil
+	return aws.String(result), nil
 }
 
 // InstanceCreate will create a named VM not powered
