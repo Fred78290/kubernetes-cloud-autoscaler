@@ -312,11 +312,13 @@ func (instance *Ec2Instance) buildNetworkInterfaces(desiredENI *UserDefinedNetwo
 func (instance *Ec2Instance) buildBlockDeviceMappings(diskType string, diskSize int) ([]*ec2.BlockDeviceMapping, error) {
 	if diskSize > 0 || len(diskType) > 0 {
 		if diskSize == 0 {
-			diskSize = 20
+			diskSize = 10
+		} else {
+			diskSize = diskSize / 1024
 		}
 
 		if len(diskType) == 0 {
-			diskType = "gp2"
+			diskType = "gp3"
 		}
 
 		ebs := &ec2.BlockDeviceMapping{
