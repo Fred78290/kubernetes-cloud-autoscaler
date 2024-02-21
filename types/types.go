@@ -461,6 +461,13 @@ func (conf *AutoScalerServerConfig) GetAutoScalingOptions() (*apigrpc.Autoscalin
 	return conf.autoScalingOptions, nil
 }
 
+func (conf *AutoScalerServerConfig) UseImageCredentialProviderConfig() bool {
+	if conf.ImageCredentialProviderConfig != nil && len(*conf.ImageCredentialProviderConfig) > 0 {
+		return true
+	}
+	return false
+}
+
 func (conf *AutoScalerServerConfig) UseExternalEtdcServer() bool {
 	if conf.UseExternalEtdc != nil {
 		return *conf.UseExternalEtdc
