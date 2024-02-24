@@ -228,6 +228,14 @@ type NodeGroupAutoscalingOptions struct {
 	// ScaleDownUnreadyTime represents how long an unready node should be
 	// unneeded before it is eligible for scale down.
 	ScaleDownUnreadyTime string `default:"1m" json:"scaleDownUnreadyTime,omitempty"`
+
+	MaxNodeProvisionTime string `default:"15m" json:"maxNodeProvisionTime,omitempty"`
+
+	// ZeroOrMaxNodeScaling means that a node group should be scaled up to maximum size or down to zero nodes all at once instead of one-by-one.
+	ZeroOrMaxNodeScaling bool `json:"zeroOrMaxNodeScaling,omitempty"`
+
+	// IgnoreDaemonSetsUtilization sets if daemonsets utilization should be considered during node scale-down
+	IgnoreDaemonSetsUtilization bool `json:"ignoreDaemonSetsUtilization,omitempty"`
 }
 
 // AutoScalerServerConfig is contains configuration
@@ -443,16 +451,22 @@ func (conf *AutoScalerServerConfig) GetAutoScalingOptions() (*apigrpc.Autoscalin
 				return nil, fmt.Errorf("unable to parse scaleDownUnneededTime: %v", err)
 			} else if scaleDownUnreadyTime, err := time.ParseDuration(conf.AutoScalingOptions.ScaleDownUnreadyTime); err != nil {
 				return nil, fmt.Errorf("unable to parse scaleDownUnreadyTime: %v", err)
+			} else if maxNodeProvisionTime, err := time.ParseDuration(conf.AutoScalingOptions.MaxNodeProvisionTime); err != nil {
+				return nil, fmt.Errorf("unable to parse maxNodeProvisionTime: %v", err)
 			} else {
-
 				conf.autoScalingOptions = &apigrpc.AutoscalingOptions{
 					ScaleDownUtilizationThreshold:    conf.AutoScalingOptions.ScaleDownUtilizationThreshold,
 					ScaleDownGpuUtilizationThreshold: conf.AutoScalingOptions.ScaleDownGpuUtilizationThreshold,
+					ZeroOrMaxNodeScaling:             conf.AutoScalingOptions.ZeroOrMaxNodeScaling,
+					IgnoreDaemonSetsUtilization:      conf.AutoScalingOptions.IgnoreDaemonSetsUtilization,
 					ScaleDownUnneededTime: &metav1.Duration{
 						Duration: scaleDownUnneededTime,
 					},
 					ScaleDownUnreadyTime: &metav1.Duration{
 						Duration: scaleDownUnreadyTime,
+					},
+					MaxNodeProvisionTime: &metav1.Duration{
+						Duration: maxNodeProvisionTime,
 					},
 				}
 			}

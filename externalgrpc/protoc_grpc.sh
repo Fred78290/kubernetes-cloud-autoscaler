@@ -5,7 +5,7 @@ pushd $CURDIR
 
 rm -rf *.go
 
-RELEASE=1.28.2
+RELEASE=1.29.0
 AUTOSCALER_PATH="/tmp/autoscaler-cluster-autoscaler-${RELEASE}/cluster-autoscaler"
 
 rm -rf /tmp/autoscaler-cluster-autoscaler-${RELEASE}

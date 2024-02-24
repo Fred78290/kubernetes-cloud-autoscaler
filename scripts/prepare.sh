@@ -20,6 +20,12 @@ AUTOSCALER_DESKTOP_UTILITY_TLS=$(dirname $(kubernetes-desktop-autoscaler-utility
 if [ -n "${NODEGROUP}" ]; then
 	mkdir -p "${CONFIG_DIR}"
 
+	if [ -f ${AUTOSCALER_HOME}/config/${NODEGROUP}/config/grpc-config.json ]; then
+		cat ${AUTOSCALER_HOME}/config/${NODEGROUP}/config/grpc-config.json | js '. | .address: "unix:/tmp/autoscaler.sock"' > ${CONFIG_DIR}/grpc-config.json
+	else
+		echo 'address: "unix:/tmp/autoscaler.sock"' > ${CONFIG_DIR}/grpc-config.yaml
+	fi
+
 	cp ${AUTOSCALER_HOME}/cluster/${NODEGROUP}/config ${CONFIG_DIR}/config
 	cp ${AUTOSCALER_HOME}/config/${NODEGROUP}/config/machines.json ${CONFIG_DIR}/machines.json
 

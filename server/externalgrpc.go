@@ -430,6 +430,7 @@ func (v *externalgrpcServerApp) NodeGroupGetOptions(ctx context.Context, request
 		ScaleDownGpuUtilizationThreshold: pbDefaults.GetScaleDownGpuUtilizationThreshold(),
 		ScaleDownUnneededTime:            pbDefaults.GetScaleDownUnneededTime(),
 		ScaleDownUnreadyTime:             pbDefaults.GetScaleDownUnneededTime(),
+		MaxNodeProvisionTime:             pbDefaults.GetMaxNodeProvisionTime(),
 	}
 
 	opts, err := nodeGroup.GetOptions(defaults)
@@ -448,6 +449,7 @@ func (v *externalgrpcServerApp) NodeGroupGetOptions(ctx context.Context, request
 			ScaleDownGpuUtilizationThreshold: opts.ScaleDownGpuUtilizationThreshold,
 			ScaleDownUnneededTime:            opts.ScaleDownUnneededTime,
 			ScaleDownUnreadyTime:             opts.ScaleDownUnreadyTime,
+			MaxNodeProvisionTime:             opts.MaxNodeProvisionTime,
 		},
 	}, nil
 }

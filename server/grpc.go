@@ -1160,6 +1160,9 @@ func (s *grpcServerApp) GetOptions(ctx context.Context, request *apigrpc.GetOpti
 			ScaleDownGpuUtilizationThreshold: pbDefaults.GetScaleDownGpuUtilizationThreshold(),
 			ScaleDownUnneededTime:            pbDefaults.GetScaleDownUnneededTime(),
 			ScaleDownUnreadyTime:             pbDefaults.GetScaleDownUnneededTime(),
+			MaxNodeProvisionTime:             pbDefaults.GetMaxNodeProvisionTime(),
+			ZeroOrMaxNodeScaling:             pbDefaults.GetZeroOrMaxNodeScaling(),
+			IgnoreDaemonSetsUtilization:      pbDefaults.GetIgnoreDaemonSetsUtilization(),
 		}
 
 		opts, err := nodeGroup.GetOptions(defaults)
@@ -1182,6 +1185,9 @@ func (s *grpcServerApp) GetOptions(ctx context.Context, request *apigrpc.GetOpti
 					ScaleDownGpuUtilizationThreshold: opts.ScaleDownGpuUtilizationThreshold,
 					ScaleDownUnneededTime:            opts.ScaleDownUnneededTime,
 					ScaleDownUnreadyTime:             opts.ScaleDownUnreadyTime,
+					MaxNodeProvisionTime:             opts.MaxNodeProvisionTime,
+					ZeroOrMaxNodeScaling:             opts.ZeroOrMaxNodeScaling,
+					IgnoreDaemonSetsUtilization:      opts.IgnoreDaemonSetsUtilization,
 				},
 			},
 		}, nil
