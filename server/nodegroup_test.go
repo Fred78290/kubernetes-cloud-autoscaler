@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -253,6 +254,10 @@ func (m *baseTest) TaintNode(nodeName string, taints ...apiv1.Taint) error {
 
 func (m *baseTest) WaitNodeToBeReady(nodeName string) error {
 	return nil
+}
+
+func (p *baseTest) GetSecret(secretName, namespace string) (*apiv1.Secret, error) {
+	return nil, fmt.Errorf("Not implemented")
 }
 
 func (m *baseTest) DeleteSecret(secretName, namespace string) error {

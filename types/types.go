@@ -160,6 +160,7 @@ type ClientGenerator interface {
 	AnnoteNode(nodeName string, annotations map[string]string) error
 	LabelNode(nodeName string, labels map[string]string) error
 	TaintNode(nodeName string, taints ...apiv1.Taint) error
+	GetSecret(secretName, namespace string) (*apiv1.Secret, error)
 	DeleteSecret(secretName, namespace string) error
 	WaitNodeToBeReady(nodeName string) error
 }

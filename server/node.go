@@ -82,6 +82,9 @@ const (
 	chownFailed              = "chown failed: %v"
 	copyFiles                = "cp -r /tmp/%s/* %s"
 	changeOwner              = "chown -R %s %s"
+	kubeSystemNamespace      = "kube-system"
+	k3sPasswordNodeSecret    = "%s.node-password.k3s"
+	rke2PasswordNodeSecret   = "%s.node-password.rke2"
 )
 
 // AutoScalerServerNode Describe a AutoScaler VM
@@ -430,7 +433,7 @@ func (vm *AutoScalerServerNode) rke2AgentJoin(c types.ClientGenerator) error {
 		service = "rke2-agent"
 	}
 
-	return vm.joinClusterWithConfig(vm.rke2AgentConfig(), "/etc/rancher/rke2/config.yaml", c, false, fmt.Sprintf("systemctl enable %s.service", service), fmt.Sprintf("systemctl start %s.service", service))
+	return vm.joinClusterWithConfig(vm.rke2AgentConfig(), "/etc/rancher/rke2/config.yaml", c, false, fmt.Sprintf("systemctl enable %s.service", service), fmt.Sprintf("systemctl start %s.service", service), fmt.Sprintf("journalctl --no-pager -xeu %s.service", service))
 }
 
 func (vm *AutoScalerServerNode) retrieveNodeInfo(c types.ClientGenerator) error {
@@ -477,7 +480,7 @@ func (vm *AutoScalerServerNode) k3sAgentCommand() []string {
 		command = append(command, k3s.ExtraCommands...)
 	}
 
-	return append(command, "systemctl enable k3s.service", "systemctl start k3s.service")
+	return append(command, "systemctl enable k3s.service", "systemctl start k3s.service", "journalctl --no-pager -xeu k3s.service")
 }
 
 func (vm *AutoScalerServerNode) k3sAgentJoin(c types.ClientGenerator) error {
@@ -710,9 +713,37 @@ func (vm *AutoScalerServerNode) prepareCloudInit() (err error) {
 	return err
 }
 
+func (vm *AutoScalerServerNode) preNodeCreation(c types.ClientGenerator) (err error) {
+	var passwordNode string
+
+	config := vm.serverConfig
+
+	// Delete secret
+	switch config.KubernetesDistribution() {
+	case providers.K3SDistributionName:
+		passwordNode = fmt.Sprintf(k3sPasswordNodeSecret, vm.NodeName)
+
+	case providers.RKE2DistributionName:
+		passwordNode = fmt.Sprintf(rke2PasswordNodeSecret, vm.NodeName)
+
+	default:
+		return
+	}
+
+	if secret, e := c.GetSecret(passwordNode, kubeSystemNamespace); e == nil && secret != nil {
+		err = c.DeleteSecret(passwordNode, kubeSystemNamespace)
+	}
+
+	return
+}
+
 func (vm *AutoScalerServerNode) createInstance(c types.ClientGenerator) (err error) {
 	providerHandler := vm.providerHandler
 	userInfo := vm.serverConfig.SSH
+
+	if err = vm.preNodeCreation(c); err != nil {
+		glog.Errorf("preNodeCreation failed: %v", err)
+	}
 
 	if err = vm.prepareCloudInit(); err != nil {
 		return fmt.Errorf("prepare cloud-init failed: %v", err)
@@ -967,23 +998,34 @@ func (vm *AutoScalerServerNode) stopVM(c types.ClientGenerator) error {
 	return err
 }
 
-func (vm *AutoScalerServerNode) prepareNodeDeletion(c types.ClientGenerator) error {
+func (vm *AutoScalerServerNode) prepareNodeDeletion(c types.ClientGenerator, powered bool) error {
+	var passwordNode string
+	var err error
+
 	config := vm.serverConfig
 
 	switch config.KubernetesDistribution() {
 	case providers.K3SDistributionName:
-		return c.DeleteSecret(fmt.Sprintf("%s.node-password.k3s", vm.NodeName), "kube-system")
+		passwordNode = fmt.Sprintf(k3sPasswordNodeSecret, vm.NodeName)
 
 	case providers.RKE2DistributionName:
-		return c.DeleteSecret(fmt.Sprintf("%s.node-password.rke2", vm.NodeName), "kube-system")
+		passwordNode = fmt.Sprintf(rke2PasswordNodeSecret, vm.NodeName)
 
 	case providers.ExternalDistributionName:
-		if len(config.External.DeleteCommand) > 0 {
-			return vm.executeCommands([]string{config.External.DeleteCommand}, false, c)
+		if powered && len(config.External.DeleteCommand) > 0 {
+			err = vm.executeCommands([]string{config.External.DeleteCommand}, false, c)
 		}
+
+		return err
+	default:
+		return nil
 	}
 
-	return nil
+	if secret, e := c.GetSecret(passwordNode, kubeSystemNamespace); e == nil && secret != nil {
+		err = c.DeleteSecret(passwordNode, kubeSystemNamespace)
+	}
+
+	return err
 }
 
 func (vm *AutoScalerServerNode) deleteVM(c types.ClientGenerator) error {
@@ -999,18 +1041,19 @@ func (vm *AutoScalerServerNode) deleteVM(c types.ClientGenerator) error {
 	} else if vm.State != AutoScalerServerNodeStateDeleting {
 		if status, err = providerHandler.InstanceStatus(); err == nil {
 			vm.State = AutoScalerServerNodeStateDeleting
+			powered := status.Powered()
 
 			if err = providerHandler.UnregisterDNS(status.Address()); err != nil {
 				glog.Warnf("unable to unregister DNS entry, reason: %v", err)
 			}
 
+			if err = vm.prepareNodeDeletion(c, powered); err != nil {
+				glog.Errorf(constantes.ErrPrepareNodeDeletionFailed, vm.NodeName, err)
+			}
+
 			if status.Powered() {
 				// Delete kubernetes node only is alive
 				if _, err = c.GetNode(vm.NodeName); err == nil {
-					if err = vm.prepareNodeDeletion(c); err != nil {
-						glog.Errorf(constantes.ErrPrepareNodeDeletionFailed, vm.NodeName, err)
-					}
-
 					if err = c.MarkDrainNode(vm.NodeName); err != nil {
 						glog.Errorf(constantes.ErrCordonNodeReturnError, vm.NodeName, err)
 					}
