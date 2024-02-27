@@ -557,6 +557,10 @@ func StartServer(kubeClient types.ClientGenerator, c *types.Config) {
 		if config.RKE2 == nil {
 			glog.Fatal("RKE2 configuration is not defined")
 		}
+	case providers.MicroK8SDistributionName:
+		if config.MicroK8S == nil {
+			glog.Fatal("MicroK8S configuration is not defined")
+		}
 	case providers.ExternalDistributionName:
 		if config.External == nil {
 			glog.Fatal("External configuration is not defined")

@@ -16,6 +16,7 @@ const (
 	RKE2DistributionName     = "rke2"
 	K3SDistributionName      = "k3s"
 	KubeAdmDistributionName  = "kubeadm"
+	MicroK8SDistributionName = "microk8s"
 	ExternalDistributionName = "external"
 )
 
@@ -30,6 +31,7 @@ var SupportedKubernetesDistribution = []string{
 	RKE2DistributionName,
 	K3SDistributionName,
 	KubeAdmDistributionName,
+	MicroK8SDistributionName,
 	ExternalDistributionName,
 }
 

@@ -195,14 +195,25 @@ func (vm *AutoScalerServerNode) recopyKubernetesPKIIfNeeded() (err error) {
 	return err
 }
 
-func (vm *AutoScalerServerNode) executeCommands(args []string, restartKubelet bool, c types.ClientGenerator) error {
+func (vm *AutoScalerServerNode) runCommands(args ...string) (string, error) {
 	config := vm.serverConfig
 	command := fmt.Sprintf("sh -c \"%s\"", strings.Join(args, " && "))
 
 	timeout := vm.providerHandler.GetTimeout()
 
 	if out, err := utils.Sudo(config.SSH, vm.IPAddress, timeout, command); err != nil {
-		return fmt.Errorf(unableToExecuteCmdError, command, out, err)
+		return "", fmt.Errorf(unableToExecuteCmdError, command, out, err)
+	} else {
+		return out, err
+	}
+}
+
+func (vm *AutoScalerServerNode) executeCommands(args []string, restartKubelet bool, c types.ClientGenerator) error {
+	config := vm.serverConfig
+	timeout := vm.providerHandler.GetTimeout()
+
+	if _, err := vm.runCommands(args...); err != nil {
+		return err
 	} else if c != nil {
 
 		if restartKubelet {
@@ -425,15 +436,100 @@ func (vm *AutoScalerServerNode) rke2AgentConfig() any {
 }
 
 func (vm *AutoScalerServerNode) rke2AgentJoin(c types.ClientGenerator) error {
-	var service string
+	return vm.joinClusterWithConfig(vm.rke2AgentConfig(), "/etc/rancher/rke2/config.yaml", c, false, vm.rke2JoinCommand()...)
+}
 
-	if vm.ControlPlaneNode {
-		service = "rke2-server"
-	} else {
-		service = "rke2-agent"
+func (vm *AutoScalerServerNode) microK8SAgentConfig() any {
+	config := vm.serverConfig
+	microk8s := config.MicroK8S
+	extraKubeAPIServerArgs := map[string]any{}
+	extraKubeletArgs := map[string]any{
+		"--max-pods":       vm.MaxPods,
+		"--cloud-provider": config.GetCloudProviderName(),
+		"--node-ip":        vm.IPAddress,
 	}
 
-	return vm.joinClusterWithConfig(vm.rke2AgentConfig(), "/etc/rancher/rke2/config.yaml", c, false, fmt.Sprintf("systemctl enable %s.service", service), fmt.Sprintf("systemctl start %s.service", service), fmt.Sprintf("journalctl --no-pager -xeu %s.service", service))
+	microk8sConfig := map[string]any{
+		"version":                "0.1.0",
+		"persistentClusterToken": microk8s.Token,
+		"join": map[string]any{
+			"url":    fmt.Sprintf("%s/%s", microk8s.Address, microk8s.Token),
+			"worker": !vm.ControlPlaneNode,
+		},
+		"extraMicroK8sAPIServerProxyArgs": map[string]any{
+			"--refresh-interval": "0",
+		},
+	}
+
+	if config.UseImageCredentialProviderConfig() {
+		extraKubeletArgs["--image-credential-provider-config"] = *config.ImageCredentialProviderConfig
+		extraKubeletArgs["--image-credential-provider-bin-dir"] = *config.ImageCredentialProviderBinDir
+	}
+
+	if vm.ControlPlaneNode {
+		microk8sConfig["addons"] = []map[string]string{
+			{
+				"name": "dns",
+			},
+			{
+				"name": "rbac",
+			},
+			{
+				"name": "hostpath-storage",
+			},
+		}
+
+		extraKubeAPIServerArgs["--advertise-address"] = vm.IPAddress
+		extraKubeAPIServerArgs["--authorization-mode"] = "RBAC,Node"
+
+		if config.UseExternalEtdcServer() {
+			extraKubeAPIServerArgs["--etcd-servers"] = microk8s.DatastoreEndpoint
+			extraKubeAPIServerArgs["--etcd-cafile"] = fmt.Sprintf("%s/ca.pem", config.ExtDestinationEtcdSslDir)
+			extraKubeAPIServerArgs["--etcd-certfile"] = fmt.Sprintf("%s/etcd.pem", config.ExtDestinationEtcdSslDir)
+			extraKubeAPIServerArgs["--etcd-keyfile"] = fmt.Sprintf("%s/etcd-key.pem", config.ExtDestinationEtcdSslDir)
+		}
+	}
+
+	if microk8s.OverrideConfig != nil {
+		for k, v := range microk8s.OverrideConfig {
+			if k == "extraKubeletArgs" {
+				extra := v.(map[string]any)
+
+				for k1, v1 := range extra {
+					extraKubeletArgs[k1] = v1
+				}
+			} else if k == "extraKubeAPIServerArgs" {
+				extra := v.(map[string]any)
+
+				for k1, v1 := range extra {
+					extraKubeAPIServerArgs[k1] = v1
+				}
+
+			} else {
+				microk8sConfig[k] = v
+			}
+		}
+	}
+
+	if len(extraKubeletArgs) > 0 {
+		microk8sConfig["extraKubeletArgs"] = extraKubeletArgs
+	}
+
+	if len(extraKubeAPIServerArgs) > 0 {
+		microk8sConfig["extraKubeAPIServerArgs"] = extraKubeAPIServerArgs
+	}
+
+	return microk8sConfig
+}
+
+func (vm *AutoScalerServerNode) microk8sJoinCommand() []string {
+	return []string{
+		fmt.Sprintf("snap install microk8s --classic --channel=%s", vm.serverConfig.MicroK8S.Channel),
+	}
+}
+
+func (vm *AutoScalerServerNode) microK8SJoin(c types.ClientGenerator) error {
+	return vm.joinClusterWithConfig(vm.microK8SAgentConfig(), "/var/snap/microk8s/common/.microk8s.yaml", c, false, vm.microk8sJoinCommand()...)
 }
 
 func (vm *AutoScalerServerNode) retrieveNodeInfo(c types.ClientGenerator) error {
@@ -446,6 +542,14 @@ func (vm *AutoScalerServerNode) retrieveNodeInfo(c types.ClientGenerator) error 
 	}
 
 	return nil
+}
+
+func (vm *AutoScalerServerNode) k3sJoinCommand() []string {
+	return []string{
+		"systemctl enable k3s.service",
+		"systemctl start k3s.service",
+		"journalctl --no-pager -xeu k3s.service",
+	}
 }
 
 func (vm *AutoScalerServerNode) k3sAgentCommand() []string {
@@ -480,7 +584,7 @@ func (vm *AutoScalerServerNode) k3sAgentCommand() []string {
 		command = append(command, k3s.ExtraCommands...)
 	}
 
-	return append(command, "systemctl enable k3s.service", "systemctl start k3s.service", "journalctl --no-pager -xeu k3s.service")
+	return append(command, vm.k3sJoinCommand()...)
 }
 
 func (vm *AutoScalerServerNode) k3sAgentJoin(c types.ClientGenerator) error {
@@ -504,6 +608,8 @@ func (vm *AutoScalerServerNode) joinCluster(c types.ClientGenerator) (err error)
 			err = vm.k3sAgentJoin(c)
 		case providers.RKE2DistributionName:
 			err = vm.rke2AgentJoin(c)
+		case providers.MicroK8SDistributionName:
+			err = vm.microK8SJoin(c)
 		case providers.ExternalDistributionName:
 			err = vm.externalAgentJoin(c)
 		default:
@@ -643,19 +749,37 @@ func (vm *AutoScalerServerNode) appendExternalAgentConfigInCloudInit() (err erro
 	return err
 }
 
-func (vm *AutoScalerServerNode) appendRKE22AgentConfigInCloudInit() (err error) {
+func (vm *AutoScalerServerNode) rke2JoinCommand() []string {
+	var service string
+
+	if vm.ControlPlaneNode {
+		service = "rke2-server"
+	} else {
+		service = "rke2-agent"
+	}
+
+	return []string{
+		fmt.Sprintf("systemctl enable %s.service", service),
+		fmt.Sprintf("systemctl start %s.service", service),
+		fmt.Sprintf("journalctl --no-pager -xeu %s.service", service),
+	}
+}
+
+func (vm *AutoScalerServerNode) appendRKE2AgentConfigInCloudInit() (err error) {
 	config := vm.serverConfig
 
 	if err = vm.CloudInit.AddObjectToWriteFile(vm.rke2AgentConfig(), "/etc/rancher/rke2/config.yaml", *config.CloudInitFileOwner, *config.CloudInitFileMode); err == nil {
-		var service string
+		vm.CloudInit.AddRunCommand(vm.rke2JoinCommand()...)
+	}
 
-		if vm.ControlPlaneNode {
-			service = "rke2-server"
-		} else {
-			service = "rke2-agent"
-		}
+	return err
+}
 
-		vm.CloudInit.AddRunCommand(fmt.Sprintf("systemctl enable %s.service", service), fmt.Sprintf("systemctl start %s.service", service))
+func (vm *AutoScalerServerNode) appendMicroK8SAgentConfigInCloudInit() (err error) {
+	config := vm.serverConfig
+
+	if err = vm.CloudInit.AddObjectToWriteFile(vm.microK8SAgentConfig(), "/var/snap/microk8s/common/.microk8s.yaml", *config.CloudInitFileOwner, *config.CloudInitFileMode); err == nil {
+		vm.CloudInit.AddRunCommand(vm.microk8sJoinCommand()...)
 	}
 
 	return err
@@ -702,7 +826,9 @@ func (vm *AutoScalerServerNode) prepareCloudInit() (err error) {
 		case providers.K3SDistributionName:
 			return vm.appendK3SAgentConfigInCloudInit()
 		case providers.RKE2DistributionName:
-			return vm.appendRKE22AgentConfigInCloudInit()
+			return vm.appendRKE2AgentConfigInCloudInit()
+		case providers.MicroK8SDistributionName:
+			return vm.appendMicroK8SAgentConfigInCloudInit()
 		case providers.ExternalDistributionName:
 			return vm.appendExternalAgentConfigInCloudInit()
 		default:
@@ -1012,11 +1138,18 @@ func (vm *AutoScalerServerNode) prepareNodeDeletion(c types.ClientGenerator, pow
 		passwordNode = fmt.Sprintf(rke2PasswordNodeSecret, vm.NodeName)
 
 	case providers.ExternalDistributionName:
-		if powered && len(config.External.DeleteCommand) > 0 {
-			err = vm.executeCommands([]string{config.External.DeleteCommand}, false, c)
+		if powered && len(config.External.LeaveCommand) > 0 {
+			_, err = vm.runCommands(config.External.LeaveCommand)
 		}
 
 		return err
+
+	case providers.MicroK8SDistributionName:
+		if powered {
+			_, err = vm.runCommands("microk8s leave")
+		}
+		return err
+
 	default:
 		return nil
 	}

@@ -120,6 +120,46 @@
         "kind": "build",
         "isDefault": true
       }
+    },
+    {
+      "label": "microk8s aws",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/prepare.sh aws aws-dev-microk8s",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "microk8s desktop",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/prepare.sh desktop desktop-dev-microk8s",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "microk8s multipass",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/prepare.sh multipass multipass-dev-microk8s",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "microk8s vsphere",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/prepare.sh vsphere vsphere-test-microk8s",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
     }
   ]
 }

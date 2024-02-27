@@ -171,35 +171,36 @@ type ResourceLimiter struct {
 	MaxLimits map[string]int64 `json:"max"`
 }
 
+type CommonJoinConfig struct {
+	Address           string `json:"address,omitempty"`
+	Token             string `json:"token,omitempty"`
+	DatastoreEndpoint string `json:"datastore-endpoint,omitempty"`
+}
+
 // KubeJoinConfig give element to join kube master
 type KubeJoinConfig struct {
-	Address        string   `json:"address,omitempty"`
-	Token          string   `json:"token,omitempty"`
+	CommonJoinConfig
 	CACert         string   `json:"ca,omitempty"`
 	ExtraArguments []string `json:"extras-args,omitempty"`
 }
 
-type K3SJoinConfig struct {
-	Address           string   `json:"address,omitempty"`
-	Token             string   `json:"token,omitempty"`
-	ExtraCommands     []string `json:"extras-commands,omitempty"`
-	DatastoreEndpoint string   `json:"datastore-endpoint,omitempty"`
-}
-
-type RKE2JoinConfig struct {
-	Address       string   `json:"address,omitempty"`
-	Token         string   `json:"token,omitempty"`
+type RancherJoinConfig struct {
+	CommonJoinConfig
 	ExtraCommands []string `json:"extras-commands,omitempty"`
 }
 
+type MicroK8SJoinConfig struct {
+	CommonJoinConfig
+	Channel        string         `json:"channel,omitempty"`
+	OverrideConfig map[string]any `json:"override-config,omitempty"`
+}
+
 type ExternalJoinConfig struct {
-	Address           string         `json:"address,omitempty"`
-	Token             string         `json:"token,omitempty"`
-	DatastoreEndpoint string         `json:"datastore-endpoint,omitempty"`
-	JoinCommand       string         `json:"join-command,omitempty"`
-	DeleteCommand     string         `json:"delete-command,omitempty"`
-	ConfigPath        string         `json:"config-path,omitempty"`
-	ExtraConfig       map[string]any `json:"extra-config,omitempty"`
+	CommonJoinConfig
+	JoinCommand  string         `json:"join-command,omitempty"`
+	LeaveCommand string         `json:"leave-command,omitempty"`
+	ConfigPath   string         `json:"config-path,omitempty"`
+	ExtraConfig  map[string]any `json:"extra-config,omitempty"`
 }
 
 // AutoScalerServerOptionals declare wich features must be optional
@@ -271,8 +272,9 @@ type AutoScalerServerConfig struct {
 	NodePrice                     float64                         `json:"nodePrice"`                                 // Optional, The VM price
 	PodPrice                      float64                         `json:"podPrice"`                                  // Optional, The pod price
 	KubeAdm                       *KubeJoinConfig                 `json:"kubeadm"`
-	K3S                           *K3SJoinConfig                  `json:"k3s,omitempty"`
-	RKE2                          *RKE2JoinConfig                 `json:"rke2,omitempty"`
+	K3S                           *RancherJoinConfig              `json:"k3s,omitempty"`
+	RKE2                          *RancherJoinConfig              `json:"rke2,omitempty"`
+	MicroK8S                      *MicroK8SJoinConfig             `json:"microk8s,omitempty"`
 	External                      *ExternalJoinConfig             `json:"external,omitempty"`
 	DefaultMachineType            string                          `default:"standard" json:"default-machine"`
 	NodeLabels                    KubernetesLabel                 `json:"nodeLabels"`
@@ -560,7 +562,7 @@ func (cfg *Config) ParseFlags(args []string, version string) error {
 	app.Flag("plateform", "Which plateform used: vsphere, aws, desktop, multipass").Default(cfg.Plateform).EnumVar(&cfg.Plateform, providers.SupportedCloudProviders...)
 	app.Flag("plateform-config", "Plateform provider config file").Default(cfg.ProviderConfig).StringVar(&cfg.ProviderConfig)
 
-	app.Flag("distribution", "Which kubernetes distribution to use: kubeadm, k3s, rke2, external").Default(cfg.Distribution).EnumVar(&cfg.Distribution, providers.SupportedKubernetesDistribution...)
+	app.Flag("distribution", "Which kubernetes distribution to use: kubeadm, k3s, rke2, microk8s, external").Default(cfg.Distribution).EnumVar(&cfg.Distribution, providers.SupportedKubernetesDistribution...)
 	app.Flag("grpc-provider", "Which grpc provider to use: externalgrpc, grpc").Default(cfg.GrpcProvider).EnumVar(&cfg.GrpcProvider, "grpc", "externalgrpc")
 	app.Flag("cloud-provider", "Which controller manager used: external").Default(cfg.CloudProvider).EnumVar(&cfg.CloudProvider, "external", "")
 	app.Flag("nodegroup", "Autoscaler nodegroup name").Default(cfg.Nodegroup).StringVar(&cfg.Nodegroup)

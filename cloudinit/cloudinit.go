@@ -340,22 +340,33 @@ func (c CloudInit) AddObjectToWriteFile(object any, destination, owner string, p
 func (c CloudInit) AddToWriteFile(content []byte, destination, owner string, permissions uint) {
 	var oarr []any
 
-	fileEntry := map[string]any{
-		"encoding":    "b64",
-		"owner":       owner,
-		"path":        destination,
-		"permissions": permissions,
-		"content":     base64.StdEncoding.EncodeToString(content),
+	var stdout bytes.Buffer
+	var zw = gzip.NewWriter(&stdout)
+
+	zw.Name = destination
+	zw.ModTime = time.Now()
+
+	if _, err := zw.Write(content); err == nil {
+		if err = zw.Close(); err == nil {
+			fileEntry := map[string]any{
+				"encoding":    GzipBase64,
+				"owner":       owner,
+				"path":        destination,
+				"permissions": permissions,
+				"content":     base64.StdEncoding.EncodeToString(stdout.Bytes()),
+			}
+
+			if write_files, found := c["write_files"]; found {
+				oarr = write_files.([]any)
+				oarr = append(oarr, fileEntry)
+			} else {
+				oarr = []any{fileEntry}
+			}
+
+			c["write_files"] = oarr
+		}
 	}
 
-	if write_files, found := c["write_files"]; found {
-		oarr = write_files.([]any)
-		oarr = append(oarr, fileEntry)
-	} else {
-		oarr = []any{fileEntry}
-	}
-
-	c["write_files"] = oarr
 }
 
 func (c CloudInit) AddTextToWriteFile(text string, destination, owner string, permissions uint) {
