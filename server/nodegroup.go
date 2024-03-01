@@ -195,7 +195,7 @@ func (g *AutoScalerServerNodeGroup) setNodeGroupSize(c types.ClientGenerator, ne
 		}
 	} else if delta > 0 {
 		if prepareOnly {
-			return g.prepareNodes(c, delta)
+			return g.prepareNodes(delta)
 		} else {
 			return g.addNodes(c, delta)
 		}
@@ -359,7 +359,7 @@ func (g *AutoScalerServerNodeGroup) addManagedNode(crd *v1alpha1.ManagedNode) (*
 	}
 }
 
-func (g *AutoScalerServerNodeGroup) prepareNodes(c types.ClientGenerator, delta int) ([]*AutoScalerServerNode, error) {
+func (g *AutoScalerServerNodeGroup) prepareNodes(delta int) ([]*AutoScalerServerNode, error) {
 	tempNodes := make([]*AutoScalerServerNode, 0, delta)
 	config := g.configuration.GetCloudConfiguration()
 	annoteMaster := ""
@@ -427,7 +427,7 @@ func (g *AutoScalerServerNodeGroup) prepareNodes(c types.ClientGenerator, delta 
 func (g *AutoScalerServerNodeGroup) addNodes(c types.ClientGenerator, delta int) ([]*AutoScalerServerNode, error) {
 	glog.Debugf("AutoScalerServerNodeGroup::addNodes, nodeGroupID: %s", g.NodeGroupIdentifier)
 
-	if tempNodes, err := g.prepareNodes(c, delta); err == nil {
+	if tempNodes, err := g.prepareNodes(delta); err == nil {
 		return g.createNodes(c, tempNodes)
 	} else {
 		return tempNodes, err
