@@ -19,6 +19,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"os"
 	"reflect"
 	"time"
 
@@ -50,6 +51,7 @@ import (
 	listers "github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/generated/listers/nodemanager/v1alpha1"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/types"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/utils"
 )
 
 // resourceLimitsStatus describe the limit status when controller try to add a new node
@@ -711,6 +713,10 @@ func (c *Controller) checkRessourceLimits(crd *v1alpha1.ManagedNode, machineSpec
 
 	resourceLimiter := c.application.getResourceLimiter()
 	status := resourceLimitsNice
+
+	if glog.GetLevel() > glog.InfoLevel {
+		fmt.Fprintf(os.Stderr, "resourceLimiter: %s", utils.ToYAML(resourceLimiter))
+	}
 
 	if nodeList, err := c.nodesLister.List(labels.Everything()); err == nil {
 		maxNodes := resourceLimiter.GetMaxValue(constantes.ResourceNameNodes, 32)

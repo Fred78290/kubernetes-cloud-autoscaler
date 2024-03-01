@@ -452,10 +452,6 @@ func (vm *AutoScalerServerNode) microK8SAgentConfig() any {
 	microk8sConfig := map[string]any{
 		"version":                "0.1.0",
 		"persistentClusterToken": microk8s.Token,
-		"join": map[string]any{
-			"url":    fmt.Sprintf("%s/%s", microk8s.Address, microk8s.Token),
-			"worker": !vm.ControlPlaneNode,
-		},
 		"extraMicroK8sAPIServerProxyArgs": map[string]any{
 			"--refresh-interval": "0",
 		},
@@ -523,8 +519,17 @@ func (vm *AutoScalerServerNode) microK8SAgentConfig() any {
 }
 
 func (vm *AutoScalerServerNode) microk8sJoinCommand() []string {
+	microk8s := vm.serverConfig.MicroK8S
+	worker := " --worker"
+
+	if vm.ControlPlaneNode {
+		worker = ""
+	}
+
 	return []string{
-		fmt.Sprintf("snap install microk8s --classic --channel=%s", vm.serverConfig.MicroK8S.Channel),
+		fmt.Sprintf("snap install microk8s --classic --channel=%s", microk8s.Channel),
+		"microk8s status --wait-ready",
+		fmt.Sprintf("microk8s join %s/%s%s", microk8s.Address, microk8s.Token, worker),
 	}
 }
 
@@ -777,9 +782,25 @@ func (vm *AutoScalerServerNode) appendRKE2AgentConfigInCloudInit() (err error) {
 
 func (vm *AutoScalerServerNode) appendMicroK8SAgentConfigInCloudInit() (err error) {
 	config := vm.serverConfig
+	microk8s := config.MicroK8S
+	worker := " --worker"
+
+	if vm.ControlPlaneNode {
+		worker = ""
+	}
+
+	joinClustercript := []string{
+		"#!/bin/bash",
+		"export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin",
+		fmt.Sprintf("snap install microk8s --classic --channel=%s", microk8s.Channel),
+		"microk8s status --wait-ready",
+		fmt.Sprintf("microk8s join %s/%s%s", microk8s.Address, microk8s.Token, worker),
+	}
+
+	vm.CloudInit.AddTextToWriteFile(strings.Join(joinClustercript, "\n"), "/usr/local/bin/join-cluster.sh", *config.CloudInitFileOwner, 0755)
 
 	if err = vm.CloudInit.AddObjectToWriteFile(vm.microK8SAgentConfig(), "/var/snap/microk8s/common/.microk8s.yaml", *config.CloudInitFileOwner, *config.CloudInitFileMode); err == nil {
-		vm.CloudInit.AddRunCommand(vm.microk8sJoinCommand()...)
+		vm.CloudInit.AddRunCommand("nohup /usr/local/bin/join-cluster.sh > /var/log/join-cluster.log &")
 	}
 
 	return err
@@ -1144,11 +1165,11 @@ func (vm *AutoScalerServerNode) prepareNodeDeletion(c types.ClientGenerator, pow
 
 		return err
 
-	case providers.MicroK8SDistributionName:
-		if powered {
-			_, err = vm.runCommands("microk8s leave")
-		}
-		return err
+		//	case providers.MicroK8SDistributionName:
+		//		if powered {
+		//			_, err = vm.runCommands("microk8s leave")
+		//		}
+		//		return err
 
 	default:
 		return nil
