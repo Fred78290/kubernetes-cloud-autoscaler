@@ -144,13 +144,16 @@ func (v *externalgrpcServerApp) GPULabel(ctx context.Context, request *externalg
 
 // GetAvailableGPUTypes return all available GPU types cloud provider supports.
 func (v *externalgrpcServerApp) GetAvailableGPUTypes(ctx context.Context, request *externalgrpc.GetAvailableGPUTypesRequest) (*externalgrpc.GetAvailableGPUTypesResponse, error) {
+	gpuTypes := make(map[string]*anypb.Any)
+
+	for k, v := range v.appServer.configuration.GetCloudConfiguration().GetAvailableGpuTypes() {
+		gpuTypes[k] = &anypb.Any{
+			Value: []byte(utils.ToJSON(v)),
+		}
+	}
 
 	return &externalgrpc.GetAvailableGPUTypesResponse{
-		GpuTypes: map[string]*anypb.Any{
-			"nvidia-tesla-k80":  {},
-			"nvidia-tesla-p100": {},
-			"nvidia-tesla-v100": {},
-		},
+		GpuTypes: gpuTypes,
 	}, nil
 }
 

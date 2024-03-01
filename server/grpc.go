@@ -377,8 +377,14 @@ func (s *grpcServerApp) GetAvailableGPUTypes(ctx context.Context, request *apigr
 		return nil, fmt.Errorf(constantes.ErrMismatchingProvider)
 	}
 
+	availableGpuTypes := make(map[string]string)
+
+	for k, v := range s.appServer.configuration.GetCloudConfiguration().GetAvailableGpuTypes() {
+		availableGpuTypes[k] = utils.ToJSON(v)
+	}
+
 	return &apigrpc.GetAvailableGPUTypesReply{
-		AvailableGpuTypes: s.appServer.configuration.GetCloudConfiguration().GetAvailableGpuTypes(),
+		AvailableGpuTypes: availableGpuTypes,
 	}, nil
 }
 
