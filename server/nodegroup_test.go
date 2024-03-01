@@ -348,7 +348,7 @@ func (m *baseTest) newTestConfig() (*AutoScalerServerConfigTest, error) {
 		glog.Errorf("failed to open config file: %s, error: %v", fileName, err)
 
 		return nil, err
-	} else if json.NewDecoder(strings.NewReader(content)).Decode(&config); err != nil {
+	} else if err = json.NewDecoder(strings.NewReader(content)).Decode(&config); err != nil {
 		glog.Errorf("failed to decode config file: %s, error: %v", fileName, err)
 
 		return nil, err
