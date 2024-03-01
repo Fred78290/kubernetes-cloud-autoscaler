@@ -1,9 +1,9 @@
 apiVersion: "nodemanager.aldunelabs.com/v1alpha1"
 kind: "ManagedNode"
 metadata:
-  name: "vsphere-test-kubeadm-managed-01"
+  name: "vsphere-dev-kubeadm-managed-01"
 spec:
-  nodegroup: vsphere-test-kubeadm
+  nodegroup: vsphere-dev-kubeadm
   controlPlane: false
   allowDeployment: true
   instanceType: small
@@ -28,9 +28,9 @@ spec:
 apiVersion: "nodemanager.aldunelabs.com/v1alpha1"
 kind: "ManagedNode"
 metadata:
-  name: "vsphere-test-kubeadm-managed-02"
+  name: "vsphere-dev-kubeadm-managed-02"
 spec:
-  nodegroup: vsphere-test-kubeadm
+  nodegroup: vsphere-dev-kubeadm
   controlPlane: false
   allowDeployment: true
   instanceType: small

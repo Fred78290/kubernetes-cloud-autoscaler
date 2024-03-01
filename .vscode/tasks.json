@@ -34,7 +34,7 @@
     {
       "label": "k3s vsphere",
       "type": "shell",
-      "command": "${workspaceFolder}/scripts/prepare.sh vsphere vsphere-test-k3s",
+      "command": "${workspaceFolder}/scripts/prepare.sh vsphere vsphere-dev-k3s",
       "problemMatcher": [],
       "group": {
         "kind": "build",
@@ -74,7 +74,7 @@
     {
       "label": "kubeadm vsphere",
       "type": "shell",
-      "command": "${workspaceFolder}/scripts/prepare.sh vsphere vsphere-test-kubeadm",
+      "command": "${workspaceFolder}/scripts/prepare.sh vsphere vsphere-dev-kubeadm",
       "problemMatcher": [],
       "group": {
         "kind": "build",
@@ -114,7 +114,7 @@
     {
       "label": "rke2 vsphere",
       "type": "shell",
-      "command": "${workspaceFolder}/scripts/prepare.sh vsphere vsphere-test-rke2",
+      "command": "${workspaceFolder}/scripts/prepare.sh vsphere vsphere-dev-rke2",
       "problemMatcher": [],
       "group": {
         "kind": "build",
@@ -154,7 +154,7 @@
     {
       "label": "microk8s vsphere",
       "type": "shell",
-      "command": "${workspaceFolder}/scripts/prepare.sh vsphere vsphere-test-microk8s",
+      "command": "${workspaceFolder}/scripts/prepare.sh vsphere vsphere-dev-microk8s",
       "problemMatcher": [],
       "group": {
         "kind": "build",

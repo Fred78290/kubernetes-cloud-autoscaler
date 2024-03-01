@@ -1,9 +1,9 @@
 apiVersion: "nodemanager.aldunelabs.com/v1alpha1"
 kind: "ManagedNode"
 metadata:
-  name: "vsphere-test-microk8s-managed-01"
+  name: "vsphere-dev-microk8s-managed-01"
 spec:
-  nodegroup: vsphere-test-microk8s
+  nodegroup: vsphere-dev-microk8s
   controlPlane: false
   allowDeployment: true
   instanceType: small
@@ -28,9 +28,9 @@ spec:
 apiVersion: "nodemanager.aldunelabs.com/v1alpha1"
 kind: "ManagedNode"
 metadata:
-  name: "vsphere-test-microk8s-managed-02"
+  name: "vsphere-dev-microk8s-managed-02"
 spec:
-  nodegroup: vsphere-test-microk8s
+  nodegroup: vsphere-dev-microk8s
   controlPlane: false
   allowDeployment: true
   instanceType: small

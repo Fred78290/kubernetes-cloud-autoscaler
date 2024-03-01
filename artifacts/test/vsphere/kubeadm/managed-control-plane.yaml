@@ -1,9 +1,9 @@
 apiVersion: "nodemanager.aldunelabs.com/v1alpha1"
 kind: "ManagedNode"
 metadata:
-  name: "vsphere-test-kubeadm-master-02"
+  name: "vsphere-dev-kubeadm-master-02"
 spec:
-  nodegroup: vsphere-test-kubeadm
+  nodegroup: vsphere-dev-kubeadm
   controlPlane: true
   allowDeployment: true
   instanceType: small
@@ -24,16 +24,16 @@ spec:
         netmask: 255.255.255.0
         gateway: 192.168.2.254
       -
-        network: "VM Private"
+        network: "VM Network"
         dhcp: true
         use-dhcp-routes: false
 ---
 apiVersion: "nodemanager.aldunelabs.com/v1alpha1"
 kind: "ManagedNode"
 metadata:
-  name: "vsphere-test-kubeadm-master-03"
+  name: "vsphere-dev-kubeadm-master-03"
 spec:
-  nodegroup: vsphere-test-kubeadm
+  nodegroup: vsphere-dev-kubeadm
   controlPlane: true
   allowDeployment: true
   instanceType: small
@@ -54,6 +54,6 @@ spec:
         netmask: 255.255.255.0
         gateway: 192.168.2.254
       -
-        network: "VM Private"
+        network: "VM Network"
         dhcp: true
         use-dhcp-routes: false

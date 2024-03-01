@@ -1,9 +1,9 @@
 apiVersion: "nodemanager.aldunelabs.com/v1alpha1"
 kind: "ManagedNode"
 metadata:
-  name: "vsphere-test-rke2-managed-01"
+  name: "vsphere-dev-rke2-managed-01"
 spec:
-  nodegroup: vsphere-test-rke2
+  nodegroup: vsphere-dev-rke2
   controlPlane: false
   allowDeployment: true
   instanceType: small

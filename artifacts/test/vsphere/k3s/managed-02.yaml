@@ -1,9 +1,9 @@
 apiVersion: "nodemanager.aldunelabs.com/v1alpha1"
 kind: "ManagedNode"
 metadata:
-  name: "vsphere-test-k3s-managed-02"
+  name: "vsphere-dev-k3s-managed-02"
 spec:
-  nodegroup: vsphere-test-k3s
+  nodegroup: vsphere-dev-k3s
   controlPlane: false
   allowDeployment: true
   instanceType: small
