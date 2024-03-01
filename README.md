@@ -4,30 +4,43 @@
 
 # kubernetes-cloud-autoscaler
 
-Kubernetes autoscaler for vsphere/esxi including a custom resource controller to create managed node without code
+Kubernetes cloud autoscaler for **vsphere,aws,multipass and vmware workstation and vmware fusion** provider including a custom resource controller to create managed node without code
 
-## Supported releases
+This autoscaler replace [kubernetes-vmware-autoscaler](https://github.com/Fred78290/kubernetes-vmware-autoscaler), [kubernetes-aws-autoscaler](https://github.com/Fred78290/kubernetes-aws-autoscaler), [kubernetes-multipass-autoscaler](https://github.com/Fred78290/kubernetes-multipass-autoscaler), [kubernetes-desktop-autoscaler](https://github.com/Fred78290/kubernetes-desktop-autoscaler).
 
-* 1.26.11
-  * This version is supported kubernetes v1.26 and support k3s, rke2, external kubernetes distribution
-* 1.27.8
-  * This version is supported kubernetes v1.27 and support k3s, rke2, external kubernetes distribution
-* 1.28.1
-  * This version is supported kubernetes v1.28 and support k3s, rke2, external kubernetes distribution
+The autoscaler allow to use different kubernetes distribution
+
+## Supported cloud provider
+
+* vSphere
+* AWS
+* VMWare Workstation
+* VMWare Fusion
+* Multipass
+
+## Supported kubernetes distribution
+
+* Kubeadm
+* K3S
+* RKE2
+* External
+
+## Supported kubernetes release
+
 * 1.29.0
-  * This version is supported kubernetes v1.29 and support k3s, rke2, external kubernetes distribution
+  * This version is supported kubernetes v1.29 and support k3s, k3s, external kubernetes distribution
 
 ## How it works
 
-This tool will drive vSphere to deploy VM at the demand. The cluster autoscaler deployment use vanilla cluster-autoscaler or my enhanced version of [cluster-autoscaler](https://github.com/Fred78290/autoscaler).
+This tool will drive a cloud provider to deploy VM at the demand. The cluster autoscaler deployment use vanilla cluster-autoscaler or my enhanced version of [cluster-autoscaler](https://github.com/Fred78290/autoscaler).
 
 This version use grpc to communicate with the cloud provider hosted outside the pod. A docker image is available here [cluster-autoscaler](https://hub.docker.com/r/fred78290/cluster-autoscaler)
 
-A sample of the cluster-autoscaler deployment is available at [examples/cluster-autoscaler.yaml](./examples/kubeadm/cluster-autoscaler.yaml). You must fill value between <>
+A sample of the cluster-autoscaler deployment is available at [examples/vsphere/kubeadm/cluster-autoscaler.yaml](./examples/vsphere/kubeadm/cluster-autoscaler.yaml). You must fill value between <>
 
-### Before you must create a kubernetes cluster on vSphere
+### Before you must create a kubernetes cluster on your cloud provider
 
-You can do it from scrash or you can use script from project [autoscaled-masterkube-vmware](https://github.com/Fred78290/autoscaled-masterkube-vmware) to create a kubernetes cluster in single control plane or in HA mode with 3 control planes.
+You can do it from scrash or you can use script from project [autoscaled-masterkube-cluster](https://github.com/Fred78290/autoscaled-masterkube-cluster) to create a kubernetes cluster in single control plane or in HA mode with 3 control planes.
 
 ## Commandline arguments
 
@@ -39,7 +52,7 @@ You can do it from scrash or you can use script from project [autoscaled-masterk
 | `log-format` | The format in which log messages are printed (default: text, options: text, json)|
 | `log-level` | Set the level of logging. (default: info, options: panic, debug, info, warning, error, fatal)|
 | `debug` | Debug mode|
-| `distribution` | Which kubernetes distribution to use: kubeadm, k3s, rke2, external|
+| `distribution` | Which kubernetes distribution to use: kubeadm, k3s, k3s, external|
 | `use-vanilla-grpc` | Tell we use vanilla autoscaler externalgrpc cloudprovider|
 | `use-controller-manager` | Tell we use vsphere controller manager|
 | `use-external-etcd` | Tell we use an external etcd service (overriden by config file if defined)|
@@ -70,18 +83,18 @@ The build process use make file. The simplest way to build is `make container`
 
 # New features
 
-## Use k3s, rke2 or external as kubernetes distribution method
+## Use k3s, k3s or external as kubernetes distribution method
 
-Instead using **kubeadm** as kubernetes distribution method, it is possible to use **k3s**, **rke2** or **external**
+Instead using **kubeadm** as kubernetes distribution method, it is possible to use **k3s**, **k3s** or **external**
 
 **external** allow to use custom shell script to join cluster
 
 Samples provided here
 
-* [kubeadm](./examples/kubeadm/cluster-autoscaler.yaml)
-* [rke2](./examples/rke2/cluster-autoscaler.yaml)
-* [k3s](./examples/k3s/cluster-autoscaler.yaml)
-* [external](./examples/external/cluster-autoscaler.yaml)
+* [kubeadm](./examples/vsphere/kubeadm/cluster-autoscaler.yaml)
+* [k3s](./examples/vsphere/k3s/cluster-autoscaler.yaml)
+* [k3s](./examples/vsphere/k3s/cluster-autoscaler.yaml)
+* [external](./examples/vsphere/external/cluster-autoscaler.yaml)
 
 ## Use the vanilla autoscaler with extern gRPC cloud provider
 
@@ -89,21 +102,22 @@ You can also use the vanilla autoscaler with the [externalgrpc cloud provider](h
 
 Samples of the cluster-autoscaler deployment with vanilla autoscaler. You must fill value between <>
 
-* [kubeadm](./examples/kubeadm/cluster-autoscaler-vanilla.yaml)
-* [rke2](./examples/rke2/cluster-autoscaler-vanilla.yaml)
-* [k3s](./examples/rke2/cluster-autoscaler-vanilla.yaml)
-* [external](./examples/external/cluster-autoscaler-vanilla.yaml)
+* [kubeadm](./examples/vsphere/kubeadm/cluster-autoscaler-vanilla.yaml)
+* [k3s](./examples/vsphere/k3s/cluster-autoscaler-vanilla.yaml)
+* [k3s](./examples/vsphere/k3s/cluster-autoscaler-vanilla.yaml)
+* [external](./examples/vsphere/external/cluster-autoscaler-vanilla.yaml)
 
 ## Use external kubernetes distribution
 
-When you use a custom method to create your cluster, you must provide a shell script to vmware-autoscaler to join the cluster. The script use a yaml config created by vmware-autscaler at the given path.
+When you use a custom method to create your cluster, you must provide a shell script to autoscaler to join the cluster. The script use a yaml config created by autoscaler at the given path.
+Eventually you can provide also a script called before node delettion
 
 config: /etc/default/kubernetes-cloud-autoscaler-config.yaml
 
 ```yaml
 provider-id: vsphere://42373f8d-b72d-21c0-4299-a667a18c9fce
 max-pods: 110
-node-name: vmware-dev-rke2-woker-01
+node-name: vsphere-dev-k3s-woker-01
 server: 192.168.1.120:9345
 token: K1060b887525bbfa7472036caa8a3c36b550fbf05e6f8e3dbdd970739cbd7373537
 disable-cloud-controller: false
@@ -123,8 +137,9 @@ You can also provide extras config onto this file
 ```json
 {
   "external": {
-    "join-command": "/usr/local/bin/join-cluster.sh"
-    "config-path": "/etc/default/kubernetes-cloud-autoscaler-config.yaml"
+    "join-command": "/usr/local/bin/join-cluster.sh",
+    "delete-command": "/usr/local/bin/delete-node.sh",
+    "config-path": "/etc/default/kubernetes-cloud-autoscaler-config.yaml",
     "extra-config": {
         "mydata": {
           "extra": "ball"
@@ -139,17 +154,18 @@ Your script is responsible to set the correct kubelet flags such as max-pods=110
 
 ## Annotations requirements
 
-If you expected to use vmware-autoscaler on already deployed kubernetes cluster, you must add some node annotations to existing node
+If you expected to use cloud-autoscaler on already deployed kubernetes cluster, you must add some node annotations to existing node
 
-Also don't forget to create an image usable by vmware-autoscaler to scale up the cluster [create-image.sh](https://raw.githubusercontent.com/Fred78290/autoscaled-masterkube-vmware/master/bin/create-image.sh)
+Also don't forget to create an image usable by autoscaler to scale up the cluster [create-image.sh](https://raw.githubusercontent.com/Fred78290/autoscaled-masterkube-cluster/master/bin/create-image.sh)
 
 | Annotation | Description | Value |
 | --- | --- | --- |
 | `cluster-autoscaler.kubernetes.io/scale-down-disabled` | Avoid scale down for this node |true|
-| `cluster.autoscaler.nodegroup/name` | Node group name |vmware-dev-rke2|
-| `cluster.autoscaler.nodegroup/autoprovision` | Tell if the node is provisionned by vmware-autoscaler |false|
+| `cluster.autoscaler.nodegroup/name` | Node group name |vsphere-dev-k3s|
+| `cluster.autoscaler.nodegroup/autoprovision` | Tell if the node is provisionned by autoscaler |false|
 | `cluster.autoscaler.nodegroup/instance-id` | The vm UUID |42373f8d-b72d-21c0-4299-a667a18c9fce|
-| `cluster.autoscaler.nodegroup/managed` | Tell if the node is managed by vmware-autoscaler not autoscaled |false|
+| `cluster.autoscaler.nodegroup/instance-name` | The vm name |vsphere-dev-k3s-masterkube|
+| `cluster.autoscaler.nodegroup/managed` | Tell if the node is managed by autoscaler not autoscaled |false|
 | `cluster.autoscaler.nodegroup/node-index` | The node index, will be set if missing |0|
 
 Sample master node
@@ -158,8 +174,9 @@ Sample master node
     cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
     cluster.autoscaler.nodegroup/autoprovision: "false"
     cluster.autoscaler.nodegroup/instance-id: 42373f8d-b72d-21c0-4299-a667a18c9fce
+    cluster.autoscaler.nodegroup/instance-name: vsphere-dev-k3s-masterkube
     cluster.autoscaler.nodegroup/managed: "false" 
-    cluster.autoscaler.nodegroup/name: vmware-dev-rke2
+    cluster.autoscaler.nodegroup/name: vsphere-dev-k3s
     cluster.autoscaler.nodegroup/node-index: "0"
 ```
 
@@ -169,8 +186,9 @@ Sample first worker node
     cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
     cluster.autoscaler.nodegroup/autoprovision: "false"
     cluster.autoscaler.nodegroup/instance-id: 42370879-d4f7-eab0-a1c2-918a97ac6856
+    cluster.autoscaler.nodegroup/instance-name: vsphere-dev-k3s-worker-01
     cluster.autoscaler.nodegroup/managed: "false"
-    cluster.autoscaler.nodegroup/name: vmware-dev-rke2
+    cluster.autoscaler.nodegroup/name: vsphere-dev-k3s
     cluster.autoscaler.nodegroup/node-index: "1"
 ```
 
@@ -180,8 +198,9 @@ Sample autoscaled worker node
     cluster-autoscaler.kubernetes.io/scale-down-disabled: "false"
     cluster.autoscaler.nodegroup/autoprovision: "true"
     cluster.autoscaler.nodegroup/instance-id: 3d25c629-3f1d-46b3-be9f-b95db2a64859
+    cluster.autoscaler.nodegroup/instance-name: vsphere-dev-k3s-autoscaled-01
     cluster.autoscaler.nodegroup/managed: "false"
-    cluster.autoscaler.nodegroup/name: vmware-dev-rke2
+    cluster.autoscaler.nodegroup/name: vsphere-dev-k3s
     cluster.autoscaler.nodegroup/node-index: "2"
 ```
 
@@ -195,13 +214,9 @@ These labels will be added
 |`node-role.kubernetes.io/master`|Tell if the node is master |true|
 |`node-role.kubernetes.io/worker`|Tell if the node is worker |true|
 
-## Network
+## Cloud controller provider compliant
 
-Now it's possible to disable dhcp-default routes and custom route
-
-## VMWare CPI compliant
-
-Version 1.24.6 and 1.25.2 and above are [vsphere cloud provider](https://github.com/kubernetes/cloud-provider-vsphere) by building provider-id conform to syntax `vsphere://<VM UUID>`
+autoscaler will set correctly the node provider id when you use vsphere cpi or aws cloud controller.
 
 ## CRD controller
 
@@ -233,12 +248,12 @@ The minimal resource declaration
 apiVersion: "nodemanager.aldunelabs.com/v1alpha1"
 kind: "ManagedNode"
 metadata:
-  name: "vmware-ca-k8s-managed-01"
+  name: "vsphere-dev-k3s-managed-01"
 spec:
-  nodegroup: vmware-ca-k8s
-  vcpus: 2
-  memorySizeInMb: 2048
+  nodegroup: vsphere-dev-k3s
+  instanceType: small
   diskSizeInMb: 10240
+  diskType: gp3
 ```
 
 The full qualified resource including networks declaration to override the default controller network management and adding some node labels & annotations. If you specify the managed node as controller, you can also allows the controlplane to support deployment as a worker node
@@ -247,229 +262,217 @@ The full qualified resource including networks declaration to override the defau
 apiVersion: "nodemanager.aldunelabs.com/v1alpha1"
 kind: "ManagedNode"
 metadata:
-  name: "vmware-ca-k8s-managed-01"
+  name: "vsphere-dev-k3s-managed-01"
 spec:
-  nodegroup: vmware-ca-k8s
+  nodegroup: vsphere-dev-k3s
   controlPlane: false
-  allowDeployment: false
-  vcpus: 2
-  memorySizeInMb: 2048
-  diskSizeInMb: 10240
+  allowDeployment: true
+  instanceType: small
+  diskSizeInMB: 10240
+  diskType: gp3
   labels:
   - demo-label.acme.com=demo
   - sample-label.acme.com=sample
   annotations:
   - demo-annotation.acme.com=demo
   - sample-annotation.acme.com=sample
-  networks:
-    -
-      network: "VM Network"
-      address: 10.0.0.80
-      netmask: 255.255.255.0
-      gateway: 10.0.0.1
-      use-dhcp-routes: false
-      routes:
-        - to: x.x.0.0/16
-          via: 10.0.0.253
-          metric: 100
-        - to: y.y.y.y/8
-          via: 10.0.0.253
-          metric: 500
-    -
-      network: "VM Private"
-      address: 192.168.1.80
-      netmask: 255.255.255.0
-      use-dhcp-routes: false
+  network:
+    vmware:
+      -
+        network: "VM Network"
+        address: 10.0.0.85
+        netmask: 255.255.255.0
+        gateway: 10.0.0.1
+        use-dhcp-routes: false
+        routes:
+          - to: x.x.0.0/16
+            via: 10.0.0.1
+            metric: 100
+          - to: y.y.y.y/8
+            via: 10.0.0.1
+            metric: 500
+      -
+        network: "VLAN20"
+        address: 192.168.2.80
+        netmask: 255.255.255.0
+        use-dhcp-routes: false
 ```
 
-# Declare additional routes and disable default DHCP routes
-
-The release 1.24 and above allows to add additionnal route per interface, it also allows to disable default route declared by DHCP server.
-
-As example of use generated by autoscaled-masterkube-vmware scripts
+As example of use generated by autoscaled-masterkube-cluster scripts
 
 ```json
 {
     "use-external-etcd": false,
     "src-etcd-ssl-dir": "/etc/etcd/ssl",
     "dst-etcd-ssl-dir": "/etc/kubernetes/pki/etcd",
+    "distribution": "k3s",
+    "plateform": "vsphere",
     "kubernetes-pki-srcdir": "/etc/kubernetes/pki",
     "kubernetes-pki-dstdir": "/etc/kubernetes/pki",
-    "distribution": "rke2",
-    "network": "unix",
-    "listen": "/var/run/cluster-autoscaler/vmware.sock",
-    "cert-private-key": "/etc/ssl/client-cert/tls.key",
-    "cert-public-key": "/etc/ssl/client-cert/tls.crt",
-    "cert-ca": "/etc/ssl/client-cert/ca.crt",
-    "secret": "vmware",
+    "image-credential-provider-bin-dir": "/var/lib/rancher/credentialprovider/bin",
+    "image-credential-provider-config": "/var/lib/rancher/credentialprovider/config.yaml",
+    "listen": "unix:/var/run/cluster-autoscaler/autoscaler.sock",
+    "secret": "vsphere",
     "minNode": 0,
     "maxNode": 9,
+    "maxPods": 110,
     "maxNode-per-cycle": 2,
+    "nodegroup": "vsphere-dev-k3s",
     "node-name-prefix": "autoscaled",
     "managed-name-prefix": "managed",
     "controlplane-name-prefix": "master",
     "nodePrice": 0,
     "podPrice": 0,
-    "image": "jammy-kubernetes-cni-flannel-v1.27.8-containerd-amd64",
+    "use-cloudinit-config": false,
+    "cloudinit-file-owner": "root:adm",
+    "cloudinit-file-mode": 420,
     "optionals": {
         "pricing": false,
         "getAvailableMachineTypes": false,
         "newNodeGroup": false,
         "templateNodeInfo": false,
         "createNodeGroup": false,
-        "deleteNodeGroup": false,
+        "deleteNodeGroup": false
     },
-    "kubeadm": {
-        "address": "192.168.1.120:6443",
-        "token": "h1g55p.hm4rg52ymloax182",
-        "ca": "sha256:c7a86a7a9a03a628b59207f4f3b3e038ebd03260f3ad5ba28f364d513b01f542",
+    "k3s": {
+        "address": "192.168.2.80:6443",
+        "token": "...",
+        "ca": "sha256:...",
         "extras-args": [
             "--ignore-preflight-errors=All"
         ],
-    },
-    "k3s": {
-        "address": "192.168.1.120:6443",
-        "token": "h1g55p.hm4rg52ymloax182",
-        "datastore-endpoint": "https://1.2.3.4:2379",
+        "datastore-endpoint": "",
         "extras-commands": []
     },
-    "external": {
-        "address": "192.168.1.120:6443",
-        "token": "h1g55p.hm4rg52ymloax182",
-        "datastore-endpoint": "https://1.2.3.4:2379",
-        "join-command": "/usr/local/bin/join-cluster.sh",
-        "config-path": "/etc/default/kubernetes-cloud-autoscaler-config.yaml",
-        "extra-config": {
-            "...": "..."
-        }
-    },
-    "default-machine": "large",
-    "machines": {
-        "tiny": {
-            "memsize": 2048,
-            "vcpus": 2,
-            "disksize": 10240
-        },
-        "small": {
-            "memsize": 4096,
-            "vcpus": 2,
-            "disksize": 20480
-        },
-        "medium": {
-            "memsize": 4096,
-            "vcpus": 4,
-            "disksize": 20480
-        },
-        "large": {
-            "memsize": 8192,
-            "vcpus": 4,
-            "disksize": 51200
-        },
-        "xlarge": {
-            "memsize": 16384,
-            "vcpus": 4,
-            "disksize": 102400
-        },
-        "2xlarge": {
-            "memsize": 16384,
-            "vcpus": 8,
-            "disksize": 102400
-        },
-        "4xlarge": {
-            "memsize": 32768,
-            "vcpus": 8,
-            "disksize": 102400
-        },
-    },
-    "node-labels": [
-        "topology.kubernetes.io/region=home",
-        "topology.kubernetes.io/zone=office",
-        "topology.csi.vmware.com/k8s-region=home",
-        "topology.csi.vmware.com/k8s-zone=office",
-    ],
+    "default-machine": "medium",
     "cloud-init": {
         "package_update": false,
         "package_upgrade": false,
+        "growpart": {
+            "ignore_growroot_disabled": false,
+            "mode": "auto",
+            "devices": [
+                "/"
+            ]
+        },
         "runcmd": [
-            "echo 1 > /sys/block/sda/device/rescan",
-            "growpart /dev/sda 1",
-            "resize2fs /dev/sda1",
-            "echo '192.168.1.120 vmware-ca-k8s-masterkube vmware-ca-k8s-masterkube.acme.com' >> /etc/hosts",
-        ],
+            "echo '192.168.2.80 vsphere-dev-k3s-masterkube vsphere-dev-k3s-masterkube.acme.com' >> /etc/hosts"
+        ]
     },
     "ssh-infos": {
+        "wait-ssh-ready-seconds": 180,
         "user": "kubernetes",
-        "ssh-private-key": "/root/.ssh/id_rsa"
+        "ssh-private-key": "/etc/ssh/id_rsa"
     },
     "autoscaling-options": {
         "scaleDownUtilizationThreshold": 0.5,
         "scaleDownGpuUtilizationThreshold": 0.5,
         "scaleDownUnneededTime": "1m",
         "scaleDownUnreadyTime": "1m",
+        "maxNodeProvisionTime": "15m",
+        "zeroOrMaxNodeScaling": false,
+        "ignoreDaemonSetsUtilization": true
     },
-    "vmware": {
-        "vmware-ca-k8s": {
-            "url": "https://administrator@acme.com:mySecret@vsphere.acme.com/sdk",
-            "uid": "administrator@vsphere.acme.com",
-            "password": "mySecret",
-            "insecure": true,
-            "dc": "DC01",
-            "datastore": "datastore1",
-            "resource-pool": "ACME/Resources/FR",
-            "vmFolder": "HOME",
-            "timeout": 300,
-            "template-name": "jammy-kubernetes-cni-flannel-v1.26.0-containerd-amd64",
-            "template": false,
-            "linked": false,
-            "customization": "",
-            "network": {
-                "domain": "acme.com",
-                "dns": {
-                    "search": [
-                        "acme.com"
-                    ],
-                    "nameserver": [
-                        "10.0.0.1"
-                    ]
-                },
-                "interfaces": [
+    "credential-provider-config": {
+        "apiVersion": "kubelet.config.k8s.io/v1",
+        "kind": "CredentialProviderConfig",
+        "providers": [
+            {
+                "name": "ecr-credential-provider",
+                "matchImages": [
+                    "*.dkr.ecr.*.amazonaws.com",
+                    "*.dkr.ecr.*.amazonaws.cn",
+                    "*.dkr.ecr-fips.*.amazonaws.com",
+                    "*.dkr.ecr.us-iso-east-1.c2s.ic.gov",
+                    "*.dkr.ecr.us-isob-east-1.sc2s.sgov.gov"
+                ],
+                "defaultCacheDuration": "12h",
+                "apiVersion": "credentialprovider.kubelet.k8s.io/v1",
+                "args": [
+                    "get-credentials"
+                ],
+                "env": [
                     {
-                        "primary": false,
-                        "exists": true,
-                        "network": "VM Network",
-                        "adapter": "vmxnet3",
-                        "mac-address": "generate",
-                        "nic": "eth0",
-                        "dhcp": true,
-                        "use-dhcp-routes": true,
-                        "routes": [
-                            {
-                                "to": "172.30.0.0/16",
-                                "via": "10.0.0.5",
-                                "metric": 500,
-                            },
-                        ],
+                        "name": "AWS_ACCESS_KEY_ID",
+                        "value": "...."
                     },
                     {
-                        "primary": true,
-                        "exists": true,
-                        "network": "VM Private",
-                        "adapter": "vmxnet3",
-                        "mac-address": "generate",
-                        "nic": "eth1",
-                        "dhcp": true,
-                        "use-dhcp-routes": false,
-                        "address": "192.168.1.124",
-                        "gateway": "10.0.0.1",
-                        "netmask": "255.255.255.0",
-                        "routes": []
+                        "name": "AWS_SECRET_ACCESS_KEY",
+                        "value": "...."
                     }
                 ]
             }
-        }
+        ]
     }
 }
 ```
+
+```json
+{
+    "url": "https://administrator@vsphere.acme.com:mypassword@vsphere.acme.com/sdk",
+    "uid": "administrator@vsphere.acme.com",
+    "password": "mypassword",
+    "insecure": true,
+    "dc": "DC01",
+    "datastore": "datastore",
+    "resource-pool": "ACME/Resources/FR",
+    "vmFolder": "HOME",
+    "timeout": 300,
+    "template-name": "jammy-kubernetes-k3s-v1.29.1+k3s2-amd64",
+    "template": false,
+    "linked": false,
+    "allow-upgrade": false,
+    "customization": "",
+    "csi-region": "home",
+    "csi-zone": "office",
+    "network": {
+        "domain": "acme.com",
+        "dns": {
+            "search": [
+                "acme.com"
+            ],
+            "nameserver": [
+                "10.0.0.1"
+            ]
+        },
+        "interfaces": [
+            {
+                "enabled": true,
+                "primary": true,
+                "exists": true,
+                "network": "VLAN20",
+                "adapter": "vmxnet3",
+                "mac-address": "generate",
+                "nic": "eth0",
+                "dhcp": true,
+                "use-dhcp-routes": false,
+                "address": "192.168.2.83",
+                "gateway": "192.168.2.254",
+                "netmask": "255.255.255.0",
+                "routes": []
+            },
+            {
+                "enabled": true,
+                "primary": false,
+                "exists": false,
+                "network": "VM Network",
+                "adapter": "vmxnet3",
+                "mac-address": "generate",
+                "nic": "eth1",
+                "dhcp": true,
+                "use-dhcp-routes": true,
+                "routes": [
+                    {
+                        "to": "172.30.0.0/16",
+                        "via": "10.0.0.1",
+                        "metric": 500
+                    }
+                ]
+            }
+        ]
+    }
+}
+````
 
 # Unmaintened releases
 
