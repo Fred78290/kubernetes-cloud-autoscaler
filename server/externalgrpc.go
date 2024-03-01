@@ -8,6 +8,7 @@ import (
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/externalgrpc"
 	apigrpc "github.com/Fred78290/kubernetes-cloud-autoscaler/grpc"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/types"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/utils"
 	glog "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -429,10 +430,10 @@ func (v *externalgrpcServerApp) NodeGroupGetOptions(ctx context.Context, request
 	}
 
 	defaults := &apigrpc.AutoscalingOptions{
-		ScaleDownUtilizationThreshold:    pbDefaults.GetScaleDownGpuUtilizationThreshold(),
+		ScaleDownUtilizationThreshold:    pbDefaults.GetScaleDownUtilizationThreshold(),
 		ScaleDownGpuUtilizationThreshold: pbDefaults.GetScaleDownGpuUtilizationThreshold(),
 		ScaleDownUnneededTime:            pbDefaults.GetScaleDownUnneededTime(),
-		ScaleDownUnreadyTime:             pbDefaults.GetScaleDownUnneededTime(),
+		ScaleDownUnreadyTime:             pbDefaults.GetScaleDownUnreadyTime(),
 		MaxNodeProvisionTime:             pbDefaults.GetMaxNodeProvisionTime(),
 	}
 
