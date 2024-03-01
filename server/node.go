@@ -274,7 +274,7 @@ func (vm *AutoScalerServerNode) joinClusterWithConfig(content any, destinationFi
 					args = append(args, extraCommand...)
 				}
 
-				result = vm.executeCommands(args, false, c)
+				result = vm.executeCommands(args, restartKubelet, c)
 			}
 		}
 	}
