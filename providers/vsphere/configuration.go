@@ -725,7 +725,7 @@ func (wrapper *vsphereWrapper) RetrieveNetworkInfosWithContext(ctx *context.Cont
 		return err
 	}
 
-	return vm.collectNetworkInfos(ctx, network, nodeIndex)
+	return vm.collectNetworkInfos(ctx, network)
 }
 
 func (wrapper *vsphereWrapper) RetrieveNetworkInfos(name string, nodeIndex int, network *vsphereNetwork) error {

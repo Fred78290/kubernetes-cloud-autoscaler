@@ -72,7 +72,7 @@ func (vm *VirtualMachine) VimClient() *vim25.Client {
 	return vm.Datastore.VimClient()
 }
 
-func (vm *VirtualMachine) collectNetworkInfos(ctx *context.Context, network *vsphereNetwork, nodeIndex int) error {
+func (vm *VirtualMachine) collectNetworkInfos(ctx *context.Context, network *vsphereNetwork) error {
 	virtualMachine := vm.VirtualMachine(ctx)
 	devices, err := virtualMachine.Device(ctx)
 
