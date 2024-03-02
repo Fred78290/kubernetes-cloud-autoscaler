@@ -186,6 +186,18 @@ func (ds *Datastore) output(ctx *context.Context) *flags.OutputFlag {
 	return v
 }
 
+func (ds *Datastore) listEthernetCards(devices object.VirtualDeviceList) object.VirtualDeviceList {
+	cards := object.VirtualDeviceList{}
+
+	for _, device := range devices {
+		if _, ok := device.(types.BaseVirtualEthernetCard); ok {
+			cards = append(cards, device)
+		}
+	}
+
+	return cards
+}
+
 // CreateVirtualMachine create a new virtual machine
 func (ds *Datastore) CreateVirtualMachine(ctx *context.Context, input *CreateVirtualMachineInput) (*VirtualMachine, error) {
 	var templateVM *object.VirtualMachine
@@ -210,19 +222,25 @@ func (ds *Datastore) CreateVirtualMachine(ctx *context.Context, input *CreateVir
 
 				if input.VSphereNetwork != nil {
 					if devices, err := templateVM.Device(ctx); err == nil {
-						for _, inf := range input.VSphereNetwork.VSphereInterfaces {
-							if inf.NeedToReconfigure() {
-								// In case we dont find the preconfigured net card, we add it
+						cards := ds.listEthernetCards(devices)
+
+						for index, inf := range input.VSphereNetwork.VSphereInterfaces {
+							// Network card missing
+							if index >= len(cards) {
 								inf.Existing = false
+							} else if inf.Enabled {
+								match := false
+								device := cards[index]
+								ethernet := device.(types.BaseVirtualEthernetCard)
+								virtualNetworkCard := ethernet.GetVirtualEthernetCard()
 
-								// Find the preconfigured device
-								for _, device := range devices {
-									// It's an ether device?
-									if ethernet, ok := device.(types.BaseVirtualEthernetCard); ok {
-										virtualNetworkCard := ethernet.GetVirtualEthernetCard()
-										// Match my network?
-										if match, err := inf.MatchInterface(ctx, ds.Datacenter, virtualNetworkCard); match && err == nil {
+								// Match my network?
+								if match, err = inf.MatchInterface(ctx, ds.Datacenter, virtualNetworkCard); err == nil {
+									// Ok don't need to add one
+									inf.Existing = true
 
+									if match {
+										if inf.NeedToReconfigure() {
 											// Change the mac address
 											if inf.ChangeAddress(virtualNetworkCard) {
 												configSpecs = append(configSpecs, &types.VirtualDeviceConfigSpec{
@@ -230,15 +248,19 @@ func (ds *Datastore) CreateVirtualMachine(ctx *context.Context, input *CreateVir
 													Device:    device,
 												})
 											}
-
-											// Ok don't need to add one
-											inf.Existing = true
-											break
-										} else if err != nil {
-											return vm, err
 										}
+										// Change the interface
+									} else if err = inf.ConfigureEthernetCard(ctx, ds.Datacenter, virtualNetworkCard); err == nil {
+										configSpecs = append(configSpecs, &types.VirtualDeviceConfigSpec{
+											Operation: types.VirtualDeviceConfigSpecOperationEdit,
+											Device:    device,
+										})
 									}
 								}
+							}
+
+							if err != nil {
+								return vm, err
 							}
 						}
 					} else {

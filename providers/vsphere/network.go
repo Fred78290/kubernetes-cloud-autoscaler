@@ -254,6 +254,30 @@ func (net *vsphereNetworkInterface) ChangeAddress(card *types.VirtualEthernetCar
 	return false
 }
 
+func (net *vsphereNetworkInterface) ConfigureEthernetCard(ctx *context.Context, dc *Datacenter, card *types.VirtualEthernetCard) error {
+	if network, err := net.Reference(ctx, dc); err != nil {
+		return err
+	} else {
+		macAddress := net.GetMacAddress()
+		networkReference := network.Reference()
+		net.networkBacking = &types.VirtualEthernetCardNetworkBackingInfo{
+			Network: &networkReference,
+			VirtualDeviceDeviceBackingInfo: types.VirtualDeviceDeviceBackingInfo{
+				DeviceName: net.NetworkName,
+			},
+		}
+
+		card.Backing = net.networkBacking
+
+		if len(macAddress) > 0 {
+			card.AddressType = string(types.VirtualEthernetCardMacTypeManual)
+			card.MacAddress = macAddress
+		}
+	}
+
+	return nil
+}
+
 // NeedToReconfigure tell that we must set the mac address
 func (net *vsphereNetworkInterface) NeedToReconfigure() bool {
 	return len(net.GetMacAddress()) != 0 && net.Enabled && net.Existing

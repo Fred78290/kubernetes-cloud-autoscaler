@@ -96,52 +96,64 @@ func (vm *VirtualMachine) collectNetworkInfos(ctx *context.Context, network *vsp
 	return err
 }
 
-func (vm *VirtualMachine) addNetwork(ctx *context.Context, network *vsphereNetwork, devices object.VirtualDeviceList, nodeIndex int) (object.VirtualDeviceList, error) {
+func (vm *VirtualMachine) listEthernetCards(ctx *context.Context, virtualMachine *object.VirtualMachine) object.VirtualDeviceList {
+	cards := object.VirtualDeviceList{}
+
+	if existingDevices, err := virtualMachine.Device(ctx); err == nil {
+		for _, device := range existingDevices {
+			if _, ok := device.(types.BaseVirtualEthernetCard); ok {
+				cards = append(cards, device)
+			}
+		}
+	}
+	return cards
+}
+
+func (vm *VirtualMachine) configureNetwork(ctx *context.Context, virtualMachine *object.VirtualMachine, network *vsphereNetwork, devices object.VirtualDeviceList) (object.VirtualDeviceList, error) {
 	var err error
 
 	if network != nil && len(network.VSphereInterfaces) > 0 {
-		devices, err = network.Devices(ctx, devices, vm.Datastore.Datacenter)
+		cards := vm.listEthernetCards(ctx, virtualMachine)
+
+		// Remove extras ethernet cards
+		if len(cards) > len(network.VSphereInterfaces) {
+			var removedCards object.VirtualDeviceList
+
+			for index := len(network.VSphereInterfaces); index < len(cards); index++ {
+				removedCards = append(removedCards, cards[index])
+			}
+
+			err = virtualMachine.RemoveDevice(ctx, false, removedCards...)
+		} else {
+			devices, err = network.Devices(ctx, devices, vm.Datastore.Datacenter)
+		}
+
 	}
 
 	return devices, err
 }
 
-func (vm *VirtualMachine) findHardDrive(ctx *context.Context, list object.VirtualDeviceList) (*types.VirtualDisk, error) {
-	var disks []*types.VirtualDisk
-
+func (vm *VirtualMachine) findHardDrive(list object.VirtualDeviceList) (*types.VirtualDisk, error) {
 	for _, device := range list {
-		switch md := device.(type) {
-		case *types.VirtualDisk:
-			disks = append(disks, md)
-		default:
-			continue
+		if md, ok := device.(*types.VirtualDisk); ok {
+			return md, nil
 		}
 	}
 
-	switch len(disks) {
-	case 0:
-		return nil, errors.New("no disk found using the given values")
-	case 1:
-		return disks[0], nil
-	}
-
-	return nil, errors.New("the given disk values match multiple disks")
+	return nil, errors.New("no disk found using the given values")
 }
 
-func (vm *VirtualMachine) addOrExpandHardDrive(ctx *context.Context, virtualMachine *object.VirtualMachine, diskSize int, expandHardDrive bool, devices object.VirtualDeviceList) (object.VirtualDeviceList, error) {
+func (vm *VirtualMachine) configureHardDrive(ctx *context.Context, virtualMachine *object.VirtualMachine, diskSize int, expandHardDrive bool, devices object.VirtualDeviceList) (object.VirtualDeviceList, error) {
 	var err error
 	var existingDevices object.VirtualDeviceList
 	var controller types.BaseVirtualController
 
 	if diskSize > 0 {
-		drivePath := fmt.Sprintf("[%s] %s/harddrive.vmdk", vm.Datastore.Name, vm.Name)
-
 		if existingDevices, err = virtualMachine.Device(ctx); err == nil {
 			if expandHardDrive {
-				var task *object.Task
 				var disk *types.VirtualDisk
 
-				if disk, err = vm.findHardDrive(ctx, existingDevices); err == nil {
+				if disk, err = vm.findHardDrive(existingDevices); err == nil {
 					diskSizeInKB := int64(diskSize * 1024)
 
 					if diskSizeInKB > disk.CapacityInKB {
@@ -156,12 +168,12 @@ func (vm *VirtualMachine) addOrExpandHardDrive(ctx *context.Context, virtualMach
 							},
 						}
 
-						if task, err = virtualMachine.Reconfigure(ctx, spec); err == nil {
-							err = task.Wait(ctx)
-						}
+						err = vm.Reconfigure(ctx, virtualMachine, spec)
 					}
 				}
 			} else {
+				drivePath := fmt.Sprintf("[%s] %s/%s.vmdk", vm.Datastore.Name, vm.Name, vm.Name)
+
 				if controller, err = existingDevices.FindDiskController(""); err == nil {
 
 					disk := existingDevices.CreateDisk(controller, vm.Datastore.Ref, drivePath)
@@ -190,11 +202,18 @@ func (vm *VirtualMachine) addOrExpandHardDrive(ctx *context.Context, virtualMach
 	return devices, err
 }
 
+func (vm *VirtualMachine) Reconfigure(ctx *context.Context, virtualMachine *object.VirtualMachine, config types.VirtualMachineConfigSpec) error {
+	if task, err := virtualMachine.Reconfigure(ctx, config); err != nil {
+		return err
+	} else {
+		return task.Wait(ctx)
+	}
+}
+
 // Configure set characteristic of VM a virtual machine
 func (vm *VirtualMachine) Configure(ctx *context.Context, input *CreateInput) error {
 	var devices object.VirtualDeviceList
 	var err error
-	var task *object.Task
 
 	virtualMachine := vm.VirtualMachine(ctx)
 	uuid := virtualMachine.UUID(ctx)
@@ -206,11 +225,11 @@ func (vm *VirtualMachine) Configure(ctx *context.Context, input *CreateInput) er
 		Uuid:         uuid,
 	}
 
-	if devices, err = vm.addOrExpandHardDrive(ctx, virtualMachine, input.Machine.DiskSize, input.ExpandHardDrive, devices); err != nil {
+	if devices, err = vm.configureHardDrive(ctx, virtualMachine, input.Machine.DiskSize, input.ExpandHardDrive, devices); err != nil {
 
 		err = fmt.Errorf(constantes.ErrUnableToAddHardDrive, vm.Name, err)
 
-	} else if devices, err = vm.addNetwork(ctx, input.VSphereNetwork, devices, input.NodeIndex); err != nil {
+	} else if devices, err = vm.configureNetwork(ctx, virtualMachine, input.VSphereNetwork, devices); err != nil {
 
 		err = fmt.Errorf(constantes.ErrUnableToAddNetworkCard, vm.Name, err)
 
@@ -222,11 +241,7 @@ func (vm *VirtualMachine) Configure(ctx *context.Context, input *CreateInput) er
 
 		err = fmt.Errorf(constantes.ErrCloudInitFailCreation, vm.Name, err)
 
-	} else if task, err = virtualMachine.Reconfigure(ctx, vmConfigSpec); err != nil {
-
-		err = fmt.Errorf(constantes.ErrUnableToReconfigureVM, vm.Name, err)
-
-	} else if err = task.Wait(ctx); err != nil {
+	} else if err = vm.Reconfigure(ctx, virtualMachine, vmConfigSpec); err != nil {
 
 		err = fmt.Errorf(constantes.ErrUnableToReconfigureVM, vm.Name, err)
 
