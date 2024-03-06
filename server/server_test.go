@@ -30,6 +30,7 @@ const (
 
 type autoScalerServerAppTest struct {
 	AutoScalerServerApp
+	*grpcServerApp
 	ng *autoScalerServerNodeGroupTest
 }
 
@@ -626,15 +627,17 @@ func (m *serverTest) newTestServer(addNodeGroup, addTestNode bool, desiredState 
 			},
 		}
 
-		if addNodeGroup {
-			s.Groups[ng.NodeGroupIdentifier] = &ng.AutoScalerServerNodeGroup
+		if s.grpcServerApp, err = NewGrpcServerApp(&s.AutoScalerServerApp); err == nil {
+			if addNodeGroup {
+				s.Groups[ng.NodeGroupIdentifier] = &ng.AutoScalerServerNodeGroup
 
-			if addTestNode {
-				ng.createTestNode(testNodeName, desiredState...)
+				if addTestNode {
+					ng.createTestNode(testNodeName, desiredState...)
+				}
 			}
 		}
 
-		return s, nil
+		return s, err
 	} else {
 		return nil, err
 	}

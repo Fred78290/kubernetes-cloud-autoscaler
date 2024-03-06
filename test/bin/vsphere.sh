@@ -1,10 +1,23 @@
 #!/bin/bash
 set -e
 
-VERBOSE=
+pushd $(dirname $0)
+CURDIR=${PWD}
+popd
 
-go clean -testcache
-go mod vendor
+LOCALDEFS=${CURDIR}/../local.env
+VERBOSE=-test.v
+
+if [ ! -f "${LOCALDEFS}" ]; then
+  echo "File ${LOCALDEFS} not found, exit test"
+  exit 1
+fi
+
+source ${LOCALDEFS}
+
+mkdir -p ${HOME}/.ssh
+
+echo -n ${SSH_PRIVATEKEY} | base64 -d > ${HOME}/.ssh/test_rsa
 
 export Test_AuthMethodKey=NO
 export Test_Sudo=NO
@@ -18,6 +31,13 @@ export Test_powerOffVM=YES
 export Test_shutdownGuest=YES
 export Test_deleteVM=YES
 
+export TEST_VSPHERE_CONFIG=${CURDIR}/../config/vsphere/provider.json
+export TEST_CONFIG=${CURDIR}/../config/vsphere/config.json
+export TEST_MACHINES_CONFIG=${CURDIR}/../config/vsphere/machines.json
+
+go clean -testcache
+go mod vendor
+
 function cleanup {
   echo "Kill vcsim"
   kill $GOVC_SIM_PID
@@ -30,7 +50,7 @@ vcsim -pg 2 &
 GOVC_SIM_PID=$!
 
 echo "Run vsphere test"
-go test --test.short $VERBOSE -race ./vsphere
+go test --test.short $VERBOSE -race ./providers/vsphere
 
 kill $GOVC_SIM_PID &> /dev/null
 

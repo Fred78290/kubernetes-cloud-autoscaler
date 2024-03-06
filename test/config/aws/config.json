@@ -1,0 +1,18 @@
+{
+	"ssh": {
+		"user": "${SEED_USER}",
+        "wait-ssh-ready-seconds": 180,
+		"ssh-private-key": "${HOME}/.ssh/test_rsa"
+	},
+	"cloud-init": {
+		"package_update": false,
+		"package_upgrade": false,
+		"runcmd": [
+			"sudo hostnamectl set-hostname test-aws-autoscaler"
+		]
+	},
+    "instance-name": "test-kubernetes-aws-autoscaler-${GITHUB_RUN_ID}",
+    "instance-type": "t4g.small",
+	"disk-size": 20480,
+	"dist-type": "gp3"
+}

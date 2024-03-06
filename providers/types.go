@@ -43,14 +43,13 @@ var SupportedCloudProviders = []string{
 }
 
 type BasicConfiguration struct {
-	CloudInit    cloudinit.CloudInit              `json:"cloud-init"`
-	SSH          sshutils.AutoScalerServerSSH     `json:"ssh"`
-	NodeGroup    string                           `json:"nodegroup"`
-	InstanceName string                           `json:"instance-name"`
-	InstanceType string                           `json:"instance-type"`
-	DiskSize     int                              `default:"10240" json:"disk-size"`
-	DiskType     string                           `default:"gp3" json:"disk-type"`
-	Machines     map[string]MachineCharacteristic `json:"machines"`
+	CloudInit    cloudinit.CloudInit          `json:"cloud-init"`
+	SSH          sshutils.AutoScalerServerSSH `json:"ssh"`
+	NodeGroup    string                       `json:"nodegroup"`
+	InstanceName string                       `json:"instance-name"`
+	InstanceType string                       `json:"instance-type"`
+	DiskSize     int                          `default:"10240" json:"disk-size"`
+	DiskType     string                       `default:"gp3" json:"disk-type"`
 }
 
 // CallbackWaitSSHReady callback to test if ssh become ready or return timeout error

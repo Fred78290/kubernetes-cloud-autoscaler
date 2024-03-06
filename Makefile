@@ -29,8 +29,9 @@ build-arch-%: deps clean-arch-%
 	$(ENVVAR) GOOS=$(GOOS) GOARCH=$* go build -buildvcs=false -ldflags="-X main.phVersion=$(TAG) -X main.phBuildDate=$(BUILD_DATE) ${LDFLAGS}" -a -o out/$(GOOS)/$*/kubernetes-cloud-autoscaler
 
 test-unit: clean build
-	go install github.com/vmware/govmomi/vcsim@v0.30.0
-	bash ./scripts/run-tests.sh
+	go install github.com/vmware/govmomi/vcsim@latest
+	bash ./scripts/test/vsphere.sh
+	bash ./scripts/test/aws.sh
 
 make-image: $(addprefix make-image-arch-,$(ALL_ARCH))
 

@@ -12,11 +12,12 @@
     "template": false,
     "linked": false,
     "customization": "",
+    "test-mode": ${TEST_MODE},
     "network": {
-        "domain": "${DOMAIN_NAME}",
+        "domain": "${PUBLIC_DOMAIN_NAME}",
         "dns": {
             "search": [
-                "${DOMAIN_NAME}"
+                "${PUBLIC_DOMAIN_NAME}"
             ],
             "nameserver": [
                 "${DOMAIN_RESOLVER}"
@@ -24,26 +25,26 @@
         },
         "interfaces": [
             {
-                "primary": false,
-                "exists": true,
-                "network": "${GOVC_NETWORK_PUBLIC}",
-                "adapter": "vmxnet3",
-                "mac-address": "generate",
-                "nic": "eth0",
-                "dhcp": true,
-                "use-dhcp-routes": true
-            },
-            {
                 "primary": true,
                 "exists": true,
                 "network": "${GOVC_NETWORK_PRIVATE}",
                 "adapter": "vmxnet3",
                 "mac-address": "generate",
-                "nic": "eth1",
+                "nic": "eth0",
                 "dhcp": false,
-                "address": "192.168.1.26",
-                "gateway": "192.168.1.1",
+                "address": "192.168.2.26",
+                "gateway": "192.168.2.254",
                 "netmask": "255.255.255.0"
+            },
+            {
+                "primary": false,
+                "exists": true,
+                "network": "${GOVC_NETWORK_PUBLIC}",
+                "adapter": "vmxnet3",
+                "mac-address": "generate",
+                "nic": "eth1",
+                "dhcp": true,
+                "use-dhcp-routes": true
             }
         ]
     }

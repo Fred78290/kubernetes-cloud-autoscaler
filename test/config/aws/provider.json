@@ -14,6 +14,10 @@
 		}
 	],
 	"network": {
+		"route53": {
+			"zoneID": "${AWS_ROUTE53_ZONEID}",
+			"privateZoneName": "${PRIVATE_DOMAIN_NAME}"
+		},
 		"usePublicIP": true,
 		"eni": [
 			{

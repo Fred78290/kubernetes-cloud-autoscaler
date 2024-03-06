@@ -5,16 +5,16 @@
 	"cacert": "${VMWARE_UTILITY_CACERT}",
 	"nodegroup": "${NODEGROUP_NAME}",
 	"timeout": 300,
-	"template-name": "${VMWARE_TEMPLATE_NAME}",
+	"template-name": "${DESKTOP_TEMPLATE_NAME}",
 	"linked": false,
 	"autostart": false,
 	"time-zone": "Europe/Paris",
 	"allow-upgrade": true,
 	"network": {
-		"domain": "${DOMAIN_NAME}",
+		"domain": "${PUBLIC_DOMAIN_NAME}",
 		"dns": {
 			"search": [
-				"${DOMAIN_NAME}"
+				"${PUBLIC_DOMAIN_NAME}"
 			],
 			"nameserver": [
 				"${DOMAIN_RESOLVER}"

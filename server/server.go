@@ -43,9 +43,6 @@ type applicationInterface interface {
 
 // AutoScalerServerApp declare AutoScaler grpc server
 type AutoScalerServerApp struct {
-	apigrpc.UnimplementedCloudProviderServiceServer
-	apigrpc.UnimplementedNodeGroupServiceServer
-	apigrpc.UnimplementedPricingModelServiceServer
 	machines        providers.MachineCharacteristics
 	ResourceLimiter *types.ResourceLimiter                `json:"limits"`
 	Groups          map[string]*AutoScalerServerNodeGroup `json:"groups"`

@@ -289,7 +289,7 @@ func (m *baseTest) newTestNodeGroup() (*autoScalerServerNodeGroupTest, error) {
 	config, err := m.newTestConfig()
 
 	if err == nil {
-		if _, ok := config.Machines[config.DefaultMachineType]; ok {
+		if _, ok := config.machines[config.DefaultMachineType]; ok {
 			ng := &autoScalerServerNodeGroupTest{
 				baseTest: baseTest{
 					t:          m.t,
@@ -312,7 +312,7 @@ func (m *baseTest) newTestNodeGroup() (*autoScalerServerNodeGroupTest, error) {
 					configuration:              &config.AutoScalerServerConfig,
 					NodeLabels:                 config.NodeLabels,
 					InstanceType:               config.DefaultMachineType,
-					machines:                   config.Machines,
+					machines:                   config.machines,
 				},
 			}
 
@@ -325,24 +325,45 @@ func (m *baseTest) newTestNodeGroup() (*autoScalerServerNodeGroupTest, error) {
 	return nil, err
 }
 
+func (m *baseTest) getProviderConfFile() string {
+	if config := os.Getenv("TEST_PROVIDER_CONFIG"); config != "" {
+		return config
+	}
+
+	return "../test/config/vsphere/provider.json"
+}
+
+func (m *baseTest) getMachinesConfFile() string {
+	if config := os.Getenv("TEST_MACHINES_CONFIG"); config != "" {
+		return config
+	}
+
+	return "../test/config/vsphere/machines.json"
+}
+
 func (m *baseTest) getConfFile() string {
 	if config := os.Getenv("TEST_SERVER_CONFIG"); config != "" {
 		return config
 	}
 
-	return "../test/server.json"
+	return "../test/config/server.json"
 }
 
 type AutoScalerServerConfigTest struct {
 	types.AutoScalerServerConfig
-	Machines providers.MachineCharacteristics `json:"machines"`
+	machines providers.MachineCharacteristics
 }
 
 func (m *baseTest) newTestConfig() (*AutoScalerServerConfigTest, error) {
 	var config AutoScalerServerConfigTest
+
 	fileName := m.getConfFile()
+	machineConfig := m.getMachinesConfFile()
+	providerConfig := m.getProviderConfFile()
 
 	godotenv.Overload("../.env")
+
+	glog.SetLevel(glog.DebugLevel)
 
 	if content, err := providers.LoadTextEnvSubst(fileName); err != nil {
 		glog.Errorf("failed to open config file: %s, error: %v", fileName, err)
@@ -350,6 +371,18 @@ func (m *baseTest) newTestConfig() (*AutoScalerServerConfigTest, error) {
 		return nil, err
 	} else if err = json.NewDecoder(strings.NewReader(content)).Decode(&config); err != nil {
 		glog.Errorf("failed to decode config file: %s, error: %v", fileName, err)
+
+		return nil, err
+	} else if content, err := providers.LoadTextEnvSubst(machineConfig); err != nil {
+		glog.Errorf("failed to open machines config file: %s, error: %v", machineConfig, err)
+
+		return nil, err
+	} else if err = json.NewDecoder(strings.NewReader(content)).Decode(&config.machines); err != nil {
+		glog.Errorf("failed to decode machines config file: %s, error: %v", machineConfig, err)
+
+		return nil, err
+	} else if err = config.SetupCloudConfiguration(providerConfig); err != nil {
+		glog.Errorf("failed to decode provider config file: %s, error: %v", providerConfig, err)
 
 		return nil, err
 	} else {
@@ -383,6 +416,8 @@ func Test_SSH(t *testing.T) {
 }
 
 func createTestNodegroup(t *testing.T) *nodegroupTest {
+	glog.SetLevel(glog.DebugLevel)
+
 	return &nodegroupTest{
 		baseTest: baseTest{
 			t: t,

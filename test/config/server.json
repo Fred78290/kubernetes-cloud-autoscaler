@@ -1,0 +1,99 @@
+{
+	"use-external-etcd": false,
+	"src-etcd-ssl-dir": "/etc/etcd/ssl",
+	"dst-etcd-ssl-dir": "/etc/kubernetes/pki/etcd",
+	"distribution": "k3s",
+	"plateform": "${PLATEFORM}",
+	"kubernetes-pki-srcdir": "/etc/kubernetes/pki",
+	"kubernetes-pki-dstdir": "/etc/kubernetes/pki",
+	"image-credential-provider-bin-dir": "/var/lib/rancher/credentialprovider/bin",
+	"image-credential-provider-config": "/var/lib/rancher/credentialprovider/config.yaml",
+	"listen": "unix:/var/run/cluster-autoscaler.sock",
+	"secret": "k3s",
+	"minNode": 0,
+	"maxNode": 9,
+	"maxPods": 110,
+	"maxNode-per-cycle": 2,
+	"nodegroup": "${PLATEFORM}-ca-k8s",
+	"node-name-prefix": "autoscaled",
+	"managed-name-prefix": "managed",
+	"controlplane-name-prefix": "master",
+	"nodePrice": 0.0,
+	"podPrice": 0.0,
+	"use-cloudinit-config": false,
+	"cloudinit-file-owner": "root:adm",
+	"cloudinit-file-mode": 420,
+	"grpc-provider": "grpc",
+	"optionals": {
+		"pricing": false,
+		"getAvailableMachineTypes": false,
+		"newNodeGroup": false,
+		"templateNodeInfo": false,
+		"createNodeGroup": false,
+		"deleteNodeGroup": false
+	},
+	"k3s": {
+		"address": "192.168.2.80:6443",
+		"token": "xxx::server:yyyy"
+	},
+	"default-machine": "medium",
+	"cloud-init": {
+		"package_update": false,
+		"package_upgrade": false,
+		"growpart": {
+			"ignore_growroot_disabled": false,
+			"mode": "auto",
+			"devices": [
+				"/"
+			]
+		},
+		"runcmd": [
+			"echo '192.168.2.80 ${PLATEFORM}-dev-k3s-masterkube ${PLATEFORM}-dev-k3s-masterkube.acme.com' >> /etc/hosts"
+		]
+	},
+	"ssh-infos": {
+		"wait-ssh-ready-seconds": 180,
+		"user": "${SEED_USER}",
+		"ssh-private-key": "${HOME}/.ssh/test_rsa"
+	},
+	"autoscaling-options": {
+		"scaleDownUtilizationThreshold": 0.5,
+		"scaleDownGpuUtilizationThreshold": 0.5,
+		"scaleDownUnneededTime": "1m",
+		"scaleDownUnreadyTime": "1m",
+		"maxNodeProvisionTime": "5m",
+		"zeroOrMaxNodeScaling": false,
+		"ignoreDaemonSetsUtilization": true
+	},
+	"credential-provider-config": {
+		"apiVersion": "kubelet.config.k8s.io/v1",
+		"kind": "CredentialProviderConfig",
+		"providers": [
+			{
+				"name": "ecr-credential-provider",
+				"matchImages": [
+					"*.dkr.ecr.*.amazonaws.com",
+					"*.dkr.ecr.*.amazonaws.cn",
+					"*.dkr.ecr-fips.*.amazonaws.com",
+					"*.dkr.ecr.us-iso-east-1.c2s.ic.gov",
+					"*.dkr.ecr.us-isob-east-1.sc2s.sgov.gov"
+				],
+				"defaultCacheDuration": "12h",
+				"apiVersion": "credentialprovider.kubelet.k8s.io/v1",
+				"args": [
+					"get-credentials"
+				],
+				"env": [
+					{
+						"name": "AWS_ACCESS_KEY_ID",
+						"value": "${AWS_ACCESSKEY}"
+					},
+					{
+						"name": "AWS_SECRET_ACCESS_KEY",
+						"value": "${AWS_SECRETKEY}"
+					}
+				]
+			}
+		]
+	}
+}

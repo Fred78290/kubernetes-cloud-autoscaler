@@ -16,7 +16,6 @@ import (
 
 // Configuration declares vsphere connection info
 type Configuration struct {
-	//	NodeGroup         string            `json:"nodegroup"`
 	URL               string            `json:"url"`
 	UserName          string            `json:"uid"`
 	Password          string            `json:"password"`

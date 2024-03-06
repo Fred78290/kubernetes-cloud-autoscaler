@@ -21,6 +21,7 @@ import (
 type ConfigurationTest struct {
 	providers.BasicConfiguration
 	provider providers.ProviderConfiguration
+	machines map[string]providers.MachineCharacteristic
 	inited   bool
 }
 
@@ -40,7 +41,7 @@ func getProviderConfFile() string {
 		return config
 	}
 
-	return "../test/providers/vsphere.json"
+	return "../../test/config/vsphere/provider.json"
 }
 
 func getTestFile() string {
@@ -48,19 +49,31 @@ func getTestFile() string {
 		return config
 	}
 
-	return "../test/vsphere.json"
+	return "../../test/config/vsphere/config.json"
+}
+
+func getMachinesFile() string {
+	if config := os.Getenv("TEST_MACHINES_CONFIG"); config != "" {
+		return config
+	}
+
+	return "../../test/config/vsphere/machines.json"
 }
 
 func loadFromJson() *ConfigurationTest {
 	if !testConfig.inited {
-		godotenv.Overload("../.env")
+		godotenv.Overload("../../.env")
 
 		if content, err := providers.LoadTextEnvSubst(getTestFile()); err != nil {
 			glog.Fatalf("failed to open config file: %s, error: %v", getTestFile(), err)
 		} else if json.NewDecoder(strings.NewReader(content)).Decode(&testConfig.BasicConfiguration); err != nil {
 			glog.Fatalf("failed to decode config file: %s, error: %v", getTestFile(), err)
+		} else if content, err := providers.LoadTextEnvSubst(getMachinesFile()); err != nil {
+			glog.Fatalf("failed to open machines config file: %s, error: %v", getTestFile(), err)
+		} else if json.NewDecoder(strings.NewReader(content)).Decode(&testConfig.machines); err != nil {
+			glog.Fatalf("failed to decode machines config file: %s, error: %v", getTestFile(), err)
 		} else if testConfig.provider, err = vsphere.NewVSphereProviderConfiguration(getProviderConfFile()); err != nil {
-			glog.Fatalf("failed to open config file: %s, error: %v", getProviderConfFile(), err)
+			glog.Fatalf("failed to open provider file: %s, error: %v", getProviderConfFile(), err)
 		} else {
 			testConfig.inited = true
 		}
@@ -115,7 +128,7 @@ func Test_createVM(t *testing.T) {
 	if utils.ShouldTestFeature("Test_createVM") {
 		config := loadFromJson()
 
-		if machine, found := config.Machines[config.InstanceType]; assert.True(t, found, fmt.Sprintf("machine: %s not found", config.InstanceType)) {
+		if machine, found := config.machines[config.InstanceType]; assert.True(t, found, fmt.Sprintf("machine: %s not found", config.InstanceType)) {
 			if handler, err := config.provider.CreateInstance(config.InstanceName, config.InstanceType, false, 0); assert.NoError(t, err, "Can't create VM") && err == nil {
 
 				createInput := &providers.InstanceCreateInput{
