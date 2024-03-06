@@ -58,17 +58,21 @@ type Tag struct {
 	Value string `json:"value"`
 }
 
+type Route53 struct {
+	ZoneID          string `json:"zoneID,omitempty"`
+	PrivateZoneName string `json:"privateZoneName,omitempty"`
+	AccessKey       string `json:"accessKey,omitempty"`
+	SecretKey       string `json:"secretKey,omitempty"`
+	Token           string `json:"token,omitempty"`
+	Profile         string `json:"profile,omitempty"`
+	Region          string `json:"region,omitempty"`
+}
+
 // Network declare network Configuration
 type Network struct {
-	ZoneID          string             `json:"route53,omitempty"`
-	PrivateZoneName string             `json:"privateZoneName,omitempty"`
-	AccessKey       string             `json:"accessKey,omitempty"`
-	SecretKey       string             `json:"secretKey,omitempty"`
-	Token           string             `json:"token,omitempty"`
-	Profile         string             `json:"profile,omitempty"`
-	Region          string             `json:"region,omitempty"`
-	CniPlugin       string             `json:"cni-plugin,omitempty"`
-	ENI             []NetworkInterface `json:"eni,omitempty"`
+	Route53   Route53            `json:"route53,omitempty"`
+	CniPlugin string             `json:"cni-plugin,omitempty"`
+	ENI       []NetworkInterface `json:"eni,omitempty"`
 }
 
 // NetworkInterface declare ENI interface
@@ -335,9 +339,9 @@ func (handler *awsHandler) PrivateDNSName() (string, error) {
 func (handler *awsHandler) RegisterDNS(address string) error {
 	var err error
 
-	if handler.runningInstance != nil && len(handler.Network.ZoneID) > 0 {
+	if handler.runningInstance != nil && len(handler.Network.Route53.ZoneID) > 0 {
 		vm := handler.runningInstance
-		hostname := fmt.Sprintf("%s.%s", vm.InstanceName, handler.Network.PrivateZoneName)
+		hostname := fmt.Sprintf("%s.%s", vm.InstanceName, handler.Network.Route53.PrivateZoneName)
 
 		glog.Infof("Register route53 entry for instance %s, hostname: %s with IP: %s", vm.InstanceName, hostname, address)
 
@@ -351,9 +355,9 @@ func (handler *awsHandler) RegisterDNS(address string) error {
 func (handler *awsHandler) UnregisterDNS(address string) error {
 	var err error
 
-	if handler.runningInstance != nil && len(handler.Network.ZoneID) > 0 {
+	if handler.runningInstance != nil && len(handler.Network.Route53.ZoneID) > 0 {
 		vm := handler.runningInstance
-		hostname := fmt.Sprintf("%s.%s", vm.InstanceName, handler.Network.PrivateZoneName)
+		hostname := fmt.Sprintf("%s.%s", vm.InstanceName, handler.Network.Route53.PrivateZoneName)
 
 		glog.Infof("Unregister route53 entry for instance %s, hostname: %s with IP: %s", vm.InstanceName, hostname, address)
 
@@ -537,8 +541,8 @@ func (wrapper *awsWrapper) UUID(instanceName string) (string, error) {
 
 // GetRoute53AccessKey return route53 access key or default
 func (wrapper *awsWrapper) GetRoute53AccessKey() string {
-	if !isNullOrEmpty(wrapper.Network.AccessKey) {
-		return wrapper.Network.AccessKey
+	if !isNullOrEmpty(wrapper.Network.Route53.AccessKey) {
+		return wrapper.Network.Route53.AccessKey
 	}
 
 	return wrapper.AccessKey
@@ -546,8 +550,8 @@ func (wrapper *awsWrapper) GetRoute53AccessKey() string {
 
 // GetRoute53SecretKey return route53 secret key or default
 func (wrapper *awsWrapper) GetRoute53SecretKey() string {
-	if !isNullOrEmpty(wrapper.Network.SecretKey) {
-		return wrapper.Network.SecretKey
+	if !isNullOrEmpty(wrapper.Network.Route53.SecretKey) {
+		return wrapper.Network.Route53.SecretKey
 	}
 
 	return wrapper.SecretKey
@@ -555,8 +559,8 @@ func (wrapper *awsWrapper) GetRoute53SecretKey() string {
 
 // GetRoute53AccessToken return route53 token or default
 func (wrapper *awsWrapper) GetRoute53AccessToken() string {
-	if !isNullOrEmpty(wrapper.Network.Token) {
-		return wrapper.Network.Token
+	if !isNullOrEmpty(wrapper.Network.Route53.Token) {
+		return wrapper.Network.Route53.Token
 	}
 
 	return wrapper.Token
@@ -564,8 +568,8 @@ func (wrapper *awsWrapper) GetRoute53AccessToken() string {
 
 // GetRoute53Profile return route53 profile or default
 func (wrapper *awsWrapper) GetRoute53Profile() string {
-	if !isNullOrEmpty(wrapper.Network.Profile) {
-		return wrapper.Network.Profile
+	if !isNullOrEmpty(wrapper.Network.Route53.Profile) {
+		return wrapper.Network.Route53.Profile
 	}
 
 	return wrapper.Profile
@@ -573,8 +577,8 @@ func (wrapper *awsWrapper) GetRoute53Profile() string {
 
 // GetRoute53Profile return route53 region or default
 func (wrapper *awsWrapper) GetRoute53Region() string {
-	if !isNullOrEmpty(wrapper.Network.Region) {
-		return wrapper.Network.Region
+	if !isNullOrEmpty(wrapper.Network.Route53.Region) {
+		return wrapper.Network.Route53.Region
 	}
 
 	return wrapper.Region

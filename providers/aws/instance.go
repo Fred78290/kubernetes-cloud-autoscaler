@@ -595,7 +595,7 @@ func (instance *Ec2Instance) getRegisteredRecordSetAddress(name string) (*string
 		svc := route53.New(session)
 
 		input := &route53.ListResourceRecordSetsInput{
-			HostedZoneId:    aws.String(instance.Network.ZoneID),
+			HostedZoneId:    aws.String(instance.Network.Route53.ZoneID),
 			MaxItems:        aws.String("1"),
 			StartRecordName: aws.String(name),
 			StartRecordType: aws.String("A"),
@@ -624,7 +624,7 @@ func (instance *Ec2Instance) changeResourceRecordSetsInput(cmd, name, address st
 		svc = route53.New(session)
 
 		input := &route53.ChangeResourceRecordSetsInput{
-			HostedZoneId: aws.String(instance.Network.ZoneID),
+			HostedZoneId: aws.String(instance.Network.Route53.ZoneID),
 			ChangeBatch: &route53.ChangeBatch{
 				Comment: aws.String("Kubernetes worker node"),
 				Changes: []*route53.Change{
