@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"os"
 	"reflect"
 	"sort"
 	"strings"
@@ -54,7 +55,7 @@ type serverTest struct {
 }
 
 func (m *serverTest) NodeGroups() {
-	s, err := m.newTestServer(true, false)
+	s, err := m.newTestServer(true, false, false)
 
 	expected := []string{
 		testGroupID,
@@ -74,7 +75,7 @@ func (m *serverTest) NodeGroups() {
 }
 
 func (m *serverTest) NodeGroupForNode() {
-	s, err := m.newTestServer(true, true)
+	s, err := m.newTestServer(true, false, true)
 
 	if assert.NoError(m.t, err) {
 		request := &apigrpc.NodeGroupForNodeRequest{
@@ -93,7 +94,7 @@ func (m *serverTest) NodeGroupForNode() {
 }
 
 func (m *serverTest) HasInstance() {
-	s, err := m.newTestServer(true, true, AutoScalerServerNodeStateRunning)
+	s, err := m.newTestServer(true, true, false, AutoScalerServerNodeStateRunning)
 
 	if assert.NoError(m.t, err) {
 		request := &apigrpc.HasInstanceRequest{
@@ -112,7 +113,7 @@ func (m *serverTest) HasInstance() {
 }
 
 func (m *serverTest) Pricing() {
-	s, err := m.newTestServer(true, false)
+	s, err := m.newTestServer(true, false, false)
 
 	if assert.NoError(m.t, err) {
 		request := &apigrpc.CloudProviderServiceRequest{
@@ -130,7 +131,7 @@ func (m *serverTest) Pricing() {
 }
 
 func (m *serverTest) GetAvailableMachineTypes() {
-	s, err := m.newTestServer(true, false)
+	s, err := m.newTestServer(true, false, false)
 
 	expected := []string{
 		"2xlarge",
@@ -160,7 +161,7 @@ func (m *serverTest) GetAvailableMachineTypes() {
 }
 
 func (m *serverTest) NewNodeGroup() {
-	s, err := m.newTestServer(false, false)
+	s, err := m.newTestServer(false, false, false)
 
 	if assert.NoError(m.t, err) {
 		request := &apigrpc.NewNodeGroupRequest{
@@ -180,7 +181,7 @@ func (m *serverTest) NewNodeGroup() {
 }
 
 func (m *serverTest) GetResourceLimiter() {
-	s, err := m.newTestServer(true, false)
+	s, err := m.newTestServer(true, false, false)
 
 	expected := &types.ResourceLimiter{
 		MinLimits: map[string]int64{constantes.ResourceNameCores: 1, constantes.ResourceNameMemory: 10000000},
@@ -203,7 +204,7 @@ func (m *serverTest) GetResourceLimiter() {
 }
 
 func (m *serverTest) Cleanup() {
-	s, err := m.newTestServer(true, false)
+	s, err := m.newTestServer(true, false, false)
 
 	if assert.NoError(m.t, err) {
 		request := &apigrpc.CloudProviderServiceRequest{
@@ -219,7 +220,7 @@ func (m *serverTest) Cleanup() {
 }
 
 func (m *serverTest) Refresh() {
-	s, err := m.newTestServer(true, true)
+	s, err := m.newTestServer(true, false, true)
 
 	if assert.NoError(m.t, err) {
 		request := &apigrpc.CloudProviderServiceRequest{
@@ -235,7 +236,7 @@ func (m *serverTest) Refresh() {
 }
 
 func (m *serverTest) MaxSize() {
-	s, err := m.newTestServer(true, false)
+	s, err := m.newTestServer(true, false, false)
 
 	if assert.NoError(m.t, err) {
 		request := &apigrpc.NodeGroupServiceRequest{
@@ -252,7 +253,7 @@ func (m *serverTest) MaxSize() {
 }
 
 func (m *serverTest) MinSize() {
-	s, err := m.newTestServer(true, false)
+	s, err := m.newTestServer(true, false, false)
 
 	if assert.NoError(m.t, err) {
 		request := &apigrpc.NodeGroupServiceRequest{
@@ -269,7 +270,7 @@ func (m *serverTest) MinSize() {
 }
 
 func (m *serverTest) TargetSize() {
-	s, err := m.newTestServer(true, true)
+	s, err := m.newTestServer(true, false, true)
 
 	if assert.NoError(m.t, err) {
 		request := &apigrpc.NodeGroupServiceRequest{
@@ -288,7 +289,7 @@ func (m *serverTest) TargetSize() {
 }
 
 func (m *serverTest) IncreaseSize() {
-	s, err := m.newTestServer(true, false)
+	s, err := m.newTestServer(true, false, false)
 
 	if assert.NoError(m.t, err) {
 		request := &apigrpc.IncreaseSizeRequest{
@@ -306,7 +307,7 @@ func (m *serverTest) IncreaseSize() {
 }
 
 func (m *serverTest) DeleteNodes() {
-	s, err := m.newTestServer(true, true)
+	s, err := m.newTestServer(true, false, true)
 
 	if assert.NoError(m.t, err) {
 		nodes := []string{utils.ToJSON(s.createFakeNode(testNodeName))}
@@ -325,7 +326,7 @@ func (m *serverTest) DeleteNodes() {
 }
 
 func (m *serverTest) DecreaseTargetSize() {
-	s, err := m.newTestServer(true, true)
+	s, err := m.newTestServer(true, false, true)
 
 	if assert.NoError(m.t, err) {
 		request := &apigrpc.DecreaseTargetSizeRequest{
@@ -343,7 +344,7 @@ func (m *serverTest) DecreaseTargetSize() {
 }
 
 func (m *serverTest) Id() {
-	s, err := m.newTestServer(true, false)
+	s, err := m.newTestServer(true, false, false)
 
 	if assert.NoError(m.t, err) {
 		request := &apigrpc.NodeGroupServiceRequest{
@@ -360,7 +361,7 @@ func (m *serverTest) Id() {
 }
 
 func (m *serverTest) Debug() {
-	s, err := m.newTestServer(true, false)
+	s, err := m.newTestServer(true, false, false)
 
 	if assert.NoError(m.t, err) {
 		request := &apigrpc.NodeGroupServiceRequest{
@@ -375,7 +376,7 @@ func (m *serverTest) Debug() {
 }
 
 func (m *serverTest) Nodes() {
-	s, err := m.newTestServer(true, true)
+	s, err := m.newTestServer(true, false, true)
 
 	expected := []string{
 		fmt.Sprintf("vsphere://%s", testVMUUID),
@@ -398,7 +399,7 @@ func (m *serverTest) Nodes() {
 }
 
 func (m *serverTest) TemplateNodeInfo() {
-	s, err := m.newTestServer(true, true)
+	s, err := m.newTestServer(true, false, true)
 
 	if assert.NoError(m.t, err) {
 		request := &apigrpc.NodeGroupServiceRequest{
@@ -415,7 +416,7 @@ func (m *serverTest) TemplateNodeInfo() {
 }
 
 func (m *serverTest) Exist() {
-	s, err := m.newTestServer(true, false)
+	s, err := m.newTestServer(true, false, false)
 
 	if assert.NoError(m.t, err) {
 		request := &apigrpc.NodeGroupServiceRequest{
@@ -432,7 +433,7 @@ func (m *serverTest) Exist() {
 }
 
 func (m *serverTest) Create() {
-	s, err := m.newTestServer(true, false)
+	s, err := m.newTestServer(true, false, false)
 
 	if assert.NoError(m.t, err) {
 		request := &apigrpc.NodeGroupServiceRequest{
@@ -451,7 +452,7 @@ func (m *serverTest) Create() {
 }
 
 func (m *serverTest) Delete() {
-	s, err := m.newTestServer(true, false)
+	s, err := m.newTestServer(true, false, false)
 
 	if assert.NoError(m.t, err) {
 		request := &apigrpc.NodeGroupServiceRequest{
@@ -468,7 +469,7 @@ func (m *serverTest) Delete() {
 }
 
 func (m *serverTest) Autoprovisioned() {
-	s, err := m.newTestServer(true, false)
+	s, err := m.newTestServer(true, false, false)
 
 	if assert.NoError(m.t, err) {
 		request := &apigrpc.NodeGroupServiceRequest{
@@ -485,7 +486,7 @@ func (m *serverTest) Autoprovisioned() {
 }
 
 func (m *serverTest) Belongs() {
-	s, err := m.newTestServer(true, true)
+	s, err := m.newTestServer(true, false, true)
 
 	tests := []struct {
 		name    string
@@ -531,7 +532,7 @@ func (m *serverTest) Belongs() {
 }
 
 func (m *serverTest) NodePrice() {
-	s, err := m.newTestServer(true, true)
+	s, err := m.newTestServer(true, false, true)
 
 	if assert.NoError(m.t, err) {
 		request := &apigrpc.NodePriceRequest{
@@ -552,7 +553,7 @@ func (m *serverTest) NodePrice() {
 }
 
 func (m *serverTest) PodPrice() {
-	s, err := m.newTestServer(true, true)
+	s, err := m.newTestServer(true, false, true)
 
 	if assert.NoError(m.t, err) {
 		request := &apigrpc.PodPriceRequest{
@@ -611,7 +612,7 @@ func (m *serverTest) extractAvailableMachineTypes(availableMachineTypes *apigrpc
 	return r
 }
 
-func (m *serverTest) newTestServer(addNodeGroup, addTestNode bool, desiredState ...AutoScalerServerNodeState) (*autoScalerServerAppTest, error) {
+func (m *serverTest) newTestServer(addNodeGroup, addTestNode, controlPlane bool, desiredState ...AutoScalerServerNodeState) (*autoScalerServerAppTest, error) {
 
 	if ng, err := m.newTestNodeGroup(); err == nil {
 		s := &autoScalerServerAppTest{
@@ -632,7 +633,7 @@ func (m *serverTest) newTestServer(addNodeGroup, addTestNode bool, desiredState 
 				s.Groups[ng.NodeGroupIdentifier] = &ng.AutoScalerServerNodeGroup
 
 				if addTestNode {
-					ng.createTestNode(testNodeName, desiredState...)
+					ng.createTestNode(testNodeName, controlPlane, desiredState...)
 				}
 			}
 		}
@@ -643,10 +644,19 @@ func (m *serverTest) newTestServer(addNodeGroup, addTestNode bool, desiredState 
 	}
 }
 
+func getTestMode() bool {
+	if testMode := strings.ToLower(os.Getenv("TEST_MODE")); testMode != "" {
+		return testMode == "true" || testMode == "1"
+	}
+
+	return false
+}
+
 func createServerTest(t *testing.T) *serverTest {
 	return &serverTest{
 		baseTest: baseTest{
-			t: t,
+			t:        t,
+			testMode: getTestMode(),
 		},
 	}
 }
