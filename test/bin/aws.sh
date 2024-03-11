@@ -24,6 +24,8 @@ mkdir -p ${HOME}/.ssh
 
 echo -n ${SSH_PRIVATEKEY} | base64 -d > ${HOME}/.ssh/test_rsa
 
+chmod 0600 ${HOME}/.ssh/test_rsa
+
 export Test_AuthMethodKey=NO
 export Test_Sudo=NO
 export Test_getInstanceID=YES
