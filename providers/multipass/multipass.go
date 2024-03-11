@@ -37,6 +37,7 @@ type multipassWrapper interface {
 type baseMultipassWrapper struct {
 	*Configuration
 	sync.Mutex
+	testMode bool
 }
 
 type createInstanceInput struct {
@@ -70,6 +71,14 @@ func (wrapper *baseMultipassWrapper) waitForIP(instanceName string, status multi
 	}
 
 	return address, nil
+}
+
+func (wrapper *baseMultipassWrapper) SetMode(test bool) {
+	wrapper.testMode = test
+}
+
+func (wrapper *baseMultipassWrapper) GetMode() bool {
+	return wrapper.testMode
 }
 
 func (wrapper *baseMultipassWrapper) waitForPowered(instanceName string, status multipassWrapper) (err error) {

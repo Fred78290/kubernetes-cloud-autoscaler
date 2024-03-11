@@ -35,11 +35,11 @@ type Configuration struct {
 	AvailableGPUTypes map[string]string `json:"gpu-types"`
 	VMWareRegion      string            `json:"csi-region"`
 	VMWareZone        string            `json:"csi-zone"`
-	TestMode          bool              `json:"test-mode"`
 }
 
 type vsphereWrapper struct {
 	Configuration
+	testMode bool
 }
 
 type vsphereHandler struct {
@@ -315,6 +315,14 @@ func (handler *vsphereHandler) findPreferredIPAddress(interfaces []providers.Net
 	return address
 }
 
+func (wrapper *vsphereWrapper) SetMode(test bool) {
+	wrapper.testMode = test
+}
+
+func (wrapper *vsphereWrapper) GetMode() bool {
+	return wrapper.testMode
+}
+
 func (wrapper *vsphereWrapper) AttachInstance(instanceName string, controlPlane bool, nodeIndex int) (providers.ProviderHandler, error) {
 	if vmuuid, err := wrapper.UUID(instanceName); err != nil {
 		return nil, err
@@ -527,7 +535,7 @@ func (wrapper *vsphereWrapper) getURL() (string, error) {
 // WaitForIPWithContext wait ip a VM by name
 func (wrapper *vsphereWrapper) WaitForIPWithContext(ctx *context.Context, name string) (string, error) {
 
-	if wrapper.TestMode {
+	if wrapper.testMode {
 		return "127.0.0.1", nil
 	}
 
@@ -552,7 +560,7 @@ func (wrapper *vsphereWrapper) WaitForIP(name string) (string, error) {
 func (wrapper *vsphereWrapper) SetAutoStartWithContext(ctx *context.Context, esxi, name string, startOrder int) error {
 	var err error = nil
 
-	if !wrapper.TestMode {
+	if !wrapper.testMode {
 		var client *Client
 		var dc *Datacenter
 		var host *HostAutoStartManager
@@ -571,7 +579,7 @@ func (wrapper *vsphereWrapper) SetAutoStartWithContext(ctx *context.Context, esx
 
 // WaitForToolsRunningWithContext wait vmware tools is running a VM by name
 func (wrapper *vsphereWrapper) WaitForToolsRunningWithContext(ctx *context.Context, name string) (bool, error) {
-	if wrapper.TestMode {
+	if wrapper.testMode {
 		return true, nil
 	}
 
@@ -586,7 +594,7 @@ func (wrapper *vsphereWrapper) WaitForToolsRunningWithContext(ctx *context.Conte
 
 // WaitForToolsRunningWithContext wait vmware tools is running a VM by name
 func (wrapper *vsphereWrapper) WaitForPoweredWithContext(ctx *context.Context, name string) error {
-	if wrapper.TestMode {
+	if wrapper.testMode {
 		return nil
 	}
 

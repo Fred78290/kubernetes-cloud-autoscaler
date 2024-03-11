@@ -1,12 +1,18 @@
 package server
 
 import (
+	"os"
 	"testing"
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/utils"
+	glog "github.com/sirupsen/logrus"
 )
 
 func Test_Nodegroup(t *testing.T) {
+	glog.SetLevel(glog.DebugLevel)
+
+	os.Setenv("TEST_MODE", "1")
+
 	if utils.ShouldTestFeature("TestNodegroup") {
 		test := createTestNodegroup(t)
 

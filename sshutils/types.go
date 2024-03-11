@@ -13,7 +13,15 @@ type AutoScalerServerSSH struct {
 	Password              string `json:"password"`
 	AuthKeys              string `json:"ssh-private-key"`
 	WaitSshReadyInSeconds int    `default:180 json:"wait-ssh-ready-seconds"`
-	TestMode              bool   `json:"-"`
+	testMode              bool   `json:"-"`
+}
+
+func (ssh *AutoScalerServerSSH) SetMode(test bool) {
+	ssh.testMode = test
+}
+
+func (ssh *AutoScalerServerSSH) GetMode() bool {
+	return ssh.testMode
 }
 
 // GetUserName returns user name from config or the real current username is empty or equal to ~

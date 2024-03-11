@@ -30,7 +30,6 @@ type Configuration struct {
 	AllowUpgrade      bool               `default:true json:"allow-upgrade"`
 	VMWareRegion      string             `default:"home" json:"csi-region"`
 	VMWareZone        string             `default:"office" json:"csi-zone"`
-	TestMode          bool               `json:"test-mode"`
 }
 
 type desktopWrapper struct {
@@ -38,6 +37,7 @@ type desktopWrapper struct {
 
 	client       api.DesktopAutoscalerServiceClient
 	templateUUID string
+	testMode     bool
 }
 
 type desktopHandler struct {
@@ -302,6 +302,14 @@ func (handler *desktopHandler) findInterface(ether *VNetDevice) *providers.Netwo
 	}
 
 	return nil
+}
+
+func (wrapper *desktopWrapper) SetMode(test bool) {
+	wrapper.testMode = test
+}
+
+func (wrapper *desktopWrapper) GetMode() bool {
+	return wrapper.testMode
 }
 
 func (wrapper *desktopWrapper) AttachInstance(instanceName string, controlPlane bool, nodeIndex int) (providers.ProviderHandler, error) {

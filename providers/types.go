@@ -78,6 +78,7 @@ type ProviderConfiguration interface {
 	GetAvailableGpuTypes() map[string]string
 	InstanceExists(name string) bool
 	UUID(name string) (string, error)
+	SetMode(test bool)
 }
 
 type InstanceCreateInput struct {

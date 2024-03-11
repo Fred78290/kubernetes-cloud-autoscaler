@@ -48,7 +48,6 @@ type Configuration struct {
 	Tags              []Tag             `json:"tags,omitempty"`
 	Network           Network           `json:"network"`
 	AvailableGPUTypes map[string]string `json:"gpu-types"`
-	TestMode          bool              `json:"test-mode"`
 	ec2Client         *ec2.EC2
 }
 
@@ -108,6 +107,7 @@ type CreateInput struct {
 }
 type awsWrapper struct {
 	Configuration
+	testMode bool
 }
 
 type awsHandler struct {
@@ -345,7 +345,7 @@ func (handler *awsHandler) RegisterDNS(address string) error {
 
 		glog.Infof("Register route53 entry for instance %s, hostname: %s with IP: %s", vm.InstanceName, hostname, address)
 
-		err = vm.RegisterDNS(hostname, address, handler.TestMode)
+		err = vm.RegisterDNS(hostname, address, handler.testMode)
 	}
 
 	return err
@@ -377,6 +377,14 @@ func (handler *awsHandler) UUID(instanceName string) (string, error) {
 	} else {
 		return *ec2.InstanceID, nil
 	}
+}
+
+func (wrapper *awsWrapper) SetMode(test bool) {
+	wrapper.testMode = test
+}
+
+func (wrapper *awsWrapper) GetMode() bool {
+	return wrapper.testMode
 }
 
 func (wrapper *awsWrapper) AttachInstance(instanceName string, controlPlane bool, nodeIndex int) (providers.ProviderHandler, error) {

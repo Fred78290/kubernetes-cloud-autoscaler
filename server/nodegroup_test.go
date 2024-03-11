@@ -24,6 +24,7 @@ import (
 type baseTest struct {
 	testConfig providers.ProviderConfiguration
 	t          *testing.T
+	testMode   bool
 }
 
 type nodegroupTest struct {
@@ -35,7 +36,7 @@ type autoScalerServerNodeGroupTest struct {
 	baseTest
 }
 
-func (ng *autoScalerServerNodeGroupTest) createTestNode(nodeName string, desiredState ...AutoScalerServerNodeState) *AutoScalerServerNode {
+func (ng *autoScalerServerNodeGroupTest) createTestNode(nodeName string, controlPlane bool, desiredState ...AutoScalerServerNodeState) *AutoScalerServerNode {
 	var state AutoScalerServerNodeState = AutoScalerServerNodeStateNotCreated
 
 	if len(desiredState) > 0 {
@@ -45,19 +46,20 @@ func (ng *autoScalerServerNodeGroupTest) createTestNode(nodeName string, desired
 	machine := ng.Machine()
 
 	node := &AutoScalerServerNode{
-		NodeGroup:       testGroupID,
-		NodeName:        nodeName,
-		VMUUID:          testVMUUID,
-		CRDUID:          testCRDUID,
-		Memory:          machine.Memory,
-		CPU:             machine.Vcpu,
-		DiskSize:        machine.DiskSize,
-		IPAddress:       "127.0.0.1",
-		State:           state,
-		NodeType:        AutoScalerServerNodeAutoscaled,
-		NodeIndex:       1,
-		providerHandler: nil,
-		serverConfig:    ng.configuration,
+		NodeGroup:        testGroupID,
+		NodeName:         nodeName,
+		ControlPlaneNode: controlPlane,
+		VMUUID:           testVMUUID,
+		CRDUID:           testCRDUID,
+		Memory:           machine.Memory,
+		CPU:              machine.Vcpu,
+		DiskSize:         machine.DiskSize,
+		IPAddress:        "127.0.0.1",
+		State:            state,
+		NodeType:         AutoScalerServerNodeAutoscaled,
+		NodeIndex:        1,
+		providerHandler:  nil,
+		serverConfig:     ng.configuration,
 	}
 
 	if ng.testConfig.InstanceExists(nodeName) {
@@ -77,7 +79,7 @@ func (ng *autoScalerServerNodeGroupTest) createTestNode(nodeName string, desired
 }
 
 func (m *nodegroupTest) launchVM() {
-	ng, testNode, err := m.newTestNode(launchVMName)
+	ng, testNode, err := m.newTestNode(true, launchVMName)
 
 	if assert.NoError(m.t, err) {
 		if err := testNode.launchVM(m, ng.NodeLabels, ng.SystemLabels); err != nil {
@@ -87,7 +89,7 @@ func (m *nodegroupTest) launchVM() {
 }
 
 func (m *nodegroupTest) startVM() {
-	_, testNode, err := m.newTestNode(launchVMName)
+	_, testNode, err := m.newTestNode(true, launchVMName)
 
 	if assert.NoError(m.t, err) {
 		if err := testNode.startVM(m); err != nil {
@@ -97,7 +99,7 @@ func (m *nodegroupTest) startVM() {
 }
 
 func (m *nodegroupTest) stopVM() {
-	_, testNode, err := m.newTestNode(launchVMName)
+	_, testNode, err := m.newTestNode(true, launchVMName)
 
 	if assert.NoError(m.t, err) {
 		if err := testNode.stopVM(m); err != nil {
@@ -107,7 +109,7 @@ func (m *nodegroupTest) stopVM() {
 }
 
 func (m *nodegroupTest) deleteVM() {
-	_, testNode, err := m.newTestNode(launchVMName)
+	_, testNode, err := m.newTestNode(true, launchVMName)
 
 	if assert.NoError(m.t, err) {
 		if err := testNode.deleteVM(m); err != nil {
@@ -117,7 +119,7 @@ func (m *nodegroupTest) deleteVM() {
 }
 
 func (m *nodegroupTest) statusVM() {
-	_, testNode, err := m.newTestNode(launchVMName)
+	_, testNode, err := m.newTestNode(true, launchVMName)
 
 	if assert.NoError(m.t, err) {
 		if got, err := testNode.statusVM(); err != nil {
@@ -139,7 +141,7 @@ func (m *nodegroupTest) addNode() {
 }
 
 func (m *nodegroupTest) deleteNode() {
-	ng, testNode, err := m.newTestNode(launchVMName)
+	ng, testNode, err := m.newTestNode(true, launchVMName)
 
 	if assert.NoError(m.t, err) {
 		if err := ng.deleteNodeByName(m, testNode.NodeName); err != nil {
@@ -264,10 +266,10 @@ func (m *baseTest) DeleteSecret(secretName, namespace string) error {
 	return nil
 }
 
-func (m *baseTest) newTestNodeNamedWithState(nodeName string, state AutoScalerServerNodeState) (*autoScalerServerNodeGroupTest, *AutoScalerServerNode, error) {
+func (m *baseTest) newTestNodeNamedWithState(nodeName string, controlPlane bool, state AutoScalerServerNodeState) (*autoScalerServerNodeGroupTest, *AutoScalerServerNode, error) {
 
 	if ng, err := m.newTestNodeGroup(); err == nil {
-		vm := ng.createTestNode(nodeName, state)
+		vm := ng.createTestNode(nodeName, controlPlane)
 
 		return ng, vm, err
 	} else {
@@ -275,18 +277,18 @@ func (m *baseTest) newTestNodeNamedWithState(nodeName string, state AutoScalerSe
 	}
 }
 
-func (m *baseTest) newTestNode(name ...string) (*autoScalerServerNodeGroupTest, *AutoScalerServerNode, error) {
+func (m *baseTest) newTestNode(controlPlane bool, name ...string) (*autoScalerServerNodeGroupTest, *AutoScalerServerNode, error) {
 	nodeName := testNodeName
 
 	if len(name) > 0 {
 		nodeName = name[0]
 	}
 
-	return m.newTestNodeNamedWithState(nodeName, AutoScalerServerNodeStateNotCreated)
+	return m.newTestNodeNamedWithState(nodeName, controlPlane, AutoScalerServerNodeStateNotCreated)
 }
 
 func (m *baseTest) newTestNodeGroup() (*autoScalerServerNodeGroupTest, error) {
-	config, err := m.newTestConfig()
+	config, err := m.newTestConfig(m.testMode)
 
 	if err == nil {
 		if _, ok := config.machines[config.DefaultMachineType]; ok {
@@ -294,6 +296,7 @@ func (m *baseTest) newTestNodeGroup() (*autoScalerServerNodeGroupTest, error) {
 				baseTest: baseTest{
 					t:          m.t,
 					testConfig: m.testConfig,
+					testMode:   m.testMode,
 				},
 				AutoScalerServerNodeGroup: AutoScalerServerNodeGroup{
 					AutoProvision:              true,
@@ -354,7 +357,7 @@ type AutoScalerServerConfigTest struct {
 	machines providers.MachineCharacteristics
 }
 
-func (m *baseTest) newTestConfig() (*AutoScalerServerConfigTest, error) {
+func (m *baseTest) newTestConfig(testMode bool) (*AutoScalerServerConfigTest, error) {
 	var config AutoScalerServerConfigTest
 
 	fileName := m.getConfFile()
@@ -387,14 +390,15 @@ func (m *baseTest) newTestConfig() (*AutoScalerServerConfigTest, error) {
 		return nil, err
 	} else {
 		m.testConfig = config.GetCloudConfiguration()
-		config.SSH.TestMode = true
+		m.testConfig.SetMode(testMode)
+		config.SSH.SetMode(testMode)
 
 		return &config, err
 	}
 }
 
 func (m *baseTest) ssh() {
-	config, err := m.newTestConfig()
+	config, err := m.newTestConfig(false)
 
 	if assert.NoError(m.t, err) {
 		if _, err = utils.Sudo(config.SSH, "127.0.0.1", 1, "ls"); err != nil {
@@ -420,7 +424,8 @@ func createTestNodegroup(t *testing.T) *nodegroupTest {
 
 	return &nodegroupTest{
 		baseTest: baseTest{
-			t: t,
+			t:        t,
+			testMode: getTestMode(),
 		},
 	}
 }

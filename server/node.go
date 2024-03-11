@@ -1340,7 +1340,7 @@ func (vm *AutoScalerServerNode) cleanOnLaunchError(c types.ClientGenerator, err 
 	exists := fmt.Sprintf(constantes.ErrVMAlreadyExists, vm.InstanceName)
 
 	if err.Error() != exists {
-		if *vm.serverConfig.DebugMode {
+		if vm.serverConfig.DebugMode != nil && *vm.serverConfig.DebugMode {
 			glog.Warningf("Debug mode enabled, don't delete VM: %s for inspection", vm.InstanceName)
 		} else if status, _ := vm.statusVM(); status != AutoScalerServerNodeStateNotCreated {
 			if e := vm.deleteVM(c); e != nil {

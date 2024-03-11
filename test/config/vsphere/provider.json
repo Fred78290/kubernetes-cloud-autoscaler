@@ -12,7 +12,6 @@
     "template": false,
     "linked": false,
     "customization": "",
-    "test-mode": ${TEST_MODE},
     "network": {
         "domain": "${PUBLIC_DOMAIN_NAME}",
         "dns": {
