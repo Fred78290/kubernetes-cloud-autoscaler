@@ -27,7 +27,7 @@ type Configuration struct {
 	Autostart         bool               `json:"autostart"`
 	Network           *providers.Network `json:"network"`
 	AvailableGPUTypes map[string]string  `json:"gpu-types"`
-	AllowUpgrade      bool               `default:"true" json:"allow-upgrade"`
+	AllowUpgrade      bool               `default:true json:"allow-upgrade"`
 	VMWareRegion      string             `default:"home" json:"csi-region"`
 	VMWareZone        string             `default:"office" json:"csi-zone"`
 	TestMode          bool               `json:"test-mode"`

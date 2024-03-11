@@ -69,7 +69,7 @@ type NetworkAdapter struct {
 
 // NetworkDeclare wrapper
 type NetworkDeclare struct {
-	Version   int                        `default:"2" json:"version,omitempty" yaml:"version,omitempty"`
+	Version   int                        `default:2 json:"version,omitempty" yaml:"version,omitempty"`
 	Ethernets map[string]*NetworkAdapter `json:"ethernets,omitempty" yaml:"ethernets,omitempty"`
 }
 

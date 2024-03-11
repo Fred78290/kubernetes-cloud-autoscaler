@@ -15,9 +15,9 @@ import (
 )
 
 type NetworkInterface struct {
-	Enabled        bool                     `default:"true" json:"enabled,omitempty" yaml:"primary,omitempty"`
+	Enabled        bool                     `default:true json:"enabled,omitempty" yaml:"primary,omitempty"`
 	Primary        bool                     `json:"primary,omitempty" yaml:"primary,omitempty"`
-	Existing       bool                     `default:"true" json:"exists,omitempty" yaml:"exists,omitempty"`
+	Existing       bool                     `default:true json:"exists,omitempty" yaml:"exists,omitempty"`
 	ConnectionType string                   `default:"nat" json:"type,omitempty" yaml:"type,omitempty"`
 	BsdName        string                   `json:"bsd-name,omitempty" yaml:"bsd-name,omitempty"`
 	DisplayName    string                   `json:"display-name,omitempty" yaml:"display-name,omitempty"`
@@ -26,7 +26,7 @@ type NetworkInterface struct {
 	MacAddress     string                   `json:"mac-address,omitempty" yaml:"mac-address,omitempty"`
 	NicName        string                   `json:"nic,omitempty" yaml:"nic,omitempty"`
 	DHCP           bool                     `json:"dhcp,omitempty" yaml:"dhcp,omitempty"`
-	UseRoutes      bool                     `default:"true" json:"use-dhcp-routes,omitempty" yaml:"use-dhcp-routes,omitempty"`
+	UseRoutes      bool                     `default:true json:"use-dhcp-routes,omitempty" yaml:"use-dhcp-routes,omitempty"`
 	IPAddress      string                   `json:"address,omitempty" yaml:"address,omitempty"`
 	Netmask        string                   `json:"netmask,omitempty" yaml:"netmask,omitempty"`
 	Gateway        string                   `json:"gateway,omitempty" yaml:"gateway,omitempty"`

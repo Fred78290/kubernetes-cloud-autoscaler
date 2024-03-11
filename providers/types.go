@@ -64,10 +64,10 @@ type InstanceStatus interface {
 
 // MachineCharacteristic defines VM kind
 type MachineCharacteristic struct {
-	Price    float64 `json:"price"`                    // VM price in usd
-	Memory   int     `json:"memsize"`                  // VM Memory size in megabytes
-	Vcpu     int     `json:"vcpus"`                    // VM number of cpus
-	DiskSize int     `default:"10240" json:"disksize"` // VM disk size in megabytes
+	Price    float64 `json:"price"`                  // VM price in usd
+	Memory   int     `json:"memsize"`                // VM Memory size in megabytes
+	Vcpu     int     `json:"vcpus"`                  // VM number of cpus
+	DiskSize int     `default:10240 json:"disksize"` // VM disk size in megabytes
 }
 
 type MachineCharacteristics map[string]*MachineCharacteristic

@@ -12,7 +12,7 @@ type AutoScalerServerSSH struct {
 	UserName              string `json:"user"`
 	Password              string `json:"password"`
 	AuthKeys              string `json:"ssh-private-key"`
-	WaitSshReadyInSeconds int    `default:"180" json:"wait-ssh-ready-seconds"`
+	WaitSshReadyInSeconds int    `default:180 json:"wait-ssh-ready-seconds"`
 	TestMode              bool   `json:"-"`
 }
 

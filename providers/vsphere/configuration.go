@@ -29,7 +29,7 @@ type Configuration struct {
 	TemplateName      string            `json:"template-name"`
 	Template          bool              `json:"template"`
 	LinkedClone       bool              `json:"linked"`
-	AllowUpgrade      bool              `default:"true" json:"allow-upgrade"`
+	AllowUpgrade      bool              `default:true json:"allow-upgrade"`
 	Customization     string            `json:"customization"`
 	Network           providers.Network `json:"network"`
 	AvailableGPUTypes map[string]string `json:"gpu-types"`

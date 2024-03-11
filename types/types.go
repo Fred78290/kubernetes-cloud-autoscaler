@@ -216,11 +216,11 @@ type AutoScalerServerOptionals struct {
 type NodeGroupAutoscalingOptions struct {
 	// ScaleDownUtilizationThreshold sets threshold for nodes to be considered for scale down
 	// if cpu or memory utilization is over threshold.
-	ScaleDownUtilizationThreshold float64 `default:"0.5" json:"scaleDownUtilizationThreshold,omitempty"`
+	ScaleDownUtilizationThreshold float64 `default:0.5 json:"scaleDownUtilizationThreshold,omitempty"`
 
 	// ScaleDownGpuUtilizationThreshold sets threshold for gpu nodes to be
 	// considered for scale down if gpu utilization is over threshold.
-	ScaleDownGpuUtilizationThreshold float64 `default:"0.5" json:"scaleDownGpuUtilizationThreshold,omitempty"`
+	ScaleDownGpuUtilizationThreshold float64 `default:0.5 json:"scaleDownGpuUtilizationThreshold,omitempty"`
 
 	// ScaleDownUnneededTime sets the duration CA expects a node to be
 	// unneeded/eligible for removal before scaling down the node.
@@ -265,7 +265,7 @@ type AutoScalerServerConfig struct {
 	MinNode                       *int64                          `json:"minNode"`                                   // Mandatory, Min AutoScaler VM
 	MaxNode                       *int64                          `json:"maxNode"`                                   // Mandatory, Max AutoScaler VM
 	MaxPods                       *int64                          `json:"maxPods"`                                   // Mandatory, Max pod per node
-	MaxCreatedNodePerCycle        int                             `json:"maxNode-per-cycle" default:"2"`             // Optional, the max number VM to create in //
+	MaxCreatedNodePerCycle        int                             `json:"maxNode-per-cycle" default:2`               // Optional, the max number VM to create in //
 	ProvisionnedNodeNamePrefix    string                          `default:"autoscaled" json:"node-name-prefix"`     // Optional, the created node name prefix
 	ManagedNodeNamePrefix         string                          `default:"worker" json:"managed-name-prefix"`      // Optional, the created node name prefix
 	ControlPlaneNamePrefix        string                          `default:"master" json:"controlplane-name-prefix"` // Optional, the created node name prefix
