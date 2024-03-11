@@ -36,6 +36,7 @@ export Test_deleteVM=YES
 export TEST_VSPHERE_CONFIG=${CURDIR}/../config/vsphere/provider.json
 export TEST_CONFIG=${CURDIR}/../config/vsphere/config.json
 export TEST_MACHINES_CONFIG=${CURDIR}/../config/vsphere/machines.json
+export TEST_MODE=1
 
 go clean -testcache
 go mod vendor
