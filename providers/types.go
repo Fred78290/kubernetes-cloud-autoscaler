@@ -25,6 +25,7 @@ const (
 	VSphereCloudProviderName      = "vsphere"
 	VMWareWorkstationProviderName = "desktop"
 	MultipassProviderName         = "multipass"
+	OpenStackProviderName         = "openstack"
 )
 
 var SupportedKubernetesDistribution = []string{
@@ -82,11 +83,12 @@ type ProviderConfiguration interface {
 }
 
 type InstanceCreateInput struct {
-	NodeGroup string
-	UserName  string
-	AuthKey   string
-	CloudInit cloudinit.CloudInit
-	Machine   *MachineCharacteristic
+	ControlPlane bool
+	NodeGroup    string
+	UserName     string
+	AuthKey      string
+	CloudInit    cloudinit.CloudInit
+	Machine      *MachineCharacteristic
 }
 
 type ProviderHandler interface {

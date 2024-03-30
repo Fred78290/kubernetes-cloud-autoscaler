@@ -897,10 +897,11 @@ func (vm *AutoScalerServerNode) createInstance(c types.ClientGenerator) (err err
 	}
 
 	createInput := &providers.InstanceCreateInput{
-		NodeGroup: vm.NodeGroup,
-		UserName:  userInfo.GetUserName(),
-		AuthKey:   userInfo.GetAuthKeys(),
-		CloudInit: vm.CloudInit,
+		ControlPlane: vm.ControlPlaneNode,
+		NodeGroup:    vm.NodeGroup,
+		UserName:     userInfo.GetUserName(),
+		AuthKey:      userInfo.GetAuthKeys(),
+		CloudInit:    vm.CloudInit,
 		Machine: &providers.MachineCharacteristic{
 			Memory:   vm.Memory,
 			Vcpu:     vm.CPU,
