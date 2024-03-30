@@ -209,7 +209,7 @@ const (
 	ErrRsyncError = "can't rsync folder for VM: %s, %s, reason: %v"
 
 	// ErrWrongStateMachine error msg
-	ErrWrongStateMachine = "unexpected instance state %s for instance %s, expected prending or running"
+	ErrWrongStateMachine = "unexpected instance state %s for instance %s, expected pending or running"
 
 	// ErrCantCreateVMAlreadyExist error msg
 	ErrCantCreateVMAlreadyExist = "unable to create VM %s, because another one exists"
