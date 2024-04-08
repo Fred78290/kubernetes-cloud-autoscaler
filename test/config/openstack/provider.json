@@ -1,0 +1,58 @@
+{
+  "image": "${OS_TEMPLATE_NAME}",
+  "allow-upgrade": false,
+	"csi-region": "${OS_REGION_NAME}",
+	"csi-zone": "${OS_ZONE_NAME}",
+  "timeout": 300,
+  "clouds": {
+    "openstack": {
+      "auth": {
+				"auth_url": "${OS_AUTH_URL}",
+				"username": "${OS_USERNAME}",
+				"password": "${OS_PASSWORD}",
+				"project_id": "${OS_PROJECT_ID}",
+				"project_name": "${OS_PROJECT_NAME}",
+				"user_domain_name": "${OS_USER_DOMAIN_NAME}",
+				"tenant_id": "${OS_TENANT_ID}",
+				"tenant_name": "${OS_TENANT_NAME}",
+				"domain_id": "${OS_DOMAIN_ID}",
+				"domain_name": "${OS_DOMAIN_NAME}",
+				"application_credential_id": "${OS_APPLICATION_CREDENTIAL_ID}",
+				"application_credential_name": "${OS_APPLICATION_CREDENTIAL_NAME}",
+				"application_credential_secret": "${OS_APPLICATION_CREDENTIAL_SECRET}",
+				"system_scope": "${OS_SYSTEM_SCOPE}"
+      },
+      "region_name": "${OS_REGION_NAME}",
+      "interface": "public",
+      "verify": false,
+      "identity_api_version": 3
+    }
+  },
+  "floating-ip": {
+    "floating-ip-network": "public",
+    "floating-control-plane": {
+      "security-group": "${EXTERNAL_SECURITY_GROUP}",
+      "use-floating-ip": false
+    },
+    "floating-worker-node": {
+      "security-group": "${INTERNAL_SECURITY_GROUP}",
+      "use-floating-ip": false
+    }
+  },
+  "network": {
+    "domain": "${OS_DESIGNATE_DOMAIN}",
+    "interfaces": [
+      {
+        "enabled": true,
+        "primary": true,
+        "exists": true,
+        "network": "${OS_NETWORK_NAME}",
+        "mac-address": "generate",
+        "nic": "eth0",
+        "dhcp": false,
+        "address": "192.168.32.13",
+        "netmask": "255.255.255.0"
+      }
+    ]
+  }
+}
