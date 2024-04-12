@@ -23,13 +23,12 @@ type vsphereNetworkInterface struct {
 }
 
 func newVSphereNetwork(net *providers.Network, controlPlane bool, nodeIndex int) *vsphereNetwork {
-	copy := net.Clone(controlPlane, nodeIndex)
 	result := &vsphereNetwork{
-		Network:           copy,
+		Network:           net.Clone(controlPlane, nodeIndex),
 		VSphereInterfaces: make([]vsphereNetworkInterface, len(net.Interfaces)),
 	}
 
-	for index, inf := range copy.Interfaces {
+	for index, inf := range result.Interfaces {
 		result.VSphereInterfaces[index] = vsphereNetworkInterface{
 			NetworkInterface: inf,
 		}
