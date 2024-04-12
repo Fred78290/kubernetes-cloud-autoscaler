@@ -11,14 +11,10 @@ import (
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/context"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/availabilityzones"
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/extendedserverattributes"
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/extendedstatus"
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/startstop"
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
-	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/layer3/floatingips"
-	"github.com/gophercloud/gophercloud/openstack/networking/v2/ports"
-	"github.com/gophercloud/gophercloud/pagination"
+	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/servers"
+	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions/layer3/floatingips"
+	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/ports"
+	"github.com/gophercloud/gophercloud/v2/pagination"
 )
 
 type instanceStatus struct {
@@ -28,9 +24,6 @@ type instanceStatus struct {
 
 type OpenStackServer struct {
 	servers.Server
-	extendedstatus.ServerExtendedStatusExt
-	availabilityzones.AvailabilityZone
-	extendedserverattributes.ServerAttributesExt
 }
 
 type ServerInstance struct {
@@ -59,7 +52,10 @@ func (instance *ServerInstance) WaitForIP(callback providers.CallbackWaitSSHRead
 	if err = context.PollImmediate(time.Second, instance.Timeout*time.Second, func() (bool, error) {
 		var server *servers.Server
 
-		if server, err = instance.getServer(); err != nil {
+		ctx := context.NewContext(instance.Timeout)
+		defer ctx.Cancel()
+
+		if server, err = instance.getServer(ctx); err != nil {
 			return false, err
 		}
 
@@ -86,14 +82,14 @@ func (instance *ServerInstance) WaitForIP(callback providers.CallbackWaitSSHRead
 	return
 }
 
-func (instance *ServerInstance) PowerOn() (err error) {
+func (instance *ServerInstance) PowerOn(ctx *context.Context) (err error) {
 	glog.Debugf("PowerOn: instance %s id (%s)", instance.InstanceName, instance.InstanceID)
 
-	if err = startstop.Start(instance.computeClient, instance.InstanceID).ExtractErr(); err == nil {
+	if err = servers.Start(ctx, instance.computeClient, instance.InstanceID).ExtractErr(); err == nil {
 		err = context.PollImmediate(time.Second, instance.Timeout*time.Second, func() (bool, error) {
 			var server *servers.Server
 
-			if server, err = instance.getServer(); err != nil {
+			if server, err = instance.getServer(ctx); err != nil {
 				return false, err
 			}
 
@@ -112,14 +108,14 @@ func (instance *ServerInstance) PowerOn() (err error) {
 	return err
 }
 
-func (instance *ServerInstance) PowerOff() (err error) {
+func (instance *ServerInstance) PowerOff(ctx *context.Context) (err error) {
 	glog.Debugf("PowerOff: instance %s id (%s)", instance.InstanceName, instance.InstanceID)
 
-	if err = startstop.Start(instance.computeClient, instance.InstanceID).ExtractErr(); err == nil {
+	if err = servers.Stop(ctx, instance.computeClient, instance.InstanceID).ExtractErr(); err == nil {
 		err = context.PollImmediate(time.Second, instance.Timeout*time.Second, func() (bool, error) {
 			var server *servers.Server
 
-			if server, err = instance.getServer(); err != nil {
+			if server, err = instance.getServer(ctx); err != nil {
 				return false, err
 			}
 
@@ -139,15 +135,21 @@ func (instance *ServerInstance) PowerOff() (err error) {
 }
 
 func (instance *ServerInstance) ShutdownGuest() (err error) {
-	return instance.PowerOff()
+	ctx := context.NewContext(instance.Timeout)
+	defer ctx.Cancel()
+
+	return instance.PowerOff(ctx)
 }
 
 func (instance *ServerInstance) Delete() (err error) {
 	glog.Debugf("Delete: instance %s id (%s)", instance.InstanceName, instance.InstanceID)
 
-	if err = servers.Delete(instance.computeClient, instance.InstanceID).ExtractErr(); err == nil {
-		if instance.Network.floatingIP != nil {
-			err = floatingips.Delete(instance.computeClient, *instance.Network.floatingIP).ExtractErr()
+	ctx := context.NewContext(instance.Timeout)
+	defer ctx.Cancel()
+
+	if err = servers.Delete(ctx, instance.computeClient, instance.InstanceID).ExtractErr(); err == nil {
+		if instance.network.floatingIP != nil {
+			err = floatingips.Delete(ctx, instance.computeClient, *instance.network.floatingIP).ExtractErr()
 		}
 	}
 
@@ -160,11 +162,14 @@ func (instance *ServerInstance) Status() (status providers.InstanceStatus, err e
 	var server *servers.Server
 	var addressIP string
 
-	if server, err = instance.getServer(); err != nil {
+	ctx := context.NewContext(instance.Timeout)
+	defer ctx.Cancel()
+
+	if server, err = instance.getServer(ctx); err != nil {
 		return
 	}
 
-	if addressIP, err = instance.getAddress(server); err != nil {
+	if addressIP, err = instance.getAddress(ctx, server); err != nil {
 		return
 	}
 
@@ -184,7 +189,10 @@ func (instance *ServerInstance) WaitForPowered() error {
 		var err error
 		var server *servers.Server
 
-		if server, err = instance.getServer(); err != nil {
+		ctx := context.NewContext(instance.Timeout)
+		defer ctx.Cancel()
+
+		if server, err = instance.getServer(ctx); err != nil {
 			glog.Debugf("WaitForPowered: instance %s id (%s), got an error %v", instance.InstanceName, instance.InstanceID, err)
 
 			return false, err
@@ -208,8 +216,8 @@ func (instance *ServerInstance) WaitForPowered() error {
 	})
 }
 
-func (instance *ServerInstance) getServer() (*servers.Server, error) {
-	return servers.Get(instance.computeClient, instance.InstanceID).Extract()
+func (instance *ServerInstance) getServer(ctx *context.Context) (*servers.Server, error) {
+	return servers.Get(ctx, instance.computeClient, instance.InstanceID).Extract()
 }
 
 // Create will create a named VM not powered
@@ -220,19 +228,22 @@ func (instance *ServerInstance) Create(controlPlane bool, nodeGroup, flavorRef s
 	var useFloatingIP bool
 	var floatingNetworkID string
 
-	if instance.Network.FloatingInfos != nil {
-		floatingInfos := instance.Network.FloatingInfos
+	ctx := context.NewContext(instance.Timeout)
+	defer ctx.Cancel()
+
+	if controlPlane {
+		securityGroup = instance.Configuration.Network.SecurityGroup.ControlPlaneNode
+	} else {
+		securityGroup = instance.Configuration.Network.SecurityGroup.WorkerNode
+	}
+
+	if instance.Configuration.Network.FloatingInfos != nil {
+		floatingInfos := instance.Configuration.Network.FloatingInfos
 		floatingNetworkID = floatingInfos.FloatingIPNetwork
 
-		if controlPlane {
-			securityGroup = floatingInfos.ControlPlaneNode.SecurityGroup
-		} else {
-			securityGroup = floatingInfos.WorkerNode.SecurityGroup
-		}
-
-		if controlPlane && floatingInfos.ControlPlaneNode.UseFloatingIP {
+		if controlPlane && floatingInfos.ControlPlaneNode {
 			useFloatingIP = true
-		} else if !controlPlane && floatingInfos.WorkerNode.UseFloatingIP {
+		} else if !controlPlane && floatingInfos.WorkerNode {
 			useFloatingIP = true
 		}
 	}
@@ -243,16 +254,16 @@ func (instance *ServerInstance) Create(controlPlane bool, nodeGroup, flavorRef s
 		UserData:         []byte(userData),
 		ImageRef:         instance.Configuration.Image,
 		AvailabilityZone: instance.Configuration.OpenStackZone,
-		AccessIPv4:       instance.Network.PrimaryAddressIP(),
-		Networks:         instance.Network.toOpenstackNetwork(),
+		AccessIPv4:       instance.network.PrimaryAddressIP(),
+		Networks:         instance.network.toOpenstackNetwork(),
 		SecurityGroups:   []string{securityGroup},
 		Min:              1,
 		Max:              1,
 	}
 
-	if server, err = servers.Create(instance.computeClient, opts).Extract(); err != nil {
+	if server, err = servers.Create(ctx, instance.computeClient, opts).Extract(); err != nil {
 		err = fmt.Errorf("server creation failed for: %s, reason: %v", instance.InstanceName, err)
-	} else if instance.AddressIP, err = instance.getAddress(server); err != nil {
+	} else if instance.AddressIP, err = instance.getAddress(ctx, server); err != nil {
 		err = fmt.Errorf("unable to get ip address for server: %s, reason: %v", instance.InstanceName, err)
 	} else {
 		instance.InstanceID = server.ID
@@ -269,7 +280,7 @@ func (instance *ServerInstance) Create(controlPlane bool, nodeGroup, flavorRef s
 				DeviceID: server.ID,
 			}
 
-			if allPages, err = ports.List(instance.computeClient, opts).AllPages(); err != nil {
+			if allPages, err = ports.List(instance.computeClient, opts).AllPages(ctx); err != nil {
 				err = fmt.Errorf("unable to list port for server: %s, named: %s. Reason: %v", instance.InstanceName, server.ID, err)
 			} else if allPorts, err = ports.ExtractPorts(allPages); err != nil {
 				err = fmt.Errorf("unable to extract port for server: %s, named: %s. Reason: %v", instance.InstanceName, server.ID, err)
@@ -282,10 +293,10 @@ func (instance *ServerInstance) Create(controlPlane bool, nodeGroup, flavorRef s
 					PortID:            allPorts[0].ID,
 				}
 
-				if floatingIP, err = floatingips.Create(instance.computeClient, opts).Extract(); err != nil {
+				if floatingIP, err = floatingips.Create(ctx, instance.computeClient, opts).Extract(); err != nil {
 					err = fmt.Errorf("unable to create floating ip for server: %s, named: %s. Reason: %v", instance.InstanceName, server.ID, err)
 				} else {
-					instance.Network.floatingIP = aws.String(floatingIP.ID)
+					instance.network.floatingIP = aws.String(floatingIP.ID)
 					instance.AddressIP = floatingIP.FloatingIP
 				}
 			}

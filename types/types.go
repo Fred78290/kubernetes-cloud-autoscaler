@@ -562,7 +562,7 @@ func (cfg *Config) ParseFlags(args []string, version string) error {
 
 	app.Flag("debug", "Debug mode").Default("false").BoolVar(&cfg.DebugMode)
 
-	app.Flag("plateform", "Which plateform used: vsphere, aws, desktop, multipass").Default(cfg.Plateform).EnumVar(&cfg.Plateform, providers.SupportedCloudProviders...)
+	app.Flag("plateform", "Which plateform used: vsphere, aws, desktop, multipass, openstack").Default(cfg.Plateform).EnumVar(&cfg.Plateform, providers.SupportedCloudProviders...)
 	app.Flag("plateform-config", "Plateform provider config file").Default(cfg.ProviderConfig).StringVar(&cfg.ProviderConfig)
 
 	app.Flag("distribution", "Which kubernetes distribution to use: kubeadm, k3s, rke2, microk8s, external").Default(cfg.Distribution).EnumVar(&cfg.Distribution, providers.SupportedKubernetesDistribution...)

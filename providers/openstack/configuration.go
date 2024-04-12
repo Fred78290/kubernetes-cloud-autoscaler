@@ -2,28 +2,63 @@ package openstack
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/base64"
 	"fmt"
 	"time"
 
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/context"
+
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/cloudinit"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha1"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
-	"github.com/gophercloud/gophercloud"
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/flavors"
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/images"
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
-	"github.com/gophercloud/gophercloud/pagination"
-	"github.com/gophercloud/utils/openstack/clientconfig"
+	"github.com/gophercloud/gophercloud/v2"
+	openstackapi "github.com/gophercloud/gophercloud/v2/openstack"
+	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/flavors"
+	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/servers"
+	"github.com/gophercloud/gophercloud/v2/openstack/config"
+	"github.com/gophercloud/gophercloud/v2/openstack/config/clouds"
+	"github.com/gophercloud/gophercloud/v2/openstack/image/v2/images"
+	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/networks"
+	"github.com/gophercloud/gophercloud/v2/pagination"
 	glog "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 )
 
+type FloatingNetworkInfos struct {
+	FloatingIPNetwork string `json:"network,omitempty"`
+	ControlPlaneNode  bool   `json:"control-plane,omitempty"`
+	WorkerNode        bool   `json:"worker-node,omitempty"`
+}
+
+type SecurityGroup struct {
+	ControlPlaneNode string `default:"default" json:"control-plane"`
+	WorkerNode       string `default:"default" json:"worker-node"`
+}
+type NetworkInterface struct {
+	Enabled     bool   `default:true json:"enabled,omitempty" yaml:"primary,omitempty"`
+	Primary     bool   `json:"primary,omitempty" yaml:"primary,omitempty"`
+	NetworkName string `json:"network,omitempty" yaml:"network,omitempty"`
+	NicName     string `json:"nic,omitempty" yaml:"nic,omitempty"`
+	DHCP        bool   `json:"dhcp,omitempty" yaml:"dhcp,omitempty"`
+	IPAddress   string `json:"address,omitempty" yaml:"address,omitempty"`
+	Netmask     string `json:"netmask,omitempty" yaml:"netmask,omitempty"`
+	Gateway     string `json:"gateway,omitempty" yaml:"gateway,omitempty"`
+}
+
+type Network struct {
+	Domain        string                   `json:"domain,omitempty" yaml:"domain,omitempty"`
+	Interfaces    []*NetworkInterface      `json:"interfaces,omitempty" yaml:"interfaces,omitempty"`
+	DNS           *cloudinit.NetworkResolv `json:"dns,omitempty" yaml:"dns,omitempty"`
+	FloatingInfos *FloatingNetworkInfos    `json:"floating-ip,omitempty"`
+	SecurityGroup SecurityGroup            `json:"security-group"`
+}
 type Configuration struct {
 	Cloud             string            `json:"cloud"`
 	Image             string            `json:"image"`
 	Timeout           time.Duration     `json:"timeout"`
-	Network           *OpenStackNetwork `json:"network"`
+	Network           Network           `json:"network"`
 	AvailableGPUTypes map[string]string `json:"gpu-types"`
 	AllowUpgrade      bool              `default:true json:"allow-upgrade"`
 	OpenStackRegion   string            `default:"home" json:"csi-region"`
@@ -32,6 +67,7 @@ type Configuration struct {
 
 type openstackWrapper struct {
 	Configuration
+	network        *openStackNetwork
 	providerClient *gophercloud.ProviderClient
 	computeClient  *gophercloud.ServiceClient
 	networkClient  *gophercloud.ServiceClient
@@ -42,7 +78,7 @@ type openstackWrapper struct {
 
 type openstackHandler struct {
 	*openstackWrapper
-	network *OpenStackNetwork
+	network *openStackNetwork
 
 	runningInstance *ServerInstance
 	instanceType    string
@@ -62,39 +98,8 @@ func NewOpenStackProviderConfiguration(fileName string) (providers.ProviderConfi
 		return nil, err
 	}
 
-	if wrapper.providerClient, err = clientconfig.AuthenticatedClient(&clientconfig.ClientOpts{Cloud: wrapper.Configuration.Cloud}); err != nil {
+	if err = wrapper.ConfigurationDidLoad(); err != nil {
 		return nil, err
-	}
-
-	if wrapper.computeClient, err = clientconfig.NewServiceClient("compute", &clientconfig.ClientOpts{Cloud: wrapper.Configuration.Cloud}); err != nil {
-		return nil, err
-	}
-
-	if wrapper.networkClient, err = clientconfig.NewServiceClient("network", &clientconfig.ClientOpts{Cloud: wrapper.Configuration.Cloud}); err != nil {
-		return nil, err
-	}
-
-	if wrapper.imageClient, err = clientconfig.NewServiceClient("image", &clientconfig.ClientOpts{Cloud: wrapper.Configuration.Cloud}); err != nil {
-		return nil, err
-	}
-
-	if wrapper.dnsClient, _ = clientconfig.NewServiceClient("dns", &clientconfig.ClientOpts{Cloud: wrapper.Configuration.Cloud}); err != nil {
-		glog.Warnf("service DNS got error: %v. Ignoring", err)
-		wrapper.dnsClient = nil
-	}
-
-	if wrapper.Image, err = wrapper.getFlavor(wrapper.Image); err != nil {
-		return nil, err
-	}
-
-	if err = wrapper.Configuration.Network.ConfigurationDidLoad(wrapper.networkClient); err != nil {
-		return nil, err
-	}
-
-	if wrapper.dnsClient != nil {
-		if err = wrapper.Configuration.Network.ConfigurationDns(wrapper.dnsClient); err != nil {
-			return nil, err
-		}
 	}
 
 	return &wrapper, nil
@@ -114,7 +119,7 @@ func (wrapper *openstackWrapper) AttachInstance(instanceName string, controlPlan
 	} else {
 		return &openstackHandler{
 			openstackWrapper: wrapper,
-			network:          wrapper.Network.Clone(controlPlane, nodeIndex),
+			network:          wrapper.network.Clone(controlPlane, nodeIndex),
 			instanceName:     instanceName,
 			instanceID:       vmuuid,
 			controlPlane:     controlPlane,
@@ -125,13 +130,16 @@ func (wrapper *openstackWrapper) AttachInstance(instanceName string, controlPlan
 }
 
 func (wrapper *openstackWrapper) CreateInstance(instanceName, instanceType string, controlPlane bool, nodeIndex int) (handler providers.ProviderHandler, err error) {
+	ctx := context.NewContext(wrapper.Timeout)
+	defer ctx.Cancel()
+
 	if wrapper.InstanceExists(instanceName) {
 		glog.Warnf(constantes.ErrVMAlreadyExists, instanceName)
 		err = fmt.Errorf(constantes.ErrVMAlreadyExists, instanceName)
-	} else if instanceType, err = wrapper.getFlavor(instanceType); err == nil {
+	} else if instanceType, err = wrapper.getFlavor(ctx, instanceType); err == nil {
 		handler = &openstackHandler{
 			openstackWrapper: wrapper,
-			network:          wrapper.Network.Clone(controlPlane, nodeIndex),
+			network:          wrapper.network.Clone(controlPlane, nodeIndex),
 			instanceType:     instanceType,
 			instanceName:     instanceName,
 			controlPlane:     controlPlane,
@@ -142,8 +150,150 @@ func (wrapper *openstackWrapper) CreateInstance(instanceName, instanceType strin
 	return
 }
 
-func (wrapper *openstackWrapper) getFlavor(name string) (string, error) {
-	if pages, err := images.ListDetail(wrapper.imageClient, images.ListOpts{Name: name}).AllPages(); err != nil {
+// This is duplicated from https://github.com/gophercloud/utils
+// so that Gophercloud "core" doesn't have a dependency on the
+// complementary utils repository.
+func (wrapper *openstackWrapper) IDFromName(name string) (string, error) {
+	count := 0
+	id := ""
+
+	listOpts := networks.ListOpts{
+		Name: name,
+	}
+
+	pages, err := networks.List(wrapper.networkClient, listOpts).AllPages(context.TODO())
+	if err != nil {
+		return "", err
+	}
+
+	all, err := networks.ExtractNetworks(pages)
+	if err != nil {
+		return "", err
+	}
+
+	for _, s := range all {
+		if s.Name == name {
+			count++
+			id = s.ID
+		}
+	}
+
+	switch count {
+	case 0:
+		return "", gophercloud.ErrResourceNotFound{Name: name, ResourceType: "network"}
+	case 1:
+		return id, nil
+	default:
+		return "", gophercloud.ErrMultipleResourcesFound{Name: name, Count: count, ResourceType: "network"}
+	}
+}
+
+func (wrapper *openstackWrapper) ConfigurationDidLoad() (err error) {
+	var authOptions gophercloud.AuthOptions
+	var endpointOptions gophercloud.EndpointOpts
+	var tlsConfig *tls.Config
+
+	ctx := context.NewContext(wrapper.Timeout)
+	defer ctx.Cancel()
+
+	if authOptions, endpointOptions, tlsConfig, err = clouds.Parse(); err != nil {
+		if authOptions, err = openstackapi.AuthOptionsFromEnv(); err != nil {
+			return err
+		}
+	}
+
+	if wrapper.providerClient, err = config.NewProviderClient(ctx, authOptions, config.WithTLSConfig(tlsConfig)); err != nil {
+		return err
+	}
+
+	if wrapper.computeClient, err = openstackapi.NewComputeV2(wrapper.providerClient, endpointOptions); err != nil {
+		return err
+	}
+
+	if wrapper.networkClient, err = openstackapi.NewNetworkV2(wrapper.providerClient, endpointOptions); err != nil {
+		return err
+	}
+
+	if wrapper.imageClient, err = openstackapi.NewImageV2(wrapper.providerClient, endpointOptions); err != nil {
+		return err
+	}
+
+	if wrapper.dnsClient, err = openstackapi.NewDNSV2(wrapper.providerClient, endpointOptions); err != nil {
+		glog.Warnf("service DNS got error: %v. Ignoring", err)
+		wrapper.dnsClient = nil
+	}
+
+	if wrapper.Image, err = wrapper.getImage(ctx, wrapper.Image); err != nil {
+		return err
+	}
+
+	network := wrapper.Configuration.Network
+	onet := &openStackNetwork{
+		OpenstackInterfaces: make([]openstackNetworkInterface, 0, len(wrapper.Configuration.Network.Interfaces)),
+		Network: &providers.Network{
+			Domain:     network.Domain,
+			DNS:        network.DNS,
+			Interfaces: make([]*providers.NetworkInterface, 0, len(network.Interfaces)),
+		},
+	}
+
+	if network.FloatingInfos != nil {
+		floatingInfos := network.FloatingInfos
+
+		if floatingInfos.FloatingIPNetwork == "" && (floatingInfos.ControlPlaneNode || floatingInfos.WorkerNode) {
+			return fmt.Errorf("floating network is not defined")
+		}
+
+		if floatingInfos.FloatingIPNetwork != "" {
+			floatingIPNetwork := ""
+
+			if floatingIPNetwork, err = wrapper.IDFromName(floatingInfos.FloatingIPNetwork); err != nil {
+				return fmt.Errorf("the floating ip network: %s not found, reason: %v", floatingInfos.FloatingIPNetwork, err)
+			}
+
+			floatingInfos.FloatingIPNetwork = floatingIPNetwork
+		}
+	}
+
+	for _, inf := range network.Interfaces {
+		openstackInterface := openstackNetworkInterface{
+			NetworkInterface: &providers.NetworkInterface{
+				Enabled:     inf.Enabled,
+				Existing:    true,
+				MacAddress:  "ignore",
+				Primary:     inf.Primary,
+				NetworkName: inf.NetworkName,
+				NicName:     inf.NicName,
+				DHCP:        inf.DHCP,
+				UseRoutes:   true,
+				IPAddress:   inf.IPAddress,
+				Gateway:     inf.Gateway,
+			},
+		}
+
+		if openstackInterface.networkID, err = wrapper.IDFromName(inf.NetworkName); err != nil {
+			return fmt.Errorf("unable to find network: %s, reason: %v", inf.NetworkName, err)
+		}
+
+		onet.OpenstackInterfaces = append(onet.OpenstackInterfaces, openstackInterface)
+		onet.Interfaces = append(onet.Interfaces, openstackInterface.NetworkInterface)
+	}
+
+	onet.Network.ConfigurationDidLoad()
+
+	wrapper.network = onet
+
+	if wrapper.dnsClient != nil {
+		if err = onet.ConfigurationDns(ctx, wrapper.dnsClient); err != nil {
+			return err
+		}
+	}
+
+	return
+}
+
+func (wrapper *openstackWrapper) getFlavor(ctx *context.Context, name string) (string, error) {
+	if pages, err := flavors.ListDetail(wrapper.computeClient, flavors.ListOpts{}).AllPages(ctx); err != nil {
 		return "", err
 	} else if flavors, err := flavors.ExtractFlavors(pages); err != nil {
 		return "", err
@@ -158,14 +308,30 @@ func (wrapper *openstackWrapper) getFlavor(name string) (string, error) {
 	return "", fmt.Errorf("flavor: %s, no found", name)
 }
 
-func (wrapper *openstackWrapper) getAddress(server *servers.Server) (addressIP string, err error) {
+func (wrapper *openstackWrapper) getImage(ctx *context.Context, name string) (string, error) {
+	if pages, err := images.List(wrapper.imageClient, images.ListOpts{Name: name}).AllPages(ctx); err != nil {
+		return "", err
+	} else if images, err := images.ExtractImages(pages); err != nil {
+		return "", err
+	} else {
+		for _, image := range images {
+			if image.Name == name {
+				return image.ID, nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("image: %s, no found", name)
+}
+
+func (wrapper *openstackWrapper) getAddress(ctx *context.Context, server *servers.Server) (addressIP string, err error) {
 	var allPages pagination.Page
 	var addresses map[string][]servers.Address
 
 	if len(server.AccessIPv4) > 0 {
 		addressIP = server.AccessIPv4
 	} else {
-		if allPages, err = servers.ListAddresses(wrapper.computeClient, server.ID).AllPages(); err != nil {
+		if allPages, err = servers.ListAddresses(wrapper.computeClient, server.ID).AllPages(ctx); err != nil {
 			return "", err
 		}
 
@@ -182,11 +348,11 @@ func (wrapper *openstackWrapper) getAddress(server *servers.Server) (addressIP s
 	return
 }
 
-func (wrapper *openstackWrapper) getServer(name string) (vm *ServerInstance, err error) {
+func (wrapper *openstackWrapper) getServer(ctx *context.Context, name string) (vm *ServerInstance, err error) {
 	var allServers []OpenStackServer
 	var allPages pagination.Page
 
-	if allPages, err = servers.List(wrapper.computeClient, servers.ListOpts{Name: name}).AllPages(); err == nil {
+	if allPages, err = servers.List(wrapper.computeClient, servers.ListOpts{Name: name}).AllPages(ctx); err == nil {
 		if err = servers.ExtractServersInto(allPages, &allServers); err == nil {
 			if len(allServers) == 0 {
 				err = fmt.Errorf("server: %s not found", name)
@@ -194,14 +360,14 @@ func (wrapper *openstackWrapper) getServer(name string) (vm *ServerInstance, err
 				var addressIP string
 				server := allServers[0]
 
-				if addressIP, err = wrapper.getAddress(&server.Server); err == nil {
+				if addressIP, err = wrapper.getAddress(ctx, &server.Server); err == nil {
 					vm = &ServerInstance{
 						openstackWrapper: wrapper,
 						InstanceName:     server.Name,
 						InstanceID:       server.ID,
 						AddressIP:        addressIP,
 						Region:           wrapper.OpenStackRegion,
-						Zone:             server.AvailabilityZone.ZoneName,
+						Zone:             server.AvailabilityZone,
 					}
 				}
 			}
@@ -229,7 +395,10 @@ func (wrapper *openstackWrapper) GetAvailableGpuTypes() map[string]string {
 }
 
 func (wrapper *openstackWrapper) InstanceExists(name string) (exists bool) {
-	if _, err := wrapper.getServer(name); err != nil {
+	ctx := context.NewContext(wrapper.Timeout)
+	defer ctx.Cancel()
+
+	if _, err := wrapper.getServer(ctx, name); err != nil {
 		return false
 	}
 
@@ -237,7 +406,10 @@ func (wrapper *openstackWrapper) InstanceExists(name string) (exists bool) {
 }
 
 func (wrapper *openstackWrapper) UUID(name string) (vmuuid string, err error) {
-	if server, err := wrapper.getServer(name); err != nil {
+	ctx := context.NewContext(wrapper.Timeout)
+	defer ctx.Cancel()
+
+	if server, err := wrapper.getServer(ctx, name); err != nil {
 		return "", err
 	} else {
 		return server.InstanceID, nil
@@ -253,7 +425,7 @@ func (handler *openstackHandler) GetTimeout() time.Duration {
 }
 
 func (handler *openstackHandler) ConfigureNetwork(network v1alpha1.ManagedNetworkConfig) {
-	handler.network.ConfigureNetwork(network)
+	handler.network.ConfigureOpenStackNetwork(network.OpenStack)
 }
 
 func (handler *openstackHandler) RetrieveNetworkInfos() error {
@@ -336,7 +508,10 @@ func (handler *openstackHandler) InstancePowerOn() (err error) {
 		return fmt.Errorf(constantes.ErrInstanceIsNotAttachedToCloudProvider)
 	}
 
-	return handler.runningInstance.PowerOn()
+	ctx := context.NewContext(handler.Timeout)
+	defer ctx.Cancel()
+
+	return handler.runningInstance.PowerOn(ctx)
 }
 
 func (handler *openstackHandler) InstancePowerOff() (err error) {
@@ -344,7 +519,10 @@ func (handler *openstackHandler) InstancePowerOff() (err error) {
 		return fmt.Errorf(constantes.ErrInstanceIsNotAttachedToCloudProvider)
 	}
 
-	return handler.runningInstance.PowerOff()
+	ctx := context.NewContext(handler.Timeout)
+	defer ctx.Cancel()
+
+	return handler.runningInstance.PowerOff(ctx)
 }
 
 func (handler *openstackHandler) InstanceShutdownGuest() (err error) {
@@ -396,11 +574,17 @@ func (handler *openstackHandler) PrivateDNSName() (string, error) {
 }
 
 func (handler *openstackHandler) RegisterDNS(address string) (err error) {
-	return handler.network.registerDNS(handler.dnsClient, handler.instanceName, address)
+	ctx := context.NewContext(handler.Timeout)
+	defer ctx.Cancel()
+
+	return handler.network.registerDNS(ctx, handler.dnsClient, handler.instanceName, address)
 }
 
 func (handler *openstackHandler) UnregisterDNS(address string) (err error) {
-	return handler.network.unregisterDNS(handler.dnsClient, handler.instanceName, address)
+	ctx := context.NewContext(handler.Timeout)
+	defer ctx.Cancel()
+
+	return handler.network.unregisterDNS(ctx, handler.dnsClient, handler.instanceName, address)
 }
 
 func (handler *openstackHandler) UUID(name string) (string, error) {
@@ -408,7 +592,10 @@ func (handler *openstackHandler) UUID(name string) (string, error) {
 		return handler.runningInstance.InstanceID, nil
 	}
 
-	if server, err := handler.getServer(name); err != nil {
+	ctx := context.NewContext(handler.Timeout)
+	defer ctx.Cancel()
+
+	if server, err := handler.getServer(ctx, name); err != nil {
 		return "", err
 	} else {
 		return server.InstanceID, nil

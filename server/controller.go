@@ -319,6 +319,46 @@ func (c *Controller) CreateCRD() error {
 											Description:            "Describe network interface for this node, allow to override configuration",
 											XPreserveUnknownFields: XPreserveUnknownFields,
 											Properties: map[string]apiextensionv1.JSONSchemaProps{
+												"openstack": {
+													Type: "array",
+													Items: &apiextensionv1.JSONSchemaPropsOrArray{
+														Schema: &apiextensionv1.JSONSchemaProps{
+															Type: "object",
+															Properties: map[string]apiextensionv1.JSONSchemaProps{
+																"enabled": {
+																	Type:        "boolean",
+																	Description: "Allow to disable the network interface",
+																	Default: &apiextensionv1.JSON{
+																		Raw: []byte("true"),
+																	},
+																},
+																"network": {
+																	Type:        "string",
+																	Description: "Network name for vpshere or local interface for multipas and desktop, vmnetX...",
+																},
+																"dhcp": {
+																	Type:        "boolean",
+																	Description: "Tell if interface use dhcp to obtain address",
+																	Default: &apiextensionv1.JSON{
+																		Raw: []byte("true"),
+																	},
+																},
+																"address": {
+																	Type:        "string",
+																	Description: "Valid ip v4 address or DHCP or NONE",
+																},
+																"gateway": {
+																	Type:        "string",
+																	Description: "Valid ip v4 address for gateway",
+																},
+																"netmask": {
+																	Type:        "string",
+																	Description: "Netmask in format xxx.xxx.xxx.xxx",
+																},
+															},
+														},
+													},
+												},
 												"vmware": {
 													Type: "array",
 													Items: &apiextensionv1.JSONSchemaPropsOrArray{

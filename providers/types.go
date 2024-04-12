@@ -41,6 +41,7 @@ var SupportedCloudProviders = []string{
 	VSphereCloudProviderName,
 	VMWareWorkstationProviderName,
 	MultipassProviderName,
+	OpenStackProviderName,
 }
 
 type BasicConfiguration struct {

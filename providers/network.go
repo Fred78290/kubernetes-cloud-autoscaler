@@ -300,48 +300,81 @@ func (vnet *Network) ConfigurationDidLoad() {
 	}
 }
 
-func (vnet *Network) ConfigureNetwork(network v1alpha1.ManagedNetworkConfig) {
-	if len(network.VMWare) > 0 {
-		for _, network := range network.VMWare {
-			if inet := vnet.InterfaceByName(network.NetworkName); inet != nil {
-				inet.Enabled = network.Enabled
+func (vnet *Network) ConfigureOpenStackNetwork(openstack []v1alpha1.OpenStackManagedNodeNetwork) {
+	for _, network := range openstack {
+		if inet := vnet.InterfaceByName(network.NetworkName); inet != nil {
+			inet.Enabled = network.Enabled
 
-				if inet.Enabled {
-					inet.DHCP = network.DHCP
-					inet.UseRoutes = network.UseRoutes
-					inet.Routes = network.Routes
+			if inet.Enabled {
+				inet.DHCP = network.DHCP
+				inet.UseRoutes = true
 
-					if strings.ToLower(network.IPV4Address) == "none" {
-						inet.Enabled = false
-						inet.IPAddress = ""
-					} else if strings.ToLower(network.IPV4Address) == "dhcp" {
-						inet.DHCP = true
-						inet.IPAddress = ""
-					} else if len(network.IPV4Address) > 0 {
-						inet.IPAddress = network.IPV4Address
-					}
+				if strings.ToLower(network.IPV4Address) == "none" {
+					inet.Enabled = false
+					inet.IPAddress = ""
+				} else if strings.ToLower(network.IPV4Address) == "dhcp" {
+					inet.DHCP = true
+					inet.IPAddress = ""
+				} else if len(network.IPV4Address) > 0 {
+					inet.IPAddress = network.IPV4Address
+				}
 
-					if len(network.Adapter) > 0 {
-						inet.Adapter = network.Adapter
-					}
+				if len(network.Netmask) > 0 {
+					inet.Netmask = network.Netmask
+				}
 
-					if len(network.Netmask) > 0 {
-						inet.Netmask = network.Netmask
-					}
-
-					if len(network.Gateway) > 0 {
-						inet.Gateway = network.Gateway
-					}
-
-					if len(network.MacAddress) > 0 {
-						inet.MacAddress = network.MacAddress
-					}
-				} else {
-					glog.Warnf(constantes.WarnNetworkInterfaceIsDisabled, network.NetworkName)
+				if len(network.Gateway) > 0 {
+					inet.Gateway = network.Gateway
 				}
 			} else {
-				glog.Errorf(constantes.ErrNetworkInterfaceNotFoundToConfigure, network.NetworkName)
+				glog.Warnf(constantes.WarnNetworkInterfaceIsDisabled, network.NetworkName)
 			}
+		} else {
+			glog.Errorf(constantes.ErrNetworkInterfaceNotFoundToConfigure, network.NetworkName)
+		}
+	}
+}
+
+func (vnet *Network) ConfigureVMWareNetwork(vmware []v1alpha1.VMWareManagedNodeNetwork) {
+	for _, network := range vmware {
+		if inet := vnet.InterfaceByName(network.NetworkName); inet != nil {
+			inet.Enabled = network.Enabled
+
+			if inet.Enabled {
+				inet.DHCP = network.DHCP
+				inet.UseRoutes = network.UseRoutes
+				inet.Routes = network.Routes
+
+				if strings.ToLower(network.IPV4Address) == "none" {
+					inet.Enabled = false
+					inet.IPAddress = ""
+				} else if strings.ToLower(network.IPV4Address) == "dhcp" {
+					inet.DHCP = true
+					inet.IPAddress = ""
+				} else if len(network.IPV4Address) > 0 {
+					inet.IPAddress = network.IPV4Address
+				}
+
+				if len(network.Adapter) > 0 {
+					inet.Adapter = network.Adapter
+				}
+
+				if len(network.Netmask) > 0 {
+					inet.Netmask = network.Netmask
+				}
+
+				if len(network.Gateway) > 0 {
+					inet.Gateway = network.Gateway
+				}
+
+				if len(network.MacAddress) > 0 {
+					inet.MacAddress = network.MacAddress
+				}
+			} else {
+				glog.Warnf(constantes.WarnNetworkInterfaceIsDisabled, network.NetworkName)
+			}
+		} else {
+			glog.Errorf(constantes.ErrNetworkInterfaceNotFoundToConfigure, network.NetworkName)
 		}
 	}
 }

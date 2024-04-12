@@ -46,9 +46,19 @@ type VMWareManagedNodeNetwork struct {
 	Routes      []NetworkRoutes `json:"routes,omitempty" yaml:"routes,omitempty"`
 }
 
+type OpenStackManagedNodeNetwork struct {
+	Enabled     bool   `default:true json:"enabled,omitempty"`
+	NetworkName string `json:"network,omitempty"` //vnet for desktop
+	DHCP        bool   `json:"dhcp,omitempty"`
+	IPV4Address string `json:"address,omitempty"`
+	Gateway     string `json:"gateway,omitempty"`
+	Netmask     string `json:"netmask,omitempty"`
+}
+
 type ManagedNetworkConfig struct {
-	VMWare []VMWareManagedNodeNetwork `json:"vmware,omitempty"`
-	ENI    *AwsManagedNodeNetwork     `json:"eni,omitempty"`
+	OpenStack []OpenStackManagedNodeNetwork `json:"openstack,omitempty"`
+	VMWare    []VMWareManagedNodeNetwork    `json:"vmware,omitempty"`
+	ENI       *AwsManagedNodeNetwork        `json:"eni,omitempty"`
 }
 
 // ManagedNodeSpec is the spec for a ManagedNode resource
