@@ -43,16 +43,16 @@ func (net *openStackNetwork) Clone(controlPlane bool, nodeIndex int) (copy *open
 	copy = &openStackNetwork{
 		Network:             net.Network.Clone(controlPlane, nodeIndex),
 		dnsZoneID:           net.dnsZoneID,
-		OpenstackInterfaces: make([]openstackNetworkInterface, 0, len(net.OpenstackInterfaces)),
+		OpenstackInterfaces: make([]openstackNetworkInterface, 0, len(net.Interfaces)),
 	}
 
-	for index, inf := range net.Interfaces {
+	for index, inf := range copy.Interfaces {
 		openstackInterface := openstackNetworkInterface{
 			NetworkInterface: inf,
 			networkID:        net.OpenstackInterfaces[index].networkID,
 		}
 
-		net.OpenstackInterfaces = append(net.OpenstackInterfaces, openstackInterface)
+		copy.OpenstackInterfaces = append(net.OpenstackInterfaces, openstackInterface)
 	}
 
 	return
@@ -86,8 +86,10 @@ func (net *openStackNetwork) unregisterDNS(ctx *context.Context, client *gopherc
 		if net.dnsEntryID != nil {
 			err = recordsets.Delete(ctx, client, *net.dnsZoneID, *net.dnsEntryID).ExtractErr()
 		} else if allPages, err = recordsets.ListByZone(client, *net.dnsZoneID, recordsets.ListOpts{Name: name + "."}).AllPages(ctx); err == nil {
-			if allRecords, err = recordsets.ExtractRecordSets(allPages); err == nil && len(allRecords) == 0 {
-				err = recordsets.Delete(ctx, client, *net.dnsZoneID, allRecords[0].ID).ExtractErr()
+			if allRecords, err = recordsets.ExtractRecordSets(allPages); err == nil {
+				for _, record := range allRecords {
+					err = recordsets.Delete(ctx, client, *net.dnsZoneID, record.ID).ExtractErr()
+				}
 			}
 		}
 

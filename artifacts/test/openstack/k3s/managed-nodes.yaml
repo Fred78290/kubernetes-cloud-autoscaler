@@ -16,9 +16,8 @@ spec:
   - demo-annotation.acme.com=demo
   - sample-annotation.acme.com=sample
   network:
-    vmware:
-      -
-        network: "private"
+    openstack:
+      - network: private
         dhcp: true
 ---
 apiVersion: "nodemanager.aldunelabs.com/v1alpha1"
@@ -39,7 +38,6 @@ spec:
   - demo-annotation.acme.com=demo
   - sample-annotation.acme.com=sample
   network:
-    vmware:
-      -
-        network: "private"
+    openstack:
+      - network: private
         dhcp: true

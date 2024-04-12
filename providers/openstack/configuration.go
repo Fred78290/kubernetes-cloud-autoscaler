@@ -113,20 +113,22 @@ func (wrapper *openstackWrapper) GetMode() bool {
 	return wrapper.testMode
 }
 
-func (wrapper *openstackWrapper) AttachInstance(instanceName string, controlPlane bool, nodeIndex int) (providers.ProviderHandler, error) {
-	if vmuuid, err := wrapper.UUID(instanceName); err != nil {
-		return nil, err
-	} else {
-		return &openstackHandler{
+func (wrapper *openstackWrapper) AttachInstance(instanceName string, controlPlane bool, nodeIndex int) (handler providers.ProviderHandler, err error) {
+	var instanceID string
+
+	if instanceID, err = wrapper.UUID(instanceName); err == nil {
+		handler = &openstackHandler{
 			openstackWrapper: wrapper,
 			network:          wrapper.network.Clone(controlPlane, nodeIndex),
 			instanceName:     instanceName,
-			instanceID:       vmuuid,
+			instanceID:       instanceID,
 			controlPlane:     controlPlane,
 			nodeIndex:        nodeIndex,
-		}, nil
+			runningInstance:  wrapper.newServerInstance(instanceName, instanceID, nodeIndex),
+		}
 	}
 
+	return
 }
 
 func (wrapper *openstackWrapper) CreateInstance(instanceName, instanceType string, controlPlane bool, nodeIndex int) (handler providers.ProviderHandler, err error) {
@@ -377,17 +379,16 @@ func (wrapper *openstackWrapper) getServer(ctx *context.Context, name string) (v
 	return
 }
 
-func (wrapper *openstackWrapper) newServer(instanceName string, nodeIndex int) (*ServerInstance, error) {
-	vm := &ServerInstance{
+func (wrapper *openstackWrapper) newServerInstance(instanceName, instanceID string, nodeIndex int) *ServerInstance {
+	return &ServerInstance{
 		openstackWrapper: wrapper,
 		InstanceName:     instanceName,
+		InstanceID:       instanceID,
 		NodeIndex:        nodeIndex,
 		PrivateDNSName:   instanceName,
 		Region:           wrapper.OpenStackRegion,
 		Zone:             wrapper.OpenStackZone,
 	}
-
-	return vm, nil
 }
 
 func (wrapper *openstackWrapper) GetAvailableGpuTypes() map[string]string {
@@ -464,11 +465,9 @@ func (handler *openstackHandler) GetTopologyLabels() map[string]string {
 func (handler *openstackHandler) InstanceCreate(input *providers.InstanceCreateInput) (vmuuid string, err error) {
 	var userData string
 
-	if userData, err = handler.encodeCloudInit(input.CloudInit); err != nil {
-		return "", err
-	}
+	handler.runningInstance = handler.newServerInstance(handler.instanceName, "", handler.nodeIndex)
 
-	if handler.runningInstance, err = handler.newServer(handler.instanceName, handler.nodeIndex); err != nil {
+	if userData, err = handler.encodeCloudInit(input.CloudInit); err != nil {
 		return "", err
 	}
 

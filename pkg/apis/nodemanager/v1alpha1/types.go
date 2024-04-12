@@ -34,7 +34,7 @@ type NetworkRoutes struct {
 
 // ManagedNodeNetwork is a specification for a network ManagedNode resource
 type VMWareManagedNodeNetwork struct {
-	Enabled     bool            `default:true json:"enabled,omitempty"`
+	Enabled     bool            `default:"true" json:"enabled,omitempty"`
 	NetworkName string          `json:"network,omitempty"` //vnet for desktop
 	Adapter     string          `json:"adapter,omitempty" yaml:"adapter,omitempty"`
 	DHCP        bool            `json:"dhcp,omitempty"`
@@ -67,7 +67,7 @@ type ManagedNodeSpec struct {
 	ControlPlane    bool                 `json:"controlPlane,omitempty"`
 	AllowDeployment bool                 `json:"allowDeployment,omitempty"`
 	InstanceType    string               `default:"t2.micro" json:"instanceType"`
-	DiskSizeInMB    int                  `default:10240 json:"diskSizeInMB"`
+	DiskSizeInMB    int                  `default:"10240" json:"diskSizeInMB"`
 	DiskType        string               `default:"gp3" json:"diskType"`
 	Labels          []string             `json:"labels,omitempty"`
 	Annotations     []string             `json:"annotations,omitempty"`

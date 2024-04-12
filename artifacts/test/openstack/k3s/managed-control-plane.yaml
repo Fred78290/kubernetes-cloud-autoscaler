@@ -16,13 +16,12 @@ spec:
   - demo-annotation.acme.com=demo
   - sample-annotation.acme.com=sample
   network:
-    vmware:
-      -
-        network: "private"
+    openstack:
+      - network: private
         dhcp: false
-        address: 192.168.2.81
+        address: 192.168.32.11
         netmask: 255.255.255.0
-        gateway: 192.168.2.254
+        gateway: 192.168.32.1
 ---
 apiVersion: "nodemanager.aldunelabs.com/v1alpha1"
 kind: "ManagedNode"
@@ -43,9 +42,8 @@ spec:
   - sample-annotation.acme.com=sample
   network:
     vmware:
-      -
-        network: "private"
+      - network: private
         dhcp: false
-        address: 192.168.2.82
+        address: 192.168.32.12
         netmask: 255.255.255.0
-        gateway: 192.168.2.254
+        gateway: 192.168.32.1

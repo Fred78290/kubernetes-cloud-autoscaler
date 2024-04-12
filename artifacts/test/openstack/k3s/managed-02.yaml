@@ -16,7 +16,9 @@ spec:
   - demo-annotation.acme.com=demo
   - sample-annotation.acme.com=sample
   network:
-    vmware:
-      -
-        network: "private"
-        dhcp: true
+    openstack:
+      - network: private
+        dhcp: false
+        address: 192.168.32.14
+        netmask: 255.255.255.0
+        gateway: 192.168.32.1
