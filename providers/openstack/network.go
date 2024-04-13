@@ -52,7 +52,7 @@ func (net *openStackNetwork) Clone(controlPlane bool, nodeIndex int) (copy *open
 			networkID:        net.OpenstackInterfaces[index].networkID,
 		}
 
-		copy.OpenstackInterfaces = append(net.OpenstackInterfaces, openstackInterface)
+		copy.OpenstackInterfaces = append(copy.OpenstackInterfaces, openstackInterface)
 	}
 
 	return
@@ -103,7 +103,7 @@ func (net *openStackNetwork) toOpenstackNetwork() (network []servers.Network) {
 	network = make([]servers.Network, 0, len(net.Interfaces))
 
 	for _, inf := range net.OpenstackInterfaces {
-		if inf.Enabled {
+		if inf.IsEnabled() {
 			address := ""
 
 			if !inf.DHCP {

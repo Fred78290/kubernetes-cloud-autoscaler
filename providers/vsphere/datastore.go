@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/context"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
 	glog "github.com/sirupsen/logrus"
 
 	"github.com/vmware/govmomi/govc/flags"
@@ -227,8 +228,8 @@ func (ds *Datastore) CreateVirtualMachine(ctx *context.Context, input *CreateVir
 						for index, inf := range input.VSphereNetwork.VSphereInterfaces {
 							// Network card missing
 							if index >= len(cards) {
-								inf.Existing = false
-							} else if inf.Enabled {
+								inf.Existing = &providers.FALSE
+							} else if inf.IsEnabled() {
 								match := false
 								device := cards[index]
 								ethernet := device.(types.BaseVirtualEthernetCard)
@@ -237,7 +238,7 @@ func (ds *Datastore) CreateVirtualMachine(ctx *context.Context, input *CreateVir
 								// Match my network?
 								if match, err = inf.MatchInterface(ctx, ds.Datacenter, virtualNetworkCard); err == nil {
 									// Ok don't need to add one
-									inf.Existing = true
+									inf.Existing = nil
 
 									if match {
 										if inf.NeedToReconfigure() {

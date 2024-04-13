@@ -200,7 +200,7 @@ func (wrapper *hostMultipassWrapper) create(input *createInstanceInput) (string,
 			args = append(args, fmt.Sprintf("--cpus=%d", input.Machine.Vcpu))
 		}
 
-		if input.Machine.DiskSize > 0 {
+		if input.Machine.GetDiskSize() > 0 {
 			args = append(args, fmt.Sprintf("--disk=%dM", input.Machine.DiskSize))
 		}
 
@@ -210,7 +210,7 @@ func (wrapper *hostMultipassWrapper) create(input *createInstanceInput) (string,
 
 		if input.network != nil {
 			for _, inf := range input.network.Interfaces {
-				if inf.Enabled && !inf.Existing {
+				if inf.CreateIt() {
 					var sb strings.Builder
 
 					mode := inf.ConnectionType

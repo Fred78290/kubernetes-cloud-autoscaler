@@ -28,7 +28,7 @@ type Configuration struct {
 	Autostart         bool               `json:"autostart"`
 	Network           *providers.Network `json:"network"`
 	AvailableGPUTypes map[string]string  `json:"gpu-types"`
-	AllowUpgrade      bool               `default:true json:"allow-upgrade"`
+	AllowUpgrade      *bool              `json:"allow-upgrade,omitempty"`
 	VMWareRegion      string             `default:"home" json:"csi-region"`
 	VMWareZone        string             `default:"office" json:"csi-zone"`
 }
@@ -54,7 +54,7 @@ type desktopHandler struct {
 type CreateInput struct {
 	*providers.InstanceCreateInput
 	NodeName     string
-	AllowUpgrade bool
+	AllowUpgrade *bool
 	TimeZone     string
 	Network      *providers.Network
 }
@@ -132,7 +132,6 @@ func (handler *desktopHandler) GetTopologyLabels() map[string]string {
 }
 
 func (handler *desktopHandler) InstanceCreate(input *providers.InstanceCreateInput) (string, error) {
-
 	createInput := &CreateInput{
 		InstanceCreateInput: input,
 		NodeName:            handler.instanceName,
@@ -394,7 +393,7 @@ func (wrapper *desktopWrapper) CreateWithContext(ctx *context.Context, input *Cr
 		Name:         input.NodeName,
 		Vcpus:        int32(input.Machine.Vcpu),
 		Memory:       int64(input.Machine.Memory),
-		DiskSizeInMb: int32(input.Machine.DiskSize),
+		DiskSizeInMb: int32(input.Machine.GetDiskSize()),
 		Linked:       wrapper.LinkedClone,
 		Networks:     BuildNetworkInterface(input.Network),
 		Register:     false,

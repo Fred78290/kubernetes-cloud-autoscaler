@@ -178,7 +178,7 @@ func (wrapper *remoteMultipassWrapper) create(input *createInstanceInput) (strin
 			Template:     input.template,
 			Memory:       int32(input.Machine.Memory),
 			Vcpu:         int32(input.Machine.Vcpu),
-			DiskSize:     int32(input.Machine.DiskSize),
+			DiskSize:     int32(input.Machine.GetDiskSize()),
 			CloudInit:    buffer.Bytes(),
 		}
 
@@ -186,7 +186,7 @@ func (wrapper *remoteMultipassWrapper) create(input *createInstanceInput) (strin
 			networks := make([]*api.HostNetworkInterface, 0, len(input.network.Interfaces))
 
 			for _, inf := range input.network.Interfaces {
-				if inf.Enabled && !inf.Existing {
+				if inf.CreateIt() {
 					mode := inf.ConnectionType
 					mac := inf.GetMacAddress()
 

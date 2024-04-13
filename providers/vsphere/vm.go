@@ -82,7 +82,7 @@ func (vm *VirtualMachine) collectNetworkInfos(ctx *context.Context, network *vsp
 			if ethernet, ok := device.(types.BaseVirtualEthernetCard); ok {
 				// Match my network?
 				for _, inf := range network.VSphereInterfaces {
-					if inf.Enabled {
+					if inf.IsEnabled() {
 						card := ethernet.GetVirtualEthernetCard()
 						if match, err := inf.MatchInterface(ctx, vm.Datastore.Datacenter, card); match && err == nil {
 							inf.AttachMacAddress(card.MacAddress)
@@ -225,7 +225,7 @@ func (vm *VirtualMachine) Configure(ctx *context.Context, input *CreateInput) er
 		Uuid:         uuid,
 	}
 
-	if devices, err = vm.configureHardDrive(ctx, virtualMachine, input.Machine.DiskSize, input.ExpandHardDrive, devices); err != nil {
+	if devices, err = vm.configureHardDrive(ctx, virtualMachine, input.Machine.GetDiskSize(), input.ExpandHardDrive, devices); err != nil {
 
 		err = fmt.Errorf(constantes.ErrUnableToAddHardDrive, vm.Name, err)
 

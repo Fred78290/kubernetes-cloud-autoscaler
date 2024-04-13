@@ -53,7 +53,7 @@ func (ng *autoScalerServerNodeGroupTest) createTestNode(nodeName string, control
 		CRDUID:           testCRDUID,
 		Memory:           machine.Memory,
 		CPU:              machine.Vcpu,
-		DiskSize:         machine.DiskSize,
+		DiskSize:         machine.GetDiskSize(),
 		IPAddress:        "127.0.0.1",
 		State:            state,
 		NodeType:         AutoScalerServerNodeAutoscaled,
@@ -266,7 +266,7 @@ func (m *baseTest) DeleteSecret(secretName, namespace string) error {
 	return nil
 }
 
-func (m *baseTest) newTestNodeNamedWithState(nodeName string, controlPlane bool, state AutoScalerServerNodeState) (*autoScalerServerNodeGroupTest, *AutoScalerServerNode, error) {
+func (m *baseTest) newTestNodeNamedWithState(nodeName string, controlPlane bool, _ AutoScalerServerNodeState) (*autoScalerServerNodeGroupTest, *AutoScalerServerNode, error) {
 
 	if ng, err := m.newTestNodeGroup(); err == nil {
 		vm := ng.createTestNode(nodeName, controlPlane)

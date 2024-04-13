@@ -37,7 +37,7 @@ type SecurityGroup struct {
 	WorkerNode       string `default:"default" json:"worker-node"`
 }
 type NetworkInterface struct {
-	Enabled     bool   `default:true json:"enabled,omitempty" yaml:"primary,omitempty"`
+	Enabled     *bool  `json:"enabled,omitempty" yaml:"primary,omitempty"`
 	Primary     bool   `json:"primary,omitempty" yaml:"primary,omitempty"`
 	NetworkName string `json:"network,omitempty" yaml:"network,omitempty"`
 	NicName     string `json:"nic,omitempty" yaml:"nic,omitempty"`
@@ -60,7 +60,7 @@ type Configuration struct {
 	Timeout           time.Duration     `json:"timeout"`
 	Network           Network           `json:"network"`
 	AvailableGPUTypes map[string]string `json:"gpu-types"`
-	AllowUpgrade      bool              `default:true json:"allow-upgrade"`
+	AllowUpgrade      *bool             `json:"allow-upgrade,omitempty"`
 	OpenStackRegion   string            `default:"home" json:"csi-region"`
 	OpenStackZone     string            `default:"office" json:"csi-zone"`
 }
@@ -261,13 +261,11 @@ func (wrapper *openstackWrapper) ConfigurationDidLoad() (err error) {
 		openstackInterface := openstackNetworkInterface{
 			NetworkInterface: &providers.NetworkInterface{
 				Enabled:     inf.Enabled,
-				Existing:    true,
 				MacAddress:  "ignore",
 				Primary:     inf.Primary,
 				NetworkName: inf.NetworkName,
 				NicName:     inf.NicName,
 				DHCP:        inf.DHCP,
-				UseRoutes:   true,
 				IPAddress:   inf.IPAddress,
 				Gateway:     inf.Gateway,
 			},

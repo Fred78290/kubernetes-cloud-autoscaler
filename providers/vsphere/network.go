@@ -43,7 +43,7 @@ func (net *vsphereNetwork) Devices(ctx *context.Context, devices object.VirtualD
 	var device types.BaseVirtualDevice
 
 	for _, n := range net.VSphereInterfaces {
-		if n.Enabled && !n.Existing {
+		if n.CreateIt() {
 			if device, err = n.Device(ctx, dc); err == nil {
 				devices = append(devices, n.SetMacAddress(device))
 			} else {
@@ -205,10 +205,11 @@ func (net *vsphereNetworkInterface) Device(ctx *context.Context, dc *Datacenter)
 	}
 
 	// Connect the device
+	enabled := net.IsEnabled()
 	device.GetVirtualDevice().Connectable = &types.VirtualDeviceConnectInfo{
-		StartConnected:    net.Enabled,
-		AllowGuestControl: net.Enabled,
-		Connected:         net.Enabled,
+		StartConnected:    enabled,
+		AllowGuestControl: enabled,
+		Connected:         enabled,
 	}
 
 	macAddress := net.GetMacAddress()
@@ -279,5 +280,5 @@ func (net *vsphereNetworkInterface) ConfigureEthernetCard(ctx *context.Context, 
 
 // NeedToReconfigure tell that we must set the mac address
 func (net *vsphereNetworkInterface) NeedToReconfigure() bool {
-	return len(net.GetMacAddress()) != 0 && net.Enabled && net.Existing
+	return len(net.GetMacAddress()) != 0 && net.Usable()
 }

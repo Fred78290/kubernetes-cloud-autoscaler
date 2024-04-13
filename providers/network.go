@@ -26,7 +26,7 @@ type NetworkInterface struct {
 	MacAddress     string                   `json:"mac-address,omitempty" yaml:"mac-address,omitempty"`
 	NicName        string                   `json:"nic,omitempty" yaml:"nic,omitempty"`
 	DHCP           bool                     `json:"dhcp,omitempty" yaml:"dhcp,omitempty"`
-	UseRoutes      bool                     `default:true json:"use-dhcp-routes,omitempty" yaml:"use-dhcp-routes,omitempty"`
+	UseRoutes      *bool                    `json:"use-dhcp-routes,omitempty" yaml:"use-dhcp-routes,omitempty"`
 	IPAddress      string                   `json:"address,omitempty" yaml:"address,omitempty"`
 	Netmask        string                   `json:"netmask,omitempty" yaml:"netmask,omitempty"`
 	Gateway        string                   `json:"gateway,omitempty" yaml:"gateway,omitempty"`
@@ -41,6 +41,9 @@ type Network struct {
 	nodeIndex    int
 	controlPlane bool
 }
+
+var FALSE bool = false
+var TRUE bool = true
 
 type MacAddress struct {
 	sync.Mutex
@@ -153,7 +156,7 @@ func (vnet *Network) Clone(controlPlane bool, nodeIndex int) *Network {
 
 func (vnet *Network) PrimaryAddressIP() (address string) {
 	for _, n := range vnet.Interfaces {
-		if n.Enabled && n.Primary {
+		if n.IsEnabled() && n.Primary {
 			if !n.DHCP || len(n.IPAddress) > 0 {
 				address = n.IPAddress
 			}
@@ -172,7 +175,7 @@ func (vnet *Network) GetCloudInitNetwork(useMacAddress bool) *cloudinit.NetworkD
 	}
 
 	for _, n := range vnet.Interfaces {
-		if n.Enabled {
+		if n.IsEnabled() {
 			nicName := stringBefore(n.NicName, ":")
 			label := stringAfter(n.NicName, ":")
 
@@ -189,7 +192,7 @@ func (vnet *Network) GetCloudInitNetwork(useMacAddress bool) *cloudinit.NetworkD
 						DHCP4: n.DHCP,
 					}
 
-					if !n.UseRoutes {
+					if !n.IsUseRoutes() {
 						ethernet.DHCPOverrides = map[string]any{
 							"use-routes": false,
 						}
@@ -258,7 +261,7 @@ func (vnet *Network) GetDeclaredExistingInterfaces() []*NetworkInterface {
 
 	infs := make([]*NetworkInterface, 0, len(vnet.Interfaces))
 	for _, inet := range vnet.Interfaces {
-		if inet.Enabled && inet.Existing {
+		if inet.Usable() {
 			infs = append(infs, inet)
 		}
 	}
@@ -270,7 +273,7 @@ func (vnet *Network) UpdateMacAddressTable() error {
 	for _, inet := range vnet.Interfaces {
 		inet.nodeIndex = vnet.nodeIndex
 
-		if inet.Enabled {
+		if inet.IsEnabled() {
 			inet.updateMacAddressTable()
 		}
 	}
@@ -280,7 +283,7 @@ func (vnet *Network) UpdateMacAddressTable() error {
 
 func (vnet *Network) InterfaceByName(networkName string) *NetworkInterface {
 	for _, inet := range vnet.Interfaces {
-		if inet.Enabled && inet.NetworkName == networkName {
+		if inet.IsEnabled() && inet.NetworkName == networkName {
 			return inet
 		}
 	}
@@ -292,7 +295,7 @@ func (vnet *Network) ConfigurationDidLoad() {
 	for _, inet := range vnet.Interfaces {
 		if strings.ToLower(inet.IPAddress) == "none" {
 			inet.IPAddress = ""
-			inet.Enabled = false
+			inet.Enabled = &FALSE
 		} else if strings.ToLower(inet.IPAddress) == "dhcp" {
 			inet.DHCP = true
 			inet.IPAddress = ""
@@ -300,17 +303,15 @@ func (vnet *Network) ConfigurationDidLoad() {
 	}
 }
 
-func (vnet *Network) ConfigureOpenStackNetwork(openstack []v1alpha1.OpenStackManagedNodeNetwork) {
+func (vnet *Network) ConfigureOpenStackNetwork(openstack []v1alpha2.OpenStackManagedNodeNetwork) {
 	for _, network := range openstack {
 		if inet := vnet.InterfaceByName(network.NetworkName); inet != nil {
-			inet.Enabled = network.Enabled
-
-			if inet.Enabled {
+			if inet.IsEnabled() {
 				inet.DHCP = network.DHCP
-				inet.UseRoutes = true
+				inet.UseRoutes = &TRUE
 
 				if strings.ToLower(network.IPV4Address) == "none" {
-					inet.Enabled = false
+					inet.Enabled = &FALSE
 					inet.IPAddress = ""
 				} else if strings.ToLower(network.IPV4Address) == "dhcp" {
 					inet.DHCP = true
@@ -335,18 +336,16 @@ func (vnet *Network) ConfigureOpenStackNetwork(openstack []v1alpha1.OpenStackMan
 	}
 }
 
-func (vnet *Network) ConfigureVMWareNetwork(vmware []v1alpha1.VMWareManagedNodeNetwork) {
+func (vnet *Network) ConfigureVMWareNetwork(vmware []v1alpha2.VMWareManagedNodeNetwork) {
 	for _, network := range vmware {
 		if inet := vnet.InterfaceByName(network.NetworkName); inet != nil {
-			inet.Enabled = network.Enabled
-
-			if inet.Enabled {
+			if inet.IsEnabled() {
 				inet.DHCP = network.DHCP
 				inet.UseRoutes = network.UseRoutes
 				inet.Routes = network.Routes
 
 				if strings.ToLower(network.IPV4Address) == "none" {
-					inet.Enabled = false
+					inet.Enabled = &FALSE
 					inet.IPAddress = ""
 				} else if strings.ToLower(network.IPV4Address) == "dhcp" {
 					inet.DHCP = true
@@ -379,6 +378,38 @@ func (vnet *Network) ConfigureVMWareNetwork(vmware []v1alpha1.VMWareManagedNodeN
 	}
 }
 
+func (inet *NetworkInterface) Usable() bool {
+	return inet.IsEnabled() && inet.IsExisting()
+}
+
+func (inet *NetworkInterface) CreateIt() bool {
+	return inet.IsEnabled() && !inet.IsExisting()
+}
+
+func (inet *NetworkInterface) IsEnabled() bool {
+	if inet.Enabled != nil {
+		return *inet.Enabled
+	}
+
+	return true
+}
+
+func (inet *NetworkInterface) IsExisting() bool {
+	if inet.Existing != nil {
+		return *inet.Existing
+	}
+
+	return true
+}
+
+func (inet *NetworkInterface) IsUseRoutes() bool {
+	if inet.UseRoutes != nil {
+		return *inet.UseRoutes
+	}
+
+	return true
+}
+
 func (inet *NetworkInterface) netName() string {
 	return fmt.Sprintf("%s-%d", inet.NicName, inet.nodeIndex)
 }
@@ -397,7 +428,7 @@ func (inet *NetworkInterface) AttachMacAddress(address string) {
 
 // GetMacAddress return a macaddress
 func (inet *NetworkInterface) GetMacAddress() string {
-	if inet.nodeIndex < 0 || !inet.Enabled {
+	if inet.nodeIndex < 0 || !inet.IsEnabled() {
 		return ""
 	}
 

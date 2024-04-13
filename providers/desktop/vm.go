@@ -19,7 +19,7 @@ func BuildNetworkInterface(network *providers.Network) []*api.NetworkInterface {
 	result := make([]*api.NetworkInterface, 0, len(network.Interfaces))
 
 	for _, inf := range network.Interfaces {
-		if inf.Enabled {
+		if inf.IsEnabled() {
 			result = append(result, &api.NetworkInterface{
 				Macaddress:  inf.GetMacAddress(),
 				Vnet:        inf.NetworkName,

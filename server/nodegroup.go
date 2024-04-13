@@ -304,7 +304,7 @@ func (g *AutoScalerServerNodeGroup) addManagedNode(crd *v1alpha2.ManagedNode) (*
 			diskSize := crd.Spec.DiskSizeInMB
 
 			if diskSize == 0 {
-				diskSize = machine.DiskSize
+				diskSize = machine.GetDiskSize()
 			}
 
 			diskSize = utils.MaxInt(utils.MinInt(diskSize, resLimit.GetMaxValue(constantes.ResourceNameManagedNodeDisk, types.ManagedNodeMaxDiskSize)),
@@ -395,7 +395,7 @@ func (g *AutoScalerServerNodeGroup) prepareNodes(delta int) ([]*AutoScalerServer
 				InstanceName:     nodeName,
 				Memory:           machine.Memory,
 				CPU:              machine.Vcpu,
-				DiskSize:         machine.DiskSize,
+				DiskSize:         machine.GetDiskSize(),
 				NodeType:         AutoScalerServerNodeAutoscaled,
 				ExtraAnnotations: extraAnnotations,
 				ExtraLabels:      extraLabels,

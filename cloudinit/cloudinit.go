@@ -39,7 +39,7 @@ type CloudInitInput struct {
 	AuthKey      string
 	TimeZone     string
 	Network      *NetworkDeclare
-	AllowUpgrade bool
+	AllowUpgrade *bool
 	CloudInit    CloudInit
 }
 
@@ -69,7 +69,7 @@ type NetworkAdapter struct {
 
 // NetworkDeclare wrapper
 type NetworkDeclare struct {
-	Version   int                        `default:2 json:"version,omitempty" yaml:"version,omitempty"`
+	Version   int                        `default:"2" json:"version,omitempty" yaml:"version,omitempty"`
 	Ethernets map[string]*NetworkAdapter `json:"ethernets,omitempty" yaml:"ethernets,omitempty"`
 }
 
@@ -125,21 +125,19 @@ func EncodeCloudInit(name string, object any) (string, error) {
 		wr.Close()
 	}
 
-	if err == nil {
-		var stdout bytes.Buffer
-		var zw = gzip.NewWriter(&stdout)
+	var stdout bytes.Buffer
+	var zw = gzip.NewWriter(&stdout)
 
-		zw.Name = name
-		zw.ModTime = time.Now()
+	zw.Name = name
+	zw.ModTime = time.Now()
 
-		if glog.GetLevel() > glog.InfoLevel {
-			fmt.Fprintf(os.Stderr, "name: %s\n%s", name, out.String())
-		}
+	if glog.GetLevel() > glog.InfoLevel {
+		fmt.Fprintf(os.Stderr, "name: %s\n%s", name, out.String())
+	}
 
-		if _, err = zw.Write(out.Bytes()); err == nil {
-			if err = zw.Close(); err == nil {
-				result = base64.StdEncoding.EncodeToString(stdout.Bytes())
-			}
+	if _, err = zw.Write(out.Bytes()); err == nil {
+		if err = zw.Close(); err == nil {
+			result = base64.StdEncoding.EncodeToString(stdout.Bytes())
 		}
 	}
 
@@ -195,12 +193,20 @@ func GeneratePublicKey(authKey string) (publicKey string, err error) {
 	return
 }
 
+func (input *CloudInitInput) IsAllowUpgrade() bool {
+	if input.AllowUpgrade != nil {
+		return *input.AllowUpgrade
+	}
+
+	return true
+}
 func (input *CloudInitInput) BuildVendorData() CloudInit {
 	if input.UserName != "" && input.AuthKey != "" {
 		if pubKey, err := GeneratePublicKey(input.AuthKey); err == nil {
+
 			return CloudInit{
-				"package_update":  input.AllowUpgrade,
-				"package_upgrade": input.AllowUpgrade,
+				"package_update":  input.IsAllowUpgrade(),
+				"package_upgrade": input.IsAllowUpgrade(),
 				"timezone":        input.TimeZone,
 				"users": []string{
 					"default",
@@ -218,8 +224,8 @@ func (input *CloudInitInput) BuildVendorData() CloudInit {
 	}
 
 	return CloudInit{
-		"package_update":  input.AllowUpgrade,
-		"package_upgrade": input.AllowUpgrade,
+		"package_update":  input.IsAllowUpgrade(),
+		"package_upgrade": input.IsAllowUpgrade(),
 		"timezone":        input.TimeZone,
 	}
 }
@@ -230,8 +236,8 @@ func (input *CloudInitInput) BuildUserData(netplan string) (vendorData CloudInit
 	}
 
 	vendorData = CloudInit{
-		"package_update":  input.AllowUpgrade,
-		"package_upgrade": input.AllowUpgrade,
+		"package_update":  input.IsAllowUpgrade(),
+		"package_upgrade": input.IsAllowUpgrade(),
 		"timezone":        input.TimeZone,
 	}
 

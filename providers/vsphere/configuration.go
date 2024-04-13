@@ -29,7 +29,7 @@ type Configuration struct {
 	TemplateName      string            `json:"template-name"`
 	Template          bool              `json:"template"`
 	LinkedClone       bool              `json:"linked"`
-	AllowUpgrade      bool              `default:true json:"allow-upgrade"`
+	AllowUpgrade      *bool             `json:"allow-upgrade,omitempty"`
 	Customization     string            `json:"customization"`
 	Network           providers.Network `json:"network"`
 	AvailableGPUTypes map[string]string `json:"gpu-types"`
@@ -83,7 +83,7 @@ type CreateInput struct {
 	*providers.InstanceCreateInput
 	NodeName        string
 	NodeIndex       int
-	AllowUpgrade    bool
+	AllowUpgrade    *bool
 	ExpandHardDrive bool
 	Annotation      string
 	VSphereNetwork  *vsphereNetwork

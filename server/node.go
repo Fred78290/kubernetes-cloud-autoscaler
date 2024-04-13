@@ -905,7 +905,7 @@ func (vm *AutoScalerServerNode) createInstance(c types.ClientGenerator) (err err
 		Machine: &providers.MachineCharacteristic{
 			Memory:   vm.Memory,
 			Vcpu:     vm.CPU,
-			DiskSize: vm.DiskSize,
+			DiskSize: &vm.DiskSize,
 		},
 	}
 
