@@ -1,4 +1,4 @@
-apiVersion: "nodemanager.aldunelabs.com/v1alpha1"
+apiVersion: "nodemanager.aldunelabs.com/v1alpha2"
 kind: "ManagedNode"
 metadata:
   name: "openstack-dev-microk8s-master-02"
@@ -24,7 +24,7 @@ spec:
         netmask: 255.255.255.0
         gateway: 192.168.2.254
 ---
-apiVersion: "nodemanager.aldunelabs.com/v1alpha1"
+apiVersion: "nodemanager.aldunelabs.com/v1alpha2"
 kind: "ManagedNode"
 metadata:
   name: "openstack-dev-microk8s-master-03"

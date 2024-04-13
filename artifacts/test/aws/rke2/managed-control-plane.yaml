@@ -1,4 +1,4 @@
-apiVersion: "nodemanager.aldunelabs.com/v1alpha1"
+apiVersion: "nodemanager.aldunelabs.com/v1alpha2"
 kind: "ManagedNode"
 metadata:
   name: "aws-dev-rke2-master-02"
@@ -22,7 +22,7 @@ spec:
       networkInterfaceID:
       privateAddress:
 ---
-apiVersion: "nodemanager.aldunelabs.com/v1alpha1"
+apiVersion: "nodemanager.aldunelabs.com/v1alpha2"
 kind: "ManagedNode"
 metadata:
   name: "aws-dev-rke2-master-03"

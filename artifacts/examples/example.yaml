@@ -1,4 +1,4 @@
-apiVersion: "nodemanager.aldunelabs.com/v1alpha1"
+apiVersion: "nodemanager.aldunelabs.com/v1alpha2"
 kind: "ManagedNode"
 metadata:
   name: "vmware-ca-k8s-managed-01"
@@ -26,7 +26,7 @@ spec:
       address: 192.168.1.80
       netmask: 255.255.255.0
 ---
-apiVersion: "nodemanager.aldunelabs.com/v1alpha1"
+apiVersion: "nodemanager.aldunelabs.com/v1alpha2"
 kind: "ManagedNode"
 metadata:
   name: "vmware-ca-k8s-managed-02"
@@ -54,7 +54,7 @@ spec:
       address: 192.168.1.81
       netmask: 255.255.255.0
 ---
-apiVersion: "nodemanager.aldunelabs.com/v1alpha1"
+apiVersion: "nodemanager.aldunelabs.com/v1alpha2"
 kind: "ManagedNode"
 metadata:
   name: "vmware-ca-k8s-managed-03"

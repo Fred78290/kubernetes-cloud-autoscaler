@@ -1,4 +1,4 @@
-package v1alpha1
+package v1alpha2
 
 import (
 	nodemanager "github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager"

@@ -1,4 +1,4 @@
-apiVersion: "nodemanager.aldunelabs.com/v1alpha1"
+apiVersion: "nodemanager.aldunelabs.com/v1alpha2"
 kind: "ManagedNode"
 metadata:
   name: "openstack-dev-k3s-master-02"
@@ -23,7 +23,7 @@ spec:
         netmask: 255.255.255.0
         gateway: 192.168.32.1
 ---
-apiVersion: "nodemanager.aldunelabs.com/v1alpha1"
+apiVersion: "nodemanager.aldunelabs.com/v1alpha2"
 kind: "ManagedNode"
 metadata:
   name: "openstack-dev-k3s-master-03"

@@ -21,7 +21,7 @@ package externalversions
 import (
 	"fmt"
 
-	v1alpha1 "github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha1"
+	v1alpha2 "github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha2"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
 )
@@ -52,9 +52,9 @@ func (f *genericInformer) Lister() cache.GenericLister {
 // TODO extend this to unknown resources with a client pool
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
-	// Group=nodemanager.aldunelabs.com, Version=v1alpha1
-	case v1alpha1.SchemeGroupVersion.WithResource("managednodes"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Nodemanager().V1alpha1().ManagedNodes().Informer()}, nil
+	// Group=nodemanager.aldunelabs.com, Version=v1alpha2
+	case v1alpha2.SchemeGroupVersion.WithResource("managednodes"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Nodemanager().V1alpha2().ManagedNodes().Informer()}, nil
 
 	}
 

@@ -21,7 +21,7 @@ package fake
 import (
 	"context"
 
-	v1alpha1 "github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha1"
+	v1alpha2 "github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha2"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	types "k8s.io/apimachinery/pkg/types"
@@ -31,27 +31,27 @@ import (
 
 // FakeManagedNodes implements ManagedNodeInterface
 type FakeManagedNodes struct {
-	Fake *FakeNodemanagerV1alpha1
+	Fake *FakeNodemanagerV1alpha2
 }
 
-var managednodesResource = v1alpha1.SchemeGroupVersion.WithResource("managednodes")
+var managednodesResource = v1alpha2.SchemeGroupVersion.WithResource("managednodes")
 
-var managednodesKind = v1alpha1.SchemeGroupVersion.WithKind("ManagedNode")
+var managednodesKind = v1alpha2.SchemeGroupVersion.WithKind("ManagedNode")
 
 // Get takes name of the managedNode, and returns the corresponding managedNode object, and an error if there is any.
-func (c *FakeManagedNodes) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.ManagedNode, err error) {
+func (c *FakeManagedNodes) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha2.ManagedNode, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(managednodesResource, name), &v1alpha1.ManagedNode{})
+		Invokes(testing.NewRootGetAction(managednodesResource, name), &v1alpha2.ManagedNode{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.ManagedNode), err
+	return obj.(*v1alpha2.ManagedNode), err
 }
 
 // List takes label and field selectors, and returns the list of ManagedNodes that match those selectors.
-func (c *FakeManagedNodes) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.ManagedNodeList, err error) {
+func (c *FakeManagedNodes) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha2.ManagedNodeList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(managednodesResource, managednodesKind, opts), &v1alpha1.ManagedNodeList{})
+		Invokes(testing.NewRootListAction(managednodesResource, managednodesKind, opts), &v1alpha2.ManagedNodeList{})
 	if obj == nil {
 		return nil, err
 	}
@@ -60,8 +60,8 @@ func (c *FakeManagedNodes) List(ctx context.Context, opts v1.ListOptions) (resul
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &v1alpha1.ManagedNodeList{ListMeta: obj.(*v1alpha1.ManagedNodeList).ListMeta}
-	for _, item := range obj.(*v1alpha1.ManagedNodeList).Items {
+	list := &v1alpha2.ManagedNodeList{ListMeta: obj.(*v1alpha2.ManagedNodeList).ListMeta}
+	for _, item := range obj.(*v1alpha2.ManagedNodeList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
 		}
@@ -76,40 +76,40 @@ func (c *FakeManagedNodes) Watch(ctx context.Context, opts v1.ListOptions) (watc
 }
 
 // Create takes the representation of a managedNode and creates it.  Returns the server's representation of the managedNode, and an error, if there is any.
-func (c *FakeManagedNodes) Create(ctx context.Context, managedNode *v1alpha1.ManagedNode, opts v1.CreateOptions) (result *v1alpha1.ManagedNode, err error) {
+func (c *FakeManagedNodes) Create(ctx context.Context, managedNode *v1alpha2.ManagedNode, opts v1.CreateOptions) (result *v1alpha2.ManagedNode, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(managednodesResource, managedNode), &v1alpha1.ManagedNode{})
+		Invokes(testing.NewRootCreateAction(managednodesResource, managedNode), &v1alpha2.ManagedNode{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.ManagedNode), err
+	return obj.(*v1alpha2.ManagedNode), err
 }
 
 // Update takes the representation of a managedNode and updates it. Returns the server's representation of the managedNode, and an error, if there is any.
-func (c *FakeManagedNodes) Update(ctx context.Context, managedNode *v1alpha1.ManagedNode, opts v1.UpdateOptions) (result *v1alpha1.ManagedNode, err error) {
+func (c *FakeManagedNodes) Update(ctx context.Context, managedNode *v1alpha2.ManagedNode, opts v1.UpdateOptions) (result *v1alpha2.ManagedNode, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(managednodesResource, managedNode), &v1alpha1.ManagedNode{})
+		Invokes(testing.NewRootUpdateAction(managednodesResource, managedNode), &v1alpha2.ManagedNode{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.ManagedNode), err
+	return obj.(*v1alpha2.ManagedNode), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeManagedNodes) UpdateStatus(ctx context.Context, managedNode *v1alpha1.ManagedNode, opts v1.UpdateOptions) (*v1alpha1.ManagedNode, error) {
+func (c *FakeManagedNodes) UpdateStatus(ctx context.Context, managedNode *v1alpha2.ManagedNode, opts v1.UpdateOptions) (*v1alpha2.ManagedNode, error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateSubresourceAction(managednodesResource, "status", managedNode), &v1alpha1.ManagedNode{})
+		Invokes(testing.NewRootUpdateSubresourceAction(managednodesResource, "status", managedNode), &v1alpha2.ManagedNode{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.ManagedNode), err
+	return obj.(*v1alpha2.ManagedNode), err
 }
 
 // Delete takes name of the managedNode and deletes it. Returns an error if one occurs.
 func (c *FakeManagedNodes) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteActionWithOptions(managednodesResource, name, opts), &v1alpha1.ManagedNode{})
+		Invokes(testing.NewRootDeleteActionWithOptions(managednodesResource, name, opts), &v1alpha2.ManagedNode{})
 	return err
 }
 
@@ -117,16 +117,16 @@ func (c *FakeManagedNodes) Delete(ctx context.Context, name string, opts v1.Dele
 func (c *FakeManagedNodes) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
 	action := testing.NewRootDeleteCollectionAction(managednodesResource, listOpts)
 
-	_, err := c.Fake.Invokes(action, &v1alpha1.ManagedNodeList{})
+	_, err := c.Fake.Invokes(action, &v1alpha2.ManagedNodeList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched managedNode.
-func (c *FakeManagedNodes) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.ManagedNode, err error) {
+func (c *FakeManagedNodes) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha2.ManagedNode, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(managednodesResource, name, pt, data, subresources...), &v1alpha1.ManagedNode{})
+		Invokes(testing.NewRootPatchSubresourceAction(managednodesResource, name, pt, data, subresources...), &v1alpha2.ManagedNode{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.ManagedNode), err
+	return obj.(*v1alpha2.ManagedNode), err
 }

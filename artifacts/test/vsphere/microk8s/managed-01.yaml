@@ -1,4 +1,4 @@
-apiVersion: "nodemanager.aldunelabs.com/v1alpha1"
+apiVersion: "nodemanager.aldunelabs.com/v1alpha2"
 kind: "ManagedNode"
 metadata:
   name: "vsphere-dev-microk8s-managed-01"

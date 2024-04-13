@@ -9,8 +9,9 @@ import (
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/context"
-	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha1"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha2"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -144,7 +145,7 @@ func (handler *awsHandler) GetTimeout() time.Duration {
 	return handler.Timeout
 }
 
-func (handler *awsHandler) ConfigureNetwork(network v1alpha1.ManagedNetworkConfig) {
+func (handler *awsHandler) ConfigureNetwork(network v1alpha2.ManagedNetworkConfig) {
 	if network.ENI != nil {
 		eni := network.ENI
 		if len(eni.SubnetID)+len(eni.SecurityGroupID) > 0 {

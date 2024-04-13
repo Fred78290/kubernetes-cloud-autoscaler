@@ -8,8 +8,9 @@ import (
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/cloudinit"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/context"
-	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha1"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha2"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
+
 	glog "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/util/uuid"
 )
@@ -93,7 +94,7 @@ func (handler *desktopHandler) GetTimeout() time.Duration {
 	return handler.Timeout
 }
 
-func (handler *desktopHandler) ConfigureNetwork(network v1alpha1.ManagedNetworkConfig) {
+func (handler *desktopHandler) ConfigureNetwork(network v1alpha2.ManagedNetworkConfig) {
 	handler.network.ConfigureVMWareNetwork(network.VMWare)
 }
 

@@ -1,4 +1,4 @@
-package v1alpha1
+package v1alpha2
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,11 +34,10 @@ type NetworkRoutes struct {
 
 // ManagedNodeNetwork is a specification for a network ManagedNode resource
 type VMWareManagedNodeNetwork struct {
-	Enabled     bool            `default:"true" json:"enabled,omitempty"`
 	NetworkName string          `json:"network,omitempty"` //vnet for desktop
 	Adapter     string          `json:"adapter,omitempty" yaml:"adapter,omitempty"`
 	DHCP        bool            `json:"dhcp,omitempty"`
-	UseRoutes   bool            `default:true json:"use-dhcp-routes,omitempty" yaml:"use-dhcp-routes,omitempty"`
+	UseRoutes   *bool           `json:"use-dhcp-routes,omitempty" yaml:"use-dhcp-routes,omitempty"`
 	IPV4Address string          `json:"address,omitempty"`
 	Gateway     string          `json:"gateway,omitempty"`
 	Netmask     string          `json:"netmask,omitempty"`
@@ -47,7 +46,6 @@ type VMWareManagedNodeNetwork struct {
 }
 
 type OpenStackManagedNodeNetwork struct {
-	Enabled     bool   `default:true json:"enabled,omitempty"`
 	NetworkName string `json:"network,omitempty"` //vnet for desktop
 	DHCP        bool   `json:"dhcp,omitempty"`
 	IPV4Address string `json:"address,omitempty"`

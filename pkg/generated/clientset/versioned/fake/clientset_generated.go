@@ -20,8 +20,8 @@ package fake
 
 import (
 	clientset "github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/generated/clientset/versioned"
-	nodemanagerv1alpha1 "github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/generated/clientset/versioned/typed/nodemanager/v1alpha1"
-	fakenodemanagerv1alpha1 "github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/generated/clientset/versioned/typed/nodemanager/v1alpha1/fake"
+	nodemanagerv1alpha2 "github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/generated/clientset/versioned/typed/nodemanager/v1alpha2"
+	fakenodemanagerv1alpha2 "github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/generated/clientset/versioned/typed/nodemanager/v1alpha2/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -79,7 +79,7 @@ var (
 	_ testing.FakeClient  = &Clientset{}
 )
 
-// NodemanagerV1alpha1 retrieves the NodemanagerV1alpha1Client
-func (c *Clientset) NodemanagerV1alpha1() nodemanagerv1alpha1.NodemanagerV1alpha1Interface {
-	return &fakenodemanagerv1alpha1.FakeNodemanagerV1alpha1{Fake: &c.Fake}
+// NodemanagerV1alpha2 retrieves the NodemanagerV1alpha2Client
+func (c *Clientset) NodemanagerV1alpha2() nodemanagerv1alpha2.NodemanagerV1alpha2Interface {
+	return &fakenodemanagerv1alpha2.FakeNodemanagerV1alpha2{Fake: &c.Fake}
 }

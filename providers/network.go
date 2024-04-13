@@ -9,15 +9,15 @@ import (
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/cloudinit"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
-	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha1"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha2"
 	"github.com/praserx/ipconv"
 	glog "github.com/sirupsen/logrus"
 )
 
 type NetworkInterface struct {
-	Enabled        bool                     `default:true json:"enabled,omitempty" yaml:"primary,omitempty"`
+	Enabled        *bool                    `json:"enabled,omitempty" yaml:"primary,omitempty"`
 	Primary        bool                     `json:"primary,omitempty" yaml:"primary,omitempty"`
-	Existing       bool                     `default:true json:"exists,omitempty" yaml:"exists,omitempty"`
+	Existing       *bool                    `json:"exists,omitempty" yaml:"exists,omitempty"`
 	ConnectionType string                   `default:"nat" json:"type,omitempty" yaml:"type,omitempty"`
 	BsdName        string                   `json:"bsd-name,omitempty" yaml:"bsd-name,omitempty"`
 	DisplayName    string                   `json:"display-name,omitempty" yaml:"display-name,omitempty"`
@@ -30,7 +30,7 @@ type NetworkInterface struct {
 	IPAddress      string                   `json:"address,omitempty" yaml:"address,omitempty"`
 	Netmask        string                   `json:"netmask,omitempty" yaml:"netmask,omitempty"`
 	Gateway        string                   `json:"gateway,omitempty" yaml:"gateway,omitempty"`
-	Routes         []v1alpha1.NetworkRoutes `json:"routes,omitempty" yaml:"routes,omitempty"`
+	Routes         []v1alpha2.NetworkRoutes `json:"routes,omitempty" yaml:"routes,omitempty"`
 	nodeIndex      int
 }
 

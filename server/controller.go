@@ -45,10 +45,10 @@ import (
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
 	nodemanager "github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager"
-	v1alpha1 "github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha1"
+	v1alpha1 "github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha2"
 	schemeclientset "github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/generated/clientset/versioned/scheme"
 	informers "github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/generated/informers/externalversions"
-	listers "github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/generated/listers/nodemanager/v1alpha1"
+	listers "github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/generated/listers/nodemanager/v1alpha2"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/types"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/utils"
@@ -108,7 +108,7 @@ func NewController(application applicationInterface, stopCh <-chan struct{}) (co
 	managedNodeInformerFactory := informers.NewSharedInformerFactory(nodeManagerClientset, time.Second*30)
 
 	nodesInformer := kubeInformerFactory.Core().V1().Nodes()
-	managedNodeInformer := managedNodeInformerFactory.Nodemanager().V1alpha1().ManagedNodes()
+	managedNodeInformer := managedNodeInformerFactory.Nodemanager().V1alpha2().ManagedNodes()
 
 	// Create event broadcaster
 	// Add sample-controller types to the default Kubernetes Scheme so Events can be
@@ -325,13 +325,6 @@ func (c *Controller) CreateCRD() error {
 														Schema: &apiextensionv1.JSONSchemaProps{
 															Type: "object",
 															Properties: map[string]apiextensionv1.JSONSchemaProps{
-																"enabled": {
-																	Type:        "boolean",
-																	Description: "Allow to disable the network interface",
-																	Default: &apiextensionv1.JSON{
-																		Raw: []byte("true"),
-																	},
-																},
 																"network": {
 																	Type:        "string",
 																	Description: "Network name for vpshere or local interface for multipas and desktop, vmnetX...",
@@ -365,13 +358,6 @@ func (c *Controller) CreateCRD() error {
 														Schema: &apiextensionv1.JSONSchemaProps{
 															Type: "object",
 															Properties: map[string]apiextensionv1.JSONSchemaProps{
-																"enabled": {
-																	Type:        "boolean",
-																	Description: "Allow to disable the network interface",
-																	Default: &apiextensionv1.JSON{
-																		Raw: []byte("true"),
-																	},
-																},
 																"network": {
 																	Type:        "string",
 																	Description: "Network name for vpshere or local interface for multipas and desktop, vmnetX...",
@@ -974,7 +960,7 @@ func (c *Controller) updateManagedNodeStatus(managedNode *v1alpha1.ManagedNode, 
 	// NEVER modify objects from the store. It's a read-only, local cache.
 	// You can use DeepCopy() to make a deep copy of original object and modify this copy
 	// Or create a copy manually for better performance
-	if managedNodeCopy, err := nodeManagerClientset.NodemanagerV1alpha1().ManagedNodes().Get(context.TODO(), managedNode.Name, metav1.GetOptions{}); err != nil {
+	if managedNodeCopy, err := nodeManagerClientset.NodemanagerV1alpha2().ManagedNodes().Get(context.TODO(), managedNode.Name, metav1.GetOptions{}); err != nil {
 		return err
 	} else {
 		managedNodeCopy.Status = newStatus
@@ -983,7 +969,7 @@ func (c *Controller) updateManagedNodeStatus(managedNode *v1alpha1.ManagedNode, 
 		// we must use Update instead of UpdateStatus to update the Status block of the Foo resource.
 		// UpdateStatus will not allow changes to the Spec of the resource,
 		// which is ideal for ensuring nothing other than resource status has been updated.
-		_, err := nodeManagerClientset.NodemanagerV1alpha1().
+		_, err := nodeManagerClientset.NodemanagerV1alpha2().
 			ManagedNodes().
 			UpdateStatus(context.TODO(), managedNodeCopy, metav1.UpdateOptions{})
 
@@ -1041,7 +1027,7 @@ func (c *Controller) deleteOwnerRef(ownerRef *metav1.OwnerReference) {
 
 		if ownerRef.BlockOwnerDeletion != nil && !*ownerRef.BlockOwnerDeletion {
 			if clientset, err := c.application.client().NodeManagerClient(); err == nil {
-				if err = clientset.NodemanagerV1alpha1().
+				if err = clientset.NodemanagerV1alpha2().
 					ManagedNodes().
 					Delete(context.TODO(), managedNode.GetName(), metav1.DeleteOptions{}); err != nil {
 					glog.Errorf("Unable to delete ManagedNode: %s, reason: %v", ownerRef.Name, err)

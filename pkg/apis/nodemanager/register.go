@@ -21,7 +21,7 @@ import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 // GroupName is the group name used in this package
 const (
 	GroupName    = "nodemanager.aldunelabs.com"
-	GroupVersion = "v1alpha1"
+	GroupVersion = "v1alpha2"
 	CRDKind      = "ManagedNode"
 	CRDSingular  = "managednode"
 	CRDPlural    = "managednodes"

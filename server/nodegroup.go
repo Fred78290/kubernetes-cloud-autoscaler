@@ -8,7 +8,7 @@ import (
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
 	apigrpc "github.com/Fred78290/kubernetes-cloud-autoscaler/grpc"
-	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha1"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha2"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/types"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/utils"
@@ -286,7 +286,7 @@ func (g *AutoScalerServerNodeGroup) deleteNodes(c types.ClientGenerator, delta i
 	return g.destroyNodes(c, g.prepareDeleteNodes(-delta))
 }
 
-func (g *AutoScalerServerNodeGroup) addManagedNode(crd *v1alpha1.ManagedNode) (*AutoScalerServerNode, error) {
+func (g *AutoScalerServerNodeGroup) addManagedNode(crd *v1alpha2.ManagedNode) (*AutoScalerServerNode, error) {
 	controlPlane := crd.Spec.ControlPlane
 	nodeName, nodeIndex := g.nodeName(g.findNextNodeIndex(), controlPlane, true)
 	instanceType := crd.Spec.InstanceType
@@ -707,7 +707,7 @@ func (g *AutoScalerServerNodeGroup) autoDiscoveryNodes(client types.ClientGenera
 					g.LastCreatedNodeIndex = utils.MaxInt(g.LastCreatedNodeIndex, lastNodeIndex)
 
 					if ownerRef := metav1.GetControllerOf(&nodeInfo); ownerRef != nil {
-						if ownerRef.Kind == v1alpha1.SchemeGroupVersionKind.Kind {
+						if ownerRef.Kind == v1alpha2.SchemeGroupVersionKind.Kind {
 							crdUID = ownerRef.UID
 						}
 					}

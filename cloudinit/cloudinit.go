@@ -17,7 +17,7 @@ import (
 	"time"
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
-	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha1"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha2"
 	glog "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 	"gopkg.in/yaml.v2"
@@ -64,7 +64,7 @@ type NetworkAdapter struct {
 	Addresses     *[]any                    `json:"addresses,omitempty" yaml:"addresses,omitempty"`
 	Nameservers   *Nameserver               `json:"nameservers,omitempty" yaml:"nameservers,omitempty"`
 	DHCPOverrides CloudInit                 `json:"dhcp4-overrides,omitempty" yaml:"dhcp4-overrides,omitempty"`
-	Routes        *[]v1alpha1.NetworkRoutes `json:"routes,omitempty" yaml:"routes,omitempty"`
+	Routes        *[]v1alpha2.NetworkRoutes `json:"routes,omitempty" yaml:"routes,omitempty"`
 }
 
 // NetworkDeclare wrapper

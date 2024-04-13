@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/cloudinit"
-	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha1"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha2"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/sshutils"
 	"github.com/drone/envsubst"
 )
@@ -94,7 +94,7 @@ type InstanceCreateInput struct {
 
 type ProviderHandler interface {
 	GetTimeout() time.Duration
-	ConfigureNetwork(network v1alpha1.ManagedNetworkConfig)
+	ConfigureNetwork(network v1alpha2.ManagedNetworkConfig)
 	RetrieveNetworkInfos() error
 	UpdateMacAddressTable() error
 	GenerateProviderID() string

@@ -7,8 +7,9 @@ import (
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/context"
-	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha1"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha2"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
+
 	glog "github.com/sirupsen/logrus"
 )
 
@@ -97,7 +98,7 @@ func (handler *multipassHandler) GetTimeout() time.Duration {
 	return handler.getConfiguration().Timeout
 }
 
-func (handler *multipassHandler) ConfigureNetwork(network v1alpha1.ManagedNetworkConfig) {
+func (handler *multipassHandler) ConfigureNetwork(network v1alpha2.ManagedNetworkConfig) {
 	handler.network.ConfigureVMWareNetwork(network.VMWare)
 }
 

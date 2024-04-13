@@ -245,7 +245,7 @@ The resource is cluster scope so you don't need a namespace. The name of the res
 The minimal resource declaration
 
 ```yaml
-apiVersion: "nodemanager.aldunelabs.com/v1alpha1"
+apiVersion: "nodemanager.aldunelabs.com/v1alpha2"
 kind: "ManagedNode"
 metadata:
   name: "vsphere-dev-k3s-managed-01"
@@ -259,7 +259,7 @@ spec:
 The full qualified resource including networks declaration to override the default controller network management and adding some node labels & annotations. If you specify the managed node as controller, you can also allows the controlplane to support deployment as a worker node
 
 ```yaml
-apiVersion: "nodemanager.aldunelabs.com/v1alpha1"
+apiVersion: "nodemanager.aldunelabs.com/v1alpha2"
 kind: "ManagedNode"
 metadata:
   name: "vsphere-dev-k3s-managed-01"

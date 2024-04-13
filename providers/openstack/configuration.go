@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/context"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha2"
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/cloudinit"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
-	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha1"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
 	"github.com/gophercloud/gophercloud/v2"
 	openstackapi "github.com/gophercloud/gophercloud/v2/openstack"
@@ -425,7 +425,7 @@ func (handler *openstackHandler) GetTimeout() time.Duration {
 	return handler.Timeout
 }
 
-func (handler *openstackHandler) ConfigureNetwork(network v1alpha1.ManagedNetworkConfig) {
+func (handler *openstackHandler) ConfigureNetwork(network v1alpha2.ManagedNetworkConfig) {
 	handler.network.ConfigureOpenStackNetwork(network.OpenStack)
 }
 
@@ -471,7 +471,7 @@ func (handler *openstackHandler) InstanceCreate(input *providers.InstanceCreateI
 		return "", err
 	}
 
-	if err = handler.runningInstance.Create(input.ControlPlane, input.NodeGroup, handler.instanceType, userData, input.Machine.DiskSize); err != nil {
+	if err = handler.runningInstance.Create(input.ControlPlane, input.NodeGroup, handler.instanceType, userData, input.Machine.GetDiskSize()); err != nil {
 		return "", err
 	}
 

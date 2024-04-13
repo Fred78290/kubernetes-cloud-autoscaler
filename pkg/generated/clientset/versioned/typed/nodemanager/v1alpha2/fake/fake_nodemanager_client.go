@@ -19,22 +19,22 @@ limitations under the License.
 package fake
 
 import (
-	v1alpha1 "github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/generated/clientset/versioned/typed/nodemanager/v1alpha1"
+	v1alpha2 "github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/generated/clientset/versioned/typed/nodemanager/v1alpha2"
 	rest "k8s.io/client-go/rest"
 	testing "k8s.io/client-go/testing"
 )
 
-type FakeNodemanagerV1alpha1 struct {
+type FakeNodemanagerV1alpha2 struct {
 	*testing.Fake
 }
 
-func (c *FakeNodemanagerV1alpha1) ManagedNodes() v1alpha1.ManagedNodeInterface {
+func (c *FakeNodemanagerV1alpha2) ManagedNodes() v1alpha2.ManagedNodeInterface {
 	return &FakeManagedNodes{c}
 }
 
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
-func (c *FakeNodemanagerV1alpha1) RESTClient() rest.Interface {
+func (c *FakeNodemanagerV1alpha2) RESTClient() rest.Interface {
 	var ret *rest.RESTClient
 	return ret
 }
