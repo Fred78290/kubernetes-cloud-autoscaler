@@ -45,7 +45,7 @@ import (
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
 	nodemanager "github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager"
-	v1alpha1 "github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha2"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha2"
 	schemeclientset "github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/generated/clientset/versioned/scheme"
 	informers "github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/generated/informers/externalversions"
 	listers "github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/generated/listers/nodemanager/v1alpha2"
@@ -461,7 +461,7 @@ func (c *Controller) CreateCRD() error {
 			Names: apiextensionv1.CustomResourceDefinitionNames{
 				Singular:   nodemanager.CRDSingular,
 				Plural:     nodemanager.CRDPlural,
-				Kind:       reflect.TypeOf(v1alpha1.ManagedNode{}).Name(),
+				Kind:       reflect.TypeOf(v1alpha2.ManagedNode{}).Name(),
 				ShortNames: []string{nodemanager.CRDShortName},
 			},
 		},
@@ -514,8 +514,8 @@ func (c *Controller) newControllerRef(owner metav1.Object) *metav1.OwnerReferenc
 	isController := true
 
 	return &metav1.OwnerReference{
-		APIVersion:         v1alpha1.SchemeGroupVersionKind.GroupVersion().String(),
-		Kind:               v1alpha1.SchemeGroupVersionKind.Kind,
+		APIVersion:         v1alpha2.SchemeGroupVersionKind.GroupVersion().String(),
+		Kind:               v1alpha2.SchemeGroupVersionKind.Kind,
 		Name:               owner.GetName(),
 		UID:                owner.GetUID(),
 		BlockOwnerDeletion: &blockOwnerDeletion,
@@ -602,7 +602,7 @@ func (c *Controller) findManagedNodeDeleted() {
 		for _, nodeInfo := range nodeList {
 			if ownerRef := metav1.GetControllerOf(nodeInfo); ownerRef != nil {
 				// If this object is not owned by a ManagedNode, we should not do anything more with it.
-				if ownerRef.Kind == v1alpha1.SchemeGroupVersionKind.Kind {
+				if ownerRef.Kind == v1alpha2.SchemeGroupVersionKind.Kind {
 					if _, err := c.getManagedNodeFromKey(ownerRef.Name); apierrors.IsNotFound(err) {
 						if nodegroup, found := nodeInfo.Annotations[constantes.AnnotationNodeGroupName]; found {
 							if ng, err := c.application.getNodeGroup(nodegroup); err == nil {
@@ -733,7 +733,7 @@ func (c *Controller) processAllItems() (map[uid.UID]string, map[string][]*AutoSc
 }
 
 // check if the new node doesn't break cluster limits
-func (c *Controller) checkRessourceLimits(crd *v1alpha1.ManagedNode, machineSpec *providers.MachineCharacteristic) resourceLimitsStatus {
+func (c *Controller) checkRessourceLimits(crd *v1alpha2.ManagedNode, machineSpec *providers.MachineCharacteristic) resourceLimitsStatus {
 	var currentAllocatedMemorySize int64 = 0
 	var currentAllocatedCores = 0
 
@@ -793,7 +793,7 @@ func (c *Controller) checkRessourceLimits(crd *v1alpha1.ManagedNode, machineSpec
 func (c *Controller) handleManagedNode(key string, managedNodesByUID map[uid.UID]string, nodesInCreationByNodegroup map[string][]*AutoScalerServerNode) (bool, error) {
 	var err error
 	var updateErr error
-	var managedNode *v1alpha1.ManagedNode
+	var managedNode *v1alpha2.ManagedNode
 	var nodeGroup *AutoScalerServerNodeGroup
 	var node *AutoScalerServerNode
 
@@ -953,7 +953,7 @@ func (c *Controller) handleManagedNode(key string, managedNodesByUID map[uid.UID
 	return recycled, err
 }
 
-func (c *Controller) updateManagedNodeStatus(managedNode *v1alpha1.ManagedNode, newStatus v1alpha1.ManagedNodeStatus) error {
+func (c *Controller) updateManagedNodeStatus(managedNode *v1alpha2.ManagedNode, newStatus v1alpha2.ManagedNodeStatus) error {
 	nodeManagerClientset, _ := c.client.NodeManagerClient()
 	newStatus.LastUpdateTime = metav1.Now()
 
@@ -977,7 +977,7 @@ func (c *Controller) updateManagedNodeStatus(managedNode *v1alpha1.ManagedNode, 
 	}
 }
 
-func (c *Controller) getManagedNodeFromKey(key string) (*v1alpha1.ManagedNode, error) {
+func (c *Controller) getManagedNodeFromKey(key string) (*v1alpha2.ManagedNode, error) {
 	if _, name, err := cache.SplitMetaNamespaceKey(key); err == nil {
 		return c.managedNodeLister.Get(name)
 	} else {
@@ -996,7 +996,7 @@ func (c *Controller) generateKey(obj any) string {
 }
 
 func (c *Controller) deleteManagedNode(obj any) {
-	if managedNode, ok := obj.(*v1alpha1.ManagedNode); ok {
+	if managedNode, ok := obj.(*v1alpha2.ManagedNode); ok {
 		if nodeGroup, err := c.application.getNodeGroup(managedNode.GetNodegroup()); err == nil {
 			if node, err := nodeGroup.findNodeByCRDUID(managedNode.GetUID()); err == nil {
 				glog.Infof(constantes.InfoManagedNodeIsDeleted, c.generateKey(managedNode), node.NodeName)
@@ -1016,7 +1016,7 @@ func (c *Controller) deleteManagedNode(obj any) {
 }
 
 func (c *Controller) enqueueManagedNode(obj any) {
-	if managedNode, ok := obj.(*v1alpha1.ManagedNode); ok {
+	if managedNode, ok := obj.(*v1alpha2.ManagedNode); ok {
 		c.workqueue.Add(c.generateKey(managedNode))
 	}
 }
@@ -1058,7 +1058,7 @@ func (c *Controller) handleNode(obj any) {
 
 		if ownerRef := metav1.GetControllerOf(object); ownerRef != nil {
 			// If this object is not owned by a ManagedNode, we should not do anything more with it.
-			if ownerRef.Kind == v1alpha1.SchemeGroupVersionKind.Kind {
+			if ownerRef.Kind == v1alpha2.SchemeGroupVersionKind.Kind {
 				if managedNode, err := c.getManagedNodeFromKey(ownerRef.Name); err == nil {
 					if _, err := c.client.GetNode(managedNode.Status.NodeName); apierrors.IsNotFound(err) {
 						c.deleteOwnerRef(ownerRef)
