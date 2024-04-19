@@ -29,12 +29,11 @@ type Configuration struct {
 	TemplateName      string            `json:"template-name"`
 	Template          bool              `json:"template"`
 	LinkedClone       bool              `json:"linked"`
-	AllowUpgrade      *bool             `json:"allow-upgrade,omitempty"`
 	Customization     string            `json:"customization"`
 	Network           providers.Network `json:"network"`
 	AvailableGPUTypes map[string]string `json:"gpu-types"`
-	VMWareRegion      string            `json:"csi-region"`
-	VMWareZone        string            `json:"csi-zone"`
+	VMWareRegion      string            `json:"region"`
+	VMWareZone        string            `json:"zone"`
 }
 
 type vsphereWrapper struct {
@@ -83,7 +82,6 @@ type CreateInput struct {
 	*providers.InstanceCreateInput
 	NodeName        string
 	NodeIndex       int
-	AllowUpgrade    *bool
 	ExpandHardDrive bool
 	Annotation      string
 	VSphereNetwork  *vsphereNetwork
@@ -146,7 +144,6 @@ func (handler *vsphereHandler) InstanceCreate(input *providers.InstanceCreateInp
 		InstanceCreateInput: input,
 		NodeName:            handler.instanceName,
 		NodeIndex:           handler.nodeIndex,
-		AllowUpgrade:        handler.AllowUpgrade,
 		ExpandHardDrive:     true,
 		Annotation:          handler.Annotation,
 		VSphereNetwork:      handler.network,

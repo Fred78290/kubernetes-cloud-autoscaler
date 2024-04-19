@@ -2,8 +2,6 @@ package server
 
 import (
 	"fmt"
-	"os"
-	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -12,6 +10,7 @@ import (
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/cloudinit"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/context"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/kubernetes"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/types"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/utils"
@@ -70,46 +69,45 @@ const (
 )
 
 const (
-	joinClusterInfo          = "Join cluster for node: %s for nodegroup: %s"
-	unableToExecuteCmdError  = "unable to execute command: %s, output: %s, reason: %v"
-	nodeNameTemplate         = "%s-%s-%02d"
-	errWriteFileErrorMsg     = "unable to write file: %s, reason: %v"
-	tmpConfigDestinationFile = "/tmp/config.yaml"
-	mkdirCmd                 = "mkdir -p %s"
-	scpFailed                = "scp failed: %v"
-	mkdirFailed              = "mkdir failed: %v"
-	moveFailed               = "mv failed: %v"
-	chownFailed              = "chown failed: %v"
-	copyFiles                = "cp -r /tmp/%s/* %s"
-	changeOwner              = "chown -R %s %s"
-	kubeSystemNamespace      = "kube-system"
-	k3sPasswordNodeSecret    = "%s.node-password.k3s"
-	rke2PasswordNodeSecret   = "%s.node-password.rke2"
+	joinClusterInfo         = "Join cluster for node: %s for nodegroup: %s"
+	unableToExecuteCmdError = "unable to execute command: %s, output: %s, reason: %v"
+	nodeNameTemplate        = "%s-%s-%02d"
+	mkdirCmd                = "mkdir -p %s"
+	scpFailed               = "scp failed: %v"
+	mkdirFailed             = "mkdir failed: %v"
+	moveFailed              = "mv failed: %v"
+	chownFailed             = "chown failed: %v"
+	copyFiles               = "cp -r /tmp/%s/* %s"
+	changeOwner             = "chown -R %s %s"
+	kubeSystemNamespace     = "kube-system"
+	k3sPasswordNodeSecret   = "%s.node-password.k3s"
+	rke2PasswordNodeSecret  = "%s.node-password.rke2"
 )
 
 // AutoScalerServerNode Describe a AutoScaler VM
 // Node name and instance name could be differ when using AWS cloud provider
 type AutoScalerServerNode struct {
-	NodeGroup        string                    `json:"group"`
-	NodeName         string                    `json:"node-name"`
-	NodeIndex        int                       `json:"index"`
-	InstanceName     string                    `json:"instance-name"`
-	VMUUID           string                    `json:"vm-uuid"`
-	CRDUID           uid.UID                   `json:"crd-uid"`
-	Memory           int                       `json:"memory"`
-	CPU              int                       `json:"cpu"`
-	DiskSize         int                       `json:"diskSize"`
-	IPAddress        string                    `json:"address"`
-	State            AutoScalerServerNodeState `json:"state"`
-	NodeType         AutoScalerServerNodeType  `json:"type"`
-	ControlPlaneNode bool                      `json:"control-plane,omitempty"`
-	AllowDeployment  bool                      `json:"allow-deployment,omitempty"`
-	ExtraLabels      types.KubernetesLabel     `json:"labels,omitempty"`
-	ExtraAnnotations types.KubernetesLabel     `json:"annotations,omitempty"`
-	CloudInit        cloudinit.CloudInit       `json:"cloud-init,omitempty"`
-	MaxPods          int                       `json:"max-pods,omitempty"`
-	providerHandler  providers.ProviderHandler
-	serverConfig     *types.AutoScalerServerConfig
+	NodeGroup          string                    `json:"group"`
+	NodeName           string                    `json:"node-name"`
+	NodeIndex          int                       `json:"index"`
+	InstanceName       string                    `json:"instance-name"`
+	VMUUID             string                    `json:"vm-uuid"`
+	CRDUID             uid.UID                   `json:"crd-uid"`
+	Memory             int                       `json:"memory"`
+	CPU                int                       `json:"cpu"`
+	DiskSize           int                       `json:"diskSize"`
+	IPAddress          string                    `json:"address"`
+	State              AutoScalerServerNodeState `json:"state"`
+	NodeType           AutoScalerServerNodeType  `json:"type"`
+	ControlPlaneNode   bool                      `json:"control-plane,omitempty"`
+	AllowDeployment    bool                      `json:"allow-deployment,omitempty"`
+	ExtraLabels        types.KubernetesLabel     `json:"labels,omitempty"`
+	ExtraAnnotations   types.KubernetesLabel     `json:"annotations,omitempty"`
+	CloudInit          cloudinit.CloudInit       `json:"cloud-init,omitempty"`
+	MaxPods            int                       `json:"max-pods,omitempty"`
+	providerHandler    providers.ProviderHandler
+	kubernetesProvider kubernetes.KubernetesProvider
+	serverConfig       *types.AutoScalerServerConfig
 }
 
 func (s AutoScalerServerNodeState) String() string {
@@ -208,335 +206,6 @@ func (vm *AutoScalerServerNode) runCommands(args ...string) (string, error) {
 	}
 }
 
-func (vm *AutoScalerServerNode) executeCommands(args []string, restartKubelet bool, c types.ClientGenerator) error {
-	config := vm.serverConfig
-	timeout := vm.providerHandler.GetTimeout()
-
-	if _, err := vm.runCommands(args...); err != nil {
-		return err
-	} else if c != nil {
-
-		if restartKubelet {
-			// To be sure, with kubeadm 1.26.1, the kubelet is not correctly restarted
-			time.Sleep(5 * time.Second)
-		}
-
-		return context.PollImmediate(5*time.Second, time.Duration(config.SSH.WaitSshReadyInSeconds)*time.Second, func() (done bool, err error) {
-			if node, err := c.GetNode(vm.NodeName); err == nil && node != nil {
-				return true, nil
-			}
-
-			if restartKubelet {
-				glog.Infof("Restart kubelet for node: %s for nodegroup: %s", vm.NodeName, vm.NodeGroup)
-
-				if out, err := utils.Sudo(config.SSH, vm.IPAddress, timeout, "systemctl restart kubelet"); err != nil {
-					return false, fmt.Errorf("unable to restart kubelet, output: %s, reason: %v", out, err)
-				}
-			}
-
-			return false, nil
-		})
-	}
-
-	return nil
-}
-
-func (vm *AutoScalerServerNode) joinClusterWithConfig(content any, destinationFile string, c types.ClientGenerator, restartKubelet bool, extraCommand ...string) error {
-	var result error
-
-	if f, err := os.CreateTemp(os.TempDir(), "config.*.yaml"); err != nil {
-		result = fmt.Errorf("unable to create %s, reason: %v", destinationFile, err)
-	} else {
-		defer os.Remove(f.Name())
-
-		content := utils.ToYAML(content)
-
-		if glog.GetLevel() >= glog.DebugLevel {
-			fmt.Fprintf(os.Stderr, "\n%s:\n%s\n", destinationFile, content)
-		}
-
-		if _, err = f.WriteString(content); err != nil {
-			f.Close()
-			result = fmt.Errorf(errWriteFileErrorMsg, f.Name(), err)
-		} else {
-			f.Close()
-
-			if err = utils.Scp(vm.serverConfig.SSH, vm.IPAddress, f.Name(), tmpConfigDestinationFile); err != nil {
-				result = fmt.Errorf(constantes.ErrCantCopyFileToNode, f.Name(), tmpConfigDestinationFile, err)
-			} else {
-				args := []string{
-					fmt.Sprintf(mkdirCmd, path.Dir(destinationFile)),
-					fmt.Sprintf("cp %s %s", tmpConfigDestinationFile, destinationFile),
-					fmt.Sprintf("rm %s", tmpConfigDestinationFile),
-				}
-
-				if len(extraCommand) > 0 {
-					args = append(args, extraCommand...)
-				}
-
-				result = vm.executeCommands(args, restartKubelet, c)
-			}
-		}
-	}
-
-	return result
-}
-
-func (vm *AutoScalerServerNode) putFile(content any, destinationFile string) error {
-	return vm.joinClusterWithConfig(content, destinationFile, nil, false)
-}
-
-func (vm *AutoScalerServerNode) kubeAdmConfig() any {
-	if vm.serverConfig.UseCloudInitToConfigure() {
-		return map[string]any{
-			"address": vm.IPAddress,
-			"maxPods": vm.MaxPods,
-		}
-	} else {
-		return map[string]any{
-			"address":    vm.IPAddress,
-			"providerID": vm.generateProviderID(),
-			"maxPods":    vm.MaxPods,
-		}
-	}
-}
-
-func (vm *AutoScalerServerNode) kubeAdmJoinCommand() []string {
-	config := vm.serverConfig
-	commands := make([]string, 0, 2)
-	kubeAdm := vm.serverConfig.KubeAdm
-
-	if config.UseImageCredentialProviderConfig() {
-		commands = append(commands, fmt.Sprintf("echo KUBELET_EXTRA_ARGS='--image-credential-provider-config=%s --image-credential-provider-bin-dir=%s' > /etc/default/kubelet", *config.ImageCredentialProviderConfig, *config.ImageCredentialProviderBinDir))
-	}
-
-	join := []string{
-		"kubeadm",
-		"join",
-		kubeAdm.Address,
-		"--node-name",
-		vm.NodeName,
-		"--token",
-		kubeAdm.Token,
-		"--discovery-token-ca-cert-hash",
-		kubeAdm.CACert,
-		"--patches",
-		"/etc/kubernetes/patches",
-	}
-
-	if vm.ControlPlaneNode {
-		join = append(join, "--control-plane")
-
-		if len(vm.IPAddress) > 0 {
-			join = append(join, "--apiserver-advertise-address", vm.IPAddress)
-		}
-	}
-
-	// Append extras arguments
-	if len(kubeAdm.ExtraArguments) > 0 {
-		join = append(join, kubeAdm.ExtraArguments...)
-	}
-
-	return append(commands, strings.Join(join, " "))
-}
-
-func (vm *AutoScalerServerNode) kubeAdmJoin(c types.ClientGenerator) error {
-	return vm.joinClusterWithConfig(vm.kubeAdmConfig(), "/etc/kubernetes/patches/kubeletconfiguration0+merge.yaml", c, true, vm.kubeAdmJoinCommand()...)
-}
-
-func (vm *AutoScalerServerNode) externalAgentConfig() any {
-	config := vm.serverConfig
-	external := config.External
-	externalConfig := map[string]any{
-		"max-pods":  vm.MaxPods,
-		"node-name": vm.NodeName,
-		"server":    external.Address,
-		"token":     external.Token,
-	}
-
-	if config.UseControllerManager() && !config.UseCloudInitToConfigure() {
-		externalConfig["provider-id"] = vm.generateProviderID()
-	}
-
-	if external.ExtraConfig != nil {
-		for k, v := range external.ExtraConfig {
-			externalConfig[k] = v
-		}
-	}
-
-	if vm.ControlPlaneNode {
-		if config.UseControllerManager() {
-			externalConfig["disable-cloud-controller"] = config.DisableCloudController()
-			externalConfig["cloud-provider-name"] = config.GetCloudProviderName()
-		}
-
-		if config.UseExternalEtdcServer() {
-			externalConfig["datastore-endpoint"] = external.DatastoreEndpoint
-			externalConfig["datastore-cafile"] = fmt.Sprintf("%s/ca.pem", config.ExtDestinationEtcdSslDir)
-			externalConfig["datastore-certfile"] = fmt.Sprintf("%s/etcd.pem", config.ExtDestinationEtcdSslDir)
-			externalConfig["datastore-keyfile"] = fmt.Sprintf("%s/etcd-key.pem", config.ExtDestinationEtcdSslDir)
-		}
-	}
-
-	return externalConfig
-}
-
-func (vm *AutoScalerServerNode) externalAgentJoin(c types.ClientGenerator) error {
-	return vm.joinClusterWithConfig(vm.externalAgentConfig(), vm.serverConfig.External.ConfigPath, c, false, vm.serverConfig.External.JoinCommand)
-}
-
-func (vm *AutoScalerServerNode) rke2AgentConfig() any {
-	config := vm.serverConfig
-	rke2 := config.RKE2
-	kubeletArgs := []string{
-		"fail-swap-on=false",
-		fmt.Sprintf("max-pods=%d", vm.MaxPods),
-	}
-
-	if config.UseControllerManager() && !config.UseCloudInitToConfigure() {
-		kubeletArgs = append(kubeletArgs, fmt.Sprintf("provider-id=%s", vm.generateProviderID()))
-	}
-
-	if config.CloudProvider != nil && len(*config.CloudProvider) > 0 {
-		kubeletArgs = append(kubeletArgs, fmt.Sprintf("cloud-provider=%s", *config.CloudProvider))
-	}
-
-	rke2Config := map[string]any{
-		"kubelet-arg": kubeletArgs,
-		"node-name":   vm.NodeName,
-		"server":      fmt.Sprintf("https://%s", rke2.Address),
-		"token":       rke2.Token,
-	}
-
-	if len(vm.IPAddress) > 0 {
-		rke2Config["advertise-address"] = vm.IPAddress
-	}
-
-	if vm.ControlPlaneNode {
-		if config.UseControllerManager() {
-			rke2Config["disable-cloud-controller"] = config.DisableCloudController()
-			rke2Config["cloud-provider-name"] = config.GetCloudProviderName()
-		}
-
-		rke2Config["disable"] = []string{
-			"rke2-ingress-nginx",
-			"rke2-metrics-server",
-		}
-	}
-
-	// Append extras arguments
-	if len(rke2.ExtraCommands) > 0 {
-		for _, cmd := range rke2.ExtraCommands {
-			args := strings.Split(cmd, "=")
-			rke2Config[args[0]] = args[1]
-		}
-	}
-
-	return rke2Config
-}
-
-func (vm *AutoScalerServerNode) rke2AgentJoin(c types.ClientGenerator) error {
-	return vm.joinClusterWithConfig(vm.rke2AgentConfig(), "/etc/rancher/rke2/config.yaml", c, false, vm.rke2JoinCommand()...)
-}
-
-func (vm *AutoScalerServerNode) microK8SAgentConfig() any {
-	config := vm.serverConfig
-	microk8s := config.MicroK8S
-	extraKubeAPIServerArgs := map[string]any{}
-	extraKubeletArgs := map[string]any{
-		"--max-pods":       vm.MaxPods,
-		"--cloud-provider": config.GetCloudProviderName(),
-		"--node-ip":        vm.IPAddress,
-	}
-
-	microk8sConfig := map[string]any{
-		"version":                "0.1.0",
-		"persistentClusterToken": microk8s.Token,
-		"extraMicroK8sAPIServerProxyArgs": map[string]any{
-			"--refresh-interval": "0",
-		},
-	}
-
-	if config.UseImageCredentialProviderConfig() {
-		extraKubeletArgs["--image-credential-provider-config"] = *config.ImageCredentialProviderConfig
-		extraKubeletArgs["--image-credential-provider-bin-dir"] = *config.ImageCredentialProviderBinDir
-	}
-
-	if vm.ControlPlaneNode {
-		microk8sConfig["addons"] = []map[string]string{
-			{
-				"name": "dns",
-			},
-			{
-				"name": "rbac",
-			},
-			{
-				"name": "hostpath-storage",
-			},
-		}
-
-		extraKubeAPIServerArgs["--advertise-address"] = vm.IPAddress
-		extraKubeAPIServerArgs["--authorization-mode"] = "RBAC,Node"
-
-		if config.UseExternalEtdcServer() {
-			extraKubeAPIServerArgs["--etcd-servers"] = microk8s.DatastoreEndpoint
-			extraKubeAPIServerArgs["--etcd-cafile"] = fmt.Sprintf("%s/ca.pem", config.ExtDestinationEtcdSslDir)
-			extraKubeAPIServerArgs["--etcd-certfile"] = fmt.Sprintf("%s/etcd.pem", config.ExtDestinationEtcdSslDir)
-			extraKubeAPIServerArgs["--etcd-keyfile"] = fmt.Sprintf("%s/etcd-key.pem", config.ExtDestinationEtcdSslDir)
-		}
-	}
-
-	if microk8s.OverrideConfig != nil {
-		for k, v := range microk8s.OverrideConfig {
-			if k == "extraKubeletArgs" {
-				extra := v.(map[string]any)
-
-				for k1, v1 := range extra {
-					extraKubeletArgs[k1] = v1
-				}
-			} else if k == "extraKubeAPIServerArgs" {
-				extra := v.(map[string]any)
-
-				for k1, v1 := range extra {
-					extraKubeAPIServerArgs[k1] = v1
-				}
-
-			} else {
-				microk8sConfig[k] = v
-			}
-		}
-	}
-
-	if len(extraKubeletArgs) > 0 {
-		microk8sConfig["extraKubeletArgs"] = extraKubeletArgs
-	}
-
-	if len(extraKubeAPIServerArgs) > 0 {
-		microk8sConfig["extraKubeAPIServerArgs"] = extraKubeAPIServerArgs
-	}
-
-	return microk8sConfig
-}
-
-func (vm *AutoScalerServerNode) microk8sJoinCommand() []string {
-	microk8s := vm.serverConfig.MicroK8S
-	worker := " --worker"
-
-	if vm.ControlPlaneNode {
-		worker = ""
-	}
-
-	return []string{
-		fmt.Sprintf("snap install microk8s --classic --channel=%s", microk8s.Channel),
-		"microk8s status --wait-ready",
-		fmt.Sprintf("microk8s join %s/%s%s", microk8s.Address, microk8s.Token, worker),
-	}
-}
-
-func (vm *AutoScalerServerNode) microK8SJoin(c types.ClientGenerator) error {
-	return vm.joinClusterWithConfig(vm.microK8SAgentConfig(), "/var/snap/microk8s/common/.microk8s.yaml", c, false, vm.microk8sJoinCommand()...)
-}
-
 func (vm *AutoScalerServerNode) retrieveNodeInfo(c types.ClientGenerator) error {
 	if nodeInfo, err := c.GetNode(vm.NodeName); err != nil {
 		return err
@@ -549,80 +218,26 @@ func (vm *AutoScalerServerNode) retrieveNodeInfo(c types.ClientGenerator) error 
 	return nil
 }
 
-func (vm *AutoScalerServerNode) k3sJoinCommand() []string {
-	return []string{
-		"systemctl enable k3s.service",
-		"systemctl start k3s.service",
-		"journalctl --no-pager -xeu k3s.service",
-	}
-}
-
-func (vm *AutoScalerServerNode) k3sAgentCommand() []string {
-	config := vm.serverConfig
-	k3s := config.K3S
-	command := make([]string, 0, 5)
-
-	if config.UseControllerManager() && !config.UseCloudInitToConfigure() {
-		command = append(command, fmt.Sprintf("echo K3S_ARGS='--kubelet-arg=max-pods=%d --node-name=%s --server=https://%s --token=%s --kubelet-arg=provider-id=%s ' > /etc/systemd/system/k3s.service.env", vm.MaxPods, vm.NodeName, k3s.Address, k3s.Token, vm.generateProviderID()))
-	} else {
-		command = append(command, fmt.Sprintf("echo K3S_ARGS='--kubelet-arg=max-pods=%d --node-name=%s --server=https://%s --token=%s' > /etc/systemd/system/k3s.service.env", vm.MaxPods, vm.NodeName, k3s.Address, k3s.Token))
-	}
-
-	if vm.ControlPlaneNode {
-		command = append(command, "echo 'K3S_MODE=server' > /etc/default/k3s")
-
-		if config.DisableCloudController() {
-			command = append(command, "echo K3S_DISABLE_ARGS='--disable-cloud-controller --disable=servicelb --disable=traefik --disable=metrics-server' > /etc/systemd/system/k3s.disabled.env")
-		} else {
-			command = append(command, "echo K3S_DISABLE_ARGS='--disable=servicelb --disable=traefik --disable=metrics-server' > /etc/systemd/system/k3s.disabled.env")
-		}
-
-		if config.UseExternalEtdcServer() {
-			command = append(command, fmt.Sprintf("echo K3S_SERVER_ARGS='--datastore-endpoint=%s --datastore-cafile=%s/ca.pem --datastore-certfile=%s/etcd.pem --datastore-keyfile=%s/etcd-key.pem' > /etc/systemd/system/k3s.server.env", k3s.DatastoreEndpoint, config.ExtDestinationEtcdSslDir, config.ExtDestinationEtcdSslDir, config.ExtDestinationEtcdSslDir))
-		}
-	} else {
-		command = append(command, "echo 'K3S_MODE=agent' > /etc/default/k3s")
-	}
-
-	// Append extras arguments
-	if len(k3s.ExtraCommands) > 0 {
-		command = append(command, k3s.ExtraCommands...)
-	}
-
-	return append(command, vm.k3sJoinCommand()...)
-}
-
-func (vm *AutoScalerServerNode) k3sAgentJoin(c types.ClientGenerator) error {
-	return vm.executeCommands(vm.k3sAgentCommand(), false, c)
-}
-
 func (vm *AutoScalerServerNode) joinCluster(c types.ClientGenerator) (err error) {
 	glog.Infof("Register node in cluster for instance: %s in node group: %s", vm.InstanceName, vm.NodeGroup)
 
-	config := vm.serverConfig
+	kubernetesProvider := vm.getKubernetesProvider()
 
-	if config.UseImageCredentialProviderConfig() {
-		err = vm.putFile(config.CredentialProviderConfig, *config.ImageCredentialProviderConfig)
-	}
-
-	if err == nil {
+	if err = kubernetesProvider.UploadImageCredentialProviderConfig(); err == nil {
 		glog.Infof(joinClusterInfo, vm.NodeName, vm.NodeGroup)
 
-		switch config.KubernetesDistribution() {
-		case providers.K3SDistributionName:
-			err = vm.k3sAgentJoin(c)
-		case providers.RKE2DistributionName:
-			err = vm.rke2AgentJoin(c)
-		case providers.MicroK8SDistributionName:
-			err = vm.microK8SJoin(c)
-		case providers.ExternalDistributionName:
-			err = vm.externalAgentJoin(c)
-		default:
-			err = vm.kubeAdmJoin(c)
-		}
+		err = kubernetesProvider.JoinCluster(c)
 	}
 
-	return err
+	return
+}
+
+func (vm *AutoScalerServerNode) getKubernetesProvider() kubernetes.KubernetesProvider {
+	if vm.kubernetesProvider == nil {
+		vm.kubernetesProvider = kubernetes.NewKubernetesProvider(vm.serverConfig, vm.ControlPlaneNode, vm.MaxPods, vm.NodeName, vm.generateProviderID(), vm.IPAddress, vm.providerHandler.GetTimeout())
+	}
+
+	return vm.kubernetesProvider
 }
 
 func (vm *AutoScalerServerNode) setNodeLabels(c types.ClientGenerator, nodeLabels, systemLabels types.KubernetesLabel) error {
@@ -734,84 +349,6 @@ func (vm *AutoScalerServerNode) appendKubernetesPKIIfNeededInCloudInit() error {
 	return nil
 }
 
-func (vm *AutoScalerServerNode) appendKubeAdmConfigInCloudInit() (err error) {
-	config := vm.serverConfig
-
-	if err = vm.CloudInit.AddObjectToWriteFile(vm.kubeAdmConfig(), "/etc/kubernetes/patches/kubeletconfiguration0+merge.yaml", *config.CloudInitFileOwner, *config.CloudInitFileMode); err == nil {
-		vm.CloudInit.AddRunCommand(vm.kubeAdmJoinCommand()...)
-	}
-
-	return err
-}
-
-func (vm *AutoScalerServerNode) appendExternalAgentConfigInCloudInit() (err error) {
-	config := vm.serverConfig
-
-	if err = vm.CloudInit.AddObjectToWriteFile(vm.externalAgentConfig(), vm.serverConfig.External.ConfigPath, *config.CloudInitFileOwner, *config.CloudInitFileMode); err == nil {
-		vm.CloudInit.AddRunCommand(vm.serverConfig.External.JoinCommand)
-	}
-
-	return err
-}
-
-func (vm *AutoScalerServerNode) rke2JoinCommand() []string {
-	var service string
-
-	if vm.ControlPlaneNode {
-		service = "rke2-server"
-	} else {
-		service = "rke2-agent"
-	}
-
-	return []string{
-		fmt.Sprintf("systemctl enable %s.service", service),
-		fmt.Sprintf("systemctl start %s.service", service),
-		fmt.Sprintf("journalctl --no-pager -xeu %s.service", service),
-	}
-}
-
-func (vm *AutoScalerServerNode) appendRKE2AgentConfigInCloudInit() (err error) {
-	config := vm.serverConfig
-
-	if err = vm.CloudInit.AddObjectToWriteFile(vm.rke2AgentConfig(), "/etc/rancher/rke2/config.yaml", *config.CloudInitFileOwner, *config.CloudInitFileMode); err == nil {
-		vm.CloudInit.AddRunCommand(vm.rke2JoinCommand()...)
-	}
-
-	return err
-}
-
-func (vm *AutoScalerServerNode) appendMicroK8SAgentConfigInCloudInit() (err error) {
-	config := vm.serverConfig
-	microk8s := config.MicroK8S
-	worker := " --worker"
-
-	if vm.ControlPlaneNode {
-		worker = ""
-	}
-
-	joinClustercript := []string{
-		"#!/bin/bash",
-		"export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin",
-		fmt.Sprintf("snap install microk8s --classic --channel=%s", microk8s.Channel),
-		"microk8s status --wait-ready",
-		fmt.Sprintf("microk8s join %s/%s%s", microk8s.Address, microk8s.Token, worker),
-	}
-
-	vm.CloudInit.AddTextToWriteFile(strings.Join(joinClustercript, "\n"), "/usr/local/bin/join-cluster.sh", *config.CloudInitFileOwner, 0755)
-
-	if err = vm.CloudInit.AddObjectToWriteFile(vm.microK8SAgentConfig(), "/var/snap/microk8s/common/.microk8s.yaml", *config.CloudInitFileOwner, *config.CloudInitFileMode); err == nil {
-		vm.CloudInit.AddRunCommand("nohup /usr/local/bin/join-cluster.sh > /var/log/join-cluster.log &")
-	}
-
-	return err
-}
-
-func (vm *AutoScalerServerNode) appendK3SAgentConfigInCloudInit() error {
-	vm.CloudInit.AddRunCommand(vm.k3sAgentCommand()...)
-
-	return nil
-}
-
 func (vm *AutoScalerServerNode) prepareCloudInit() (err error) {
 	config := vm.serverConfig
 
@@ -821,8 +358,8 @@ func (vm *AutoScalerServerNode) prepareCloudInit() (err error) {
 
 	if vm.serverConfig.CloudInit == nil {
 		vm.CloudInit = cloudinit.CloudInit{
-			"package_update":  false,
-			"package_upgrade": false,
+			"package_update":  vm.serverConfig.AllowUpgrade,
+			"package_upgrade": vm.serverConfig.AllowUpgrade,
 		}
 	} else if vm.CloudInit, err = vm.serverConfig.CloudInit.Clone(); err != nil {
 		return err
@@ -837,23 +374,10 @@ func (vm *AutoScalerServerNode) prepareCloudInit() (err error) {
 			return err
 		}
 
-		if config.UseImageCredentialProviderConfig() {
-			if err = vm.CloudInit.AddObjectToWriteFile(config.CredentialProviderConfig, *config.ImageCredentialProviderConfig, *config.CloudInitFileOwner, *config.CloudInitFileMode); err != nil {
-				return err
-			}
-		}
+		kubernetesProvider := vm.getKubernetesProvider()
 
-		switch config.KubernetesDistribution() {
-		case providers.K3SDistributionName:
-			return vm.appendK3SAgentConfigInCloudInit()
-		case providers.RKE2DistributionName:
-			return vm.appendRKE2AgentConfigInCloudInit()
-		case providers.MicroK8SDistributionName:
-			return vm.appendMicroK8SAgentConfigInCloudInit()
-		case providers.ExternalDistributionName:
-			return vm.appendExternalAgentConfigInCloudInit()
-		default:
-			return vm.appendKubeAdmConfigInCloudInit()
+		if err = kubernetesProvider.PutImageCredentialProviderConfigInCloudInit(vm.CloudInit); err == nil {
+			err = vm.getKubernetesProvider().PutConfigInCloudInit(vm.CloudInit)
 		}
 	}
 
@@ -898,6 +422,7 @@ func (vm *AutoScalerServerNode) createInstance(c types.ClientGenerator) (err err
 
 	createInput := &providers.InstanceCreateInput{
 		ControlPlane: vm.ControlPlaneNode,
+		AllowUpgrade: *vm.serverConfig.AllowUpgrade,
 		NodeGroup:    vm.NodeGroup,
 		UserName:     userInfo.GetUserName(),
 		AuthKey:      userInfo.GetAuthKeys(),

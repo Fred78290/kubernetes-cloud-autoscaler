@@ -155,7 +155,7 @@ func (wrapper *remoteMultipassWrapper) create(input *createInstanceInput) (strin
 		UserName:     input.UserName,
 		AuthKey:      input.AuthKey,
 		TimeZone:     tz,
-		AllowUpgrade: wrapper.AllowUpgrade,
+		AllowUpgrade: input.AllowUpgrade,
 		CloudInit:    input.CloudInit,
 	}
 

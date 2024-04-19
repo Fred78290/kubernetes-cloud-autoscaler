@@ -154,7 +154,7 @@ func (wrapper *hostMultipassWrapper) writeCloudFile(input *createInstanceInput) 
 		UserName:     input.UserName,
 		AuthKey:      input.AuthKey,
 		TimeZone:     tz,
-		AllowUpgrade: wrapper.AllowUpgrade,
+		AllowUpgrade: input.AllowUpgrade,
 		CloudInit:    input.CloudInit,
 	}
 

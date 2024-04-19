@@ -584,6 +584,10 @@ func StartServer(kubeClient types.ClientGenerator, c *types.Config) {
 		config.DebugMode = &c.DebugMode
 	}
 
+	if config.AllowUpgrade == nil {
+		config.AllowUpgrade = &c.AllowUpgrade
+	}
+
 	if config.CloudProvider == nil {
 		config.CloudProvider = &c.CloudProvider
 	}

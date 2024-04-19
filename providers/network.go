@@ -154,10 +154,19 @@ func (vnet *Network) Clone(controlPlane bool, nodeIndex int) *Network {
 	return copy
 }
 
+func (vnet *Network) PrimaryInterface() *NetworkInterface {
+	for _, n := range vnet.Interfaces {
+		if n.IsEnabled() && n.Primary {
+			return n
+		}
+	}
+	return nil
+}
+
 func (vnet *Network) PrimaryAddressIP() (address string) {
 	for _, n := range vnet.Interfaces {
 		if n.IsEnabled() && n.Primary {
-			if !n.DHCP || len(n.IPAddress) > 0 {
+			if !n.DHCP && n.IPAddress != "dhcp" && n.IPAddress != "none" {
 				address = n.IPAddress
 			}
 			break
@@ -299,6 +308,12 @@ func (vnet *Network) ConfigurationDidLoad() {
 		} else if strings.ToLower(inet.IPAddress) == "dhcp" {
 			inet.DHCP = true
 			inet.IPAddress = ""
+		} else if inet.IPAddress == "" {
+			inet.DHCP = true
+		}
+
+		if inet.DHCP && len(inet.Routes) == 0 {
+			inet.UseRoutes = nil
 		}
 	}
 }
@@ -310,7 +325,10 @@ func (vnet *Network) ConfigureOpenStackNetwork(openstack []v1alpha2.OpenStackMan
 				inet.DHCP = network.DHCP
 				inet.UseRoutes = &TRUE
 
-				if strings.ToLower(network.IPV4Address) == "none" {
+				if inet.DHCP {
+					inet.IPAddress = ""
+					inet.Gateway = ""
+				} else if strings.ToLower(network.IPV4Address) == "none" {
 					inet.Enabled = &FALSE
 					inet.IPAddress = ""
 				} else if strings.ToLower(network.IPV4Address) == "dhcp" {
@@ -318,6 +336,7 @@ func (vnet *Network) ConfigureOpenStackNetwork(openstack []v1alpha2.OpenStackMan
 					inet.IPAddress = ""
 				} else if len(network.IPV4Address) > 0 {
 					inet.IPAddress = network.IPV4Address
+					inet.Gateway = network.Gateway
 				}
 
 				if len(network.Netmask) > 0 {
@@ -344,7 +363,9 @@ func (vnet *Network) ConfigureVMWareNetwork(vmware []v1alpha2.VMWareManagedNodeN
 				inet.UseRoutes = network.UseRoutes
 				inet.Routes = network.Routes
 
-				if strings.ToLower(network.IPV4Address) == "none" {
+				if inet.DHCP {
+					inet.IPAddress = ""
+				} else if strings.ToLower(network.IPV4Address) == "none" {
 					inet.Enabled = &FALSE
 					inet.IPAddress = ""
 				} else if strings.ToLower(network.IPV4Address) == "dhcp" {

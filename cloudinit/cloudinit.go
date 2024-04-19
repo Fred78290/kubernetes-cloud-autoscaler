@@ -39,7 +39,7 @@ type CloudInitInput struct {
 	AuthKey      string
 	TimeZone     string
 	Network      *NetworkDeclare
-	AllowUpgrade *bool
+	AllowUpgrade bool
 	CloudInit    CloudInit
 }
 
@@ -193,20 +193,13 @@ func GeneratePublicKey(authKey string) (publicKey string, err error) {
 	return
 }
 
-func (input *CloudInitInput) IsAllowUpgrade() bool {
-	if input.AllowUpgrade != nil {
-		return *input.AllowUpgrade
-	}
-
-	return true
-}
 func (input *CloudInitInput) BuildVendorData() CloudInit {
 	if input.UserName != "" && input.AuthKey != "" {
 		if pubKey, err := GeneratePublicKey(input.AuthKey); err == nil {
 
 			return CloudInit{
-				"package_update":  input.IsAllowUpgrade(),
-				"package_upgrade": input.IsAllowUpgrade(),
+				"package_update":  input.AllowUpgrade,
+				"package_upgrade": input.AllowUpgrade,
 				"timezone":        input.TimeZone,
 				"users": []string{
 					"default",
@@ -224,8 +217,8 @@ func (input *CloudInitInput) BuildVendorData() CloudInit {
 	}
 
 	return CloudInit{
-		"package_update":  input.IsAllowUpgrade(),
-		"package_upgrade": input.IsAllowUpgrade(),
+		"package_update":  input.AllowUpgrade,
+		"package_upgrade": input.AllowUpgrade,
 		"timezone":        input.TimeZone,
 	}
 }
@@ -236,8 +229,8 @@ func (input *CloudInitInput) BuildUserData(netplan string) (vendorData CloudInit
 	}
 
 	vendorData = CloudInit{
-		"package_update":  input.IsAllowUpgrade(),
-		"package_upgrade": input.IsAllowUpgrade(),
+		"package_update":  input.AllowUpgrade,
+		"package_upgrade": input.AllowUpgrade,
 		"timezone":        input.TimeZone,
 	}
 
@@ -379,7 +372,7 @@ func (c CloudInit) AddTextToWriteFile(text string, destination, owner string, pe
 	c.AddToWriteFile([]byte(text), destination, owner, permissions)
 }
 
-func (c CloudInit) AddRunCommand(command ...string) {
+func (c CloudInit) AddRunCommand(command ...string) (err error) {
 	var oarr []any
 
 	if runcmd, found := c["runcmd"]; found {
@@ -395,4 +388,6 @@ func (c CloudInit) AddRunCommand(command ...string) {
 	}
 
 	c["runcmd"] = oarr
+
+	return
 }

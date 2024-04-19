@@ -1,8 +1,8 @@
 {
   "image": "${OS_TEMPLATE_NAME}",
   "allow-upgrade": false,
-	"csi-region": "${OS_REGION_NAME}",
-	"csi-zone": "${OS_ZONE_NAME}",
+	"region": "${OS_REGION_NAME}",
+	"zone": "${OS_ZONE_NAME}",
   "timeout": 300,
   "clouds": {
     "openstack": {

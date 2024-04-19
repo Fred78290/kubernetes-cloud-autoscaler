@@ -93,6 +93,7 @@ type ProviderConfiguration interface {
 
 type InstanceCreateInput struct {
 	ControlPlane bool
+	AllowUpgrade bool
 	NodeGroup    string
 	UserName     string
 	AuthKey      string

@@ -91,6 +91,7 @@ type Config struct {
 	SaveLocation                  string
 	DisplayVersion                bool
 	DebugMode                     bool
+	AllowUpgrade                  bool
 	LogFormat                     string
 	LogLevel                      string
 	MinNode                       int64
@@ -285,6 +286,7 @@ type AutoScalerServerConfig struct {
 	SSH                           *sshutils.AutoScalerServerSSH   `json:"ssh-infos"`
 	AutoScalingOptions            *NodeGroupAutoscalingOptions    `json:"autoscaling-options,omitempty"`
 	DebugMode                     *bool                           `json:"debug,omitempty"`
+	AllowUpgrade                  *bool                           `json:"allow-upgrade,omitempty"`
 	CredentialProviderConfig      any                             `json:"credential-provider-config,omitempty"`
 	providerConfiguration         providers.ProviderConfiguration `json:"-"`
 	autoScalingOptions            *apigrpc.AutoscalingOptions     `json:"-"`
@@ -561,6 +563,7 @@ func (cfg *Config) ParseFlags(args []string, version string) error {
 	app.Flag("log-level", "Set the level of logging. (default: info, options: panic, debug, info, warning, error, fatal").Default(cfg.LogLevel).EnumVar(&cfg.LogLevel, allLogLevelsAsStrings()...)
 
 	app.Flag("debug", "Debug mode").Default("false").BoolVar(&cfg.DebugMode)
+	app.Flag("allow-upgrade", "Allow to upgrade packages").Default("false").BoolVar(&cfg.AllowUpgrade)
 
 	app.Flag("plateform", "Which plateform used: vsphere, aws, desktop, multipass, openstack").Default(cfg.Plateform).EnumVar(&cfg.Plateform, providers.SupportedCloudProviders...)
 	app.Flag("plateform-config", "Plateform provider config file").Default(cfg.ProviderConfig).StringVar(&cfg.ProviderConfig)

@@ -31,9 +31,8 @@ type Configuration struct {
 	TemplateName      string             `json:"template-name"`
 	NetplanFileName   string             `default:"10-custom.yaml" json:"netplan-name"`
 	AvailableGPUTypes map[string]string  `json:"gpu-types"`
-	AllowUpgrade      *bool              `json:"allow-upgrade,omitempty"`
-	VMWareRegion      string             `default:"home" json:"csi-region"`
-	VMWareZone        string             `default:"office" json:"csi-zone"`
+	VMWareRegion      string             `default:"home" json:"region"`
+	VMWareZone        string             `default:"office" json:"zone"`
 	Network           *providers.Network `json:"network" `
 	Mounts            []MountPoint       `json:"mounts"`
 }

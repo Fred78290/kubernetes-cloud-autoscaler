@@ -90,7 +90,7 @@
         "--config=${workspaceFolder}/.config/openstack/openstack-dev-k3s/autoscaler.json",
         "--save=${workspaceFolder}/.config/openstack/openstack-dev-k3s/state.json",
         "--kubeconfig=${workspaceFolder}/.config/openstack/openstack-dev-k3s/config",
-        "--log-level=info"
+        "--log-level=debug"
       ]
     },
     {

@@ -28,9 +28,8 @@ type Configuration struct {
 	Autostart         bool               `json:"autostart"`
 	Network           *providers.Network `json:"network"`
 	AvailableGPUTypes map[string]string  `json:"gpu-types"`
-	AllowUpgrade      *bool              `json:"allow-upgrade,omitempty"`
-	VMWareRegion      string             `default:"home" json:"csi-region"`
-	VMWareZone        string             `default:"office" json:"csi-zone"`
+	VMWareRegion      string             `default:"home" json:"region"`
+	VMWareZone        string             `default:"office" json:"zone"`
 }
 
 type desktopWrapper struct {
@@ -53,10 +52,9 @@ type desktopHandler struct {
 
 type CreateInput struct {
 	*providers.InstanceCreateInput
-	NodeName     string
-	AllowUpgrade *bool
-	TimeZone     string
-	Network      *providers.Network
+	NodeName string
+	TimeZone string
+	Network  *providers.Network
 }
 
 func NewDesktopProviderConfiguration(fileName string) (providers.ProviderConfiguration, error) {
@@ -135,7 +133,6 @@ func (handler *desktopHandler) InstanceCreate(input *providers.InstanceCreateInp
 	createInput := &CreateInput{
 		InstanceCreateInput: input,
 		NodeName:            handler.instanceName,
-		AllowUpgrade:        handler.AllowUpgrade,
 		TimeZone:            handler.TimeZone,
 		Network:             handler.network,
 	}

@@ -7,7 +7,7 @@ spec:
   controlPlane: false
   allowDeployment: true
   instanceType: k8s.small
-  diskSizeInMB: 10240
+  diskSizeInMB: 20480
   diskType: gp3
   labels:
   - demo-label.acme.com=demo
@@ -30,7 +30,7 @@ spec:
   controlPlane: false
   allowDeployment: true
   instanceType: k8s.small
-  diskSizeInMB: 10240
+  diskSizeInMB: 20480
   diskType: gp3
   labels:
   - demo-label.acme.com=demo

@@ -60,9 +60,9 @@ type Configuration struct {
 	Timeout           time.Duration     `json:"timeout"`
 	Network           Network           `json:"network"`
 	AvailableGPUTypes map[string]string `json:"gpu-types"`
-	AllowUpgrade      *bool             `json:"allow-upgrade,omitempty"`
-	OpenStackRegion   string            `default:"home" json:"csi-region"`
-	OpenStackZone     string            `default:"office" json:"csi-zone"`
+	KeyName           string            `json:"keyName"`
+	OpenStackRegion   string            `default:"home" json:"region"`
+	OpenStackZone     string            `default:"office" json:"zone"`
 }
 
 type openstackWrapper struct {
@@ -78,7 +78,7 @@ type openstackWrapper struct {
 
 type openstackHandler struct {
 	*openstackWrapper
-	network *openStackNetwork
+	attachedNetwork *openStackNetwork
 
 	runningInstance *ServerInstance
 	instanceType    string
@@ -117,14 +117,15 @@ func (wrapper *openstackWrapper) AttachInstance(instanceName string, controlPlan
 	var instanceID string
 
 	if instanceID, err = wrapper.UUID(instanceName); err == nil {
+		network := wrapper.network.Clone(controlPlane, nodeIndex)
 		handler = &openstackHandler{
 			openstackWrapper: wrapper,
-			network:          wrapper.network.Clone(controlPlane, nodeIndex),
+			attachedNetwork:  network,
 			instanceName:     instanceName,
 			instanceID:       instanceID,
 			controlPlane:     controlPlane,
 			nodeIndex:        nodeIndex,
-			runningInstance:  wrapper.newServerInstance(instanceName, instanceID, nodeIndex),
+			runningInstance:  wrapper.newServerInstance(instanceName, instanceID, network, nodeIndex),
 		}
 	}
 
@@ -141,7 +142,7 @@ func (wrapper *openstackWrapper) CreateInstance(instanceName, instanceType strin
 	} else if instanceType, err = wrapper.getFlavor(ctx, instanceType); err == nil {
 		handler = &openstackHandler{
 			openstackWrapper: wrapper,
-			network:          wrapper.network.Clone(controlPlane, nodeIndex),
+			attachedNetwork:  wrapper.network.Clone(controlPlane, nodeIndex),
 			instanceType:     instanceType,
 			instanceName:     instanceName,
 			controlPlane:     controlPlane,
@@ -203,6 +204,8 @@ func (wrapper *openstackWrapper) ConfigurationDidLoad() (err error) {
 			return err
 		}
 	}
+
+	authOptions.AllowReauth = true
 
 	if wrapper.providerClient, err = config.NewProviderClient(ctx, authOptions, config.WithTLSConfig(tlsConfig)); err != nil {
 		return err
@@ -326,23 +329,24 @@ func (wrapper *openstackWrapper) getImage(ctx *context.Context, name string) (st
 
 func (wrapper *openstackWrapper) getAddress(ctx *context.Context, server *servers.Server) (addressIP string, err error) {
 	var allPages pagination.Page
-	var addresses map[string][]servers.Address
+	var addresses []servers.Address
 
 	if len(server.AccessIPv4) > 0 {
-		addressIP = server.AccessIPv4
-	} else {
-		if allPages, err = servers.ListAddresses(wrapper.computeClient, server.ID).AllPages(ctx); err != nil {
-			return "", err
-		}
+		return server.AccessIPv4, nil
+	}
 
-		if addresses, err = servers.ExtractAddresses(allPages); err != nil {
-			return "", err
-		}
+	primaryInterface := wrapper.network.PrimaryInterface()
 
-		for _, addr := range addresses {
-			addressIP = addr[0].Address
-			break
-		}
+	if allPages, err = servers.ListAddressesByNetwork(wrapper.computeClient, server.ID, primaryInterface.NetworkName).AllPages(ctx); err != nil {
+		return
+	}
+
+	if addresses, err = servers.ExtractNetworkAddresses(allPages); err != nil {
+		return
+	}
+
+	if len(addresses) > 0 {
+		addressIP = addresses[0].Address
 	}
 
 	return
@@ -377,7 +381,7 @@ func (wrapper *openstackWrapper) getServer(ctx *context.Context, name string) (v
 	return
 }
 
-func (wrapper *openstackWrapper) newServerInstance(instanceName, instanceID string, nodeIndex int) *ServerInstance {
+func (wrapper *openstackWrapper) newServerInstance(instanceName, instanceID string, network *openStackNetwork, nodeIndex int) *ServerInstance {
 	return &ServerInstance{
 		openstackWrapper: wrapper,
 		InstanceName:     instanceName,
@@ -386,6 +390,7 @@ func (wrapper *openstackWrapper) newServerInstance(instanceName, instanceID stri
 		PrivateDNSName:   instanceName,
 		Region:           wrapper.OpenStackRegion,
 		Zone:             wrapper.OpenStackZone,
+		attachedNetwork:  network,
 	}
 }
 
@@ -432,6 +437,11 @@ func (handler *openstackHandler) RetrieveNetworkInfos() error {
 		return fmt.Errorf(constantes.ErrInstanceIsNotAttachedToCloudProvider)
 	}
 
+	ctx := context.NewContext(handler.Timeout)
+	defer ctx.Cancel()
+
+	handler.attachedNetwork.retrieveNetworkInfos(ctx, handler.dnsClient, handler.instanceName)
+
 	return handler.openstackWrapper.RetrieveNetworkInfos(handler.instanceID, handler.network.Network)
 }
 
@@ -463,7 +473,7 @@ func (handler *openstackHandler) GetTopologyLabels() map[string]string {
 func (handler *openstackHandler) InstanceCreate(input *providers.InstanceCreateInput) (vmuuid string, err error) {
 	var userData string
 
-	handler.runningInstance = handler.newServerInstance(handler.instanceName, "", handler.nodeIndex)
+	handler.runningInstance = handler.newServerInstance(handler.instanceName, "", handler.network, handler.nodeIndex)
 
 	if userData, err = handler.encodeCloudInit(input.CloudInit); err != nil {
 		return "", err
@@ -472,6 +482,8 @@ func (handler *openstackHandler) InstanceCreate(input *providers.InstanceCreateI
 	if err = handler.runningInstance.Create(input.ControlPlane, input.NodeGroup, handler.instanceType, userData, input.Machine.GetDiskSize()); err != nil {
 		return "", err
 	}
+
+	handler.instanceID = handler.runningInstance.InstanceID
 
 	return handler.runningInstance.InstanceID, nil
 }

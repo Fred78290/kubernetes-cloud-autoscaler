@@ -63,7 +63,7 @@ func (net *openStackNetwork) registerDNS(ctx *context.Context, client *gopherclo
 		var record *recordsets.RecordSet
 
 		opts := recordsets.CreateOpts{
-			Name: name,
+			Name: name + "." + net.Domain + ".",
 			Records: []string{
 				address,
 			},
@@ -78,22 +78,54 @@ func (net *openStackNetwork) registerDNS(ctx *context.Context, client *gopherclo
 	return
 }
 
+func (net *openStackNetwork) findDNSEntry(ctx *context.Context, client *gophercloud.ServiceClient, name string) (dnsEntryID string, err error) {
+	var allPages pagination.Page
+	var allRecords []recordsets.RecordSet
+
+	opts := recordsets.ListOpts{
+		Name:   name + "." + net.Domain + ".",
+		ZoneID: *net.dnsZoneID,
+	}
+
+	if allPages, err = recordsets.ListByZone(client, *net.dnsZoneID, opts).AllPages(ctx); err == nil {
+		if allRecords, err = recordsets.ExtractRecordSets(allPages); err == nil {
+			for _, record := range allRecords {
+				dnsEntryID = record.ID
+				break
+			}
+		}
+	}
+
+	return
+}
+
 func (net *openStackNetwork) unregisterDNS(ctx *context.Context, client *gophercloud.ServiceClient, name, _ string) (err error) {
 	if client != nil && net.dnsZoneID != nil {
-		var allPages pagination.Page
-		var allRecords []recordsets.RecordSet
+		var dnsEntryID string
 
 		if net.dnsEntryID != nil {
-			err = recordsets.Delete(ctx, client, *net.dnsZoneID, *net.dnsEntryID).ExtractErr()
-		} else if allPages, err = recordsets.ListByZone(client, *net.dnsZoneID, recordsets.ListOpts{Name: name + "."}).AllPages(ctx); err == nil {
-			if allRecords, err = recordsets.ExtractRecordSets(allPages); err == nil {
-				for _, record := range allRecords {
-					err = recordsets.Delete(ctx, client, *net.dnsZoneID, record.ID).ExtractErr()
-				}
-			}
+			dnsEntryID = *net.dnsEntryID
+		} else if dnsEntryID, err = net.findDNSEntry(ctx, client, name); err != nil {
+			return
 		}
 
 		net.dnsEntryID = nil
+
+		err = recordsets.Delete(ctx, client, *net.dnsZoneID, dnsEntryID).ExtractErr()
+	}
+
+	return
+}
+
+func (net *openStackNetwork) retrieveNetworkInfos(ctx *context.Context, client *gophercloud.ServiceClient, name string) (err error) {
+	if client != nil && net.dnsZoneID != nil {
+		var dnsEntryID string
+
+		if dnsEntryID, err = net.findDNSEntry(ctx, client, name); err != nil {
+			return
+		}
+
+		net.dnsEntryID = aws.String(dnsEntryID)
 	}
 
 	return
