@@ -14,7 +14,7 @@ type k3sProvider struct {
 func (provider *k3sProvider) joinCommand() []string {
 	return []string{
 		"systemctl enable k3s.service",
-		"systemctl start k3s.service",
+		"systemctl start k3s.service --no-block",
 		"journalctl --no-pager -xeu k3s.service",
 	}
 }
