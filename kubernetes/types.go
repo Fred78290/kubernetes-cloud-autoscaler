@@ -158,6 +158,7 @@ func NewKubernetesProvider(configuration *types.AutoScalerServerConfig, controlP
 			kubernetesCommon: kubernetesCommon{
 				configuration: configuration,
 				controlPlane:  controlPlane,
+				maxPods:       maxPods,
 				nodeName:      nodeName,
 				address:       address,
 				providerID:    providerID,
@@ -170,6 +171,7 @@ func NewKubernetesProvider(configuration *types.AutoScalerServerConfig, controlP
 			kubernetesCommon: kubernetesCommon{
 				configuration: configuration,
 				controlPlane:  controlPlane,
+				maxPods:       maxPods,
 				nodeName:      nodeName,
 				address:       address,
 				providerID:    providerID,
@@ -182,6 +184,7 @@ func NewKubernetesProvider(configuration *types.AutoScalerServerConfig, controlP
 			kubernetesCommon: kubernetesCommon{
 				configuration: configuration,
 				controlPlane:  controlPlane,
+				maxPods:       maxPods,
 				nodeName:      nodeName,
 				address:       address,
 				providerID:    providerID,
@@ -194,6 +197,7 @@ func NewKubernetesProvider(configuration *types.AutoScalerServerConfig, controlP
 			kubernetesCommon: kubernetesCommon{
 				configuration: configuration,
 				controlPlane:  controlPlane,
+				maxPods:       maxPods,
 				nodeName:      nodeName,
 				address:       address,
 				providerID:    providerID,
@@ -206,6 +210,7 @@ func NewKubernetesProvider(configuration *types.AutoScalerServerConfig, controlP
 			kubernetesCommon: kubernetesCommon{
 				configuration: configuration,
 				controlPlane:  controlPlane,
+				maxPods:       maxPods,
 				nodeName:      nodeName,
 				address:       address,
 				providerID:    providerID,
