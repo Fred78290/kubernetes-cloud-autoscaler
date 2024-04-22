@@ -455,7 +455,7 @@ func (handler *openstackHandler) UpdateMacAddressTable() error {
 
 func (handler *openstackHandler) GenerateProviderID() string {
 	if len(handler.instanceID) > 0 {
-		return fmt.Sprintf("openstack://%s", handler.instanceID)
+		return fmt.Sprintf("openstack://%s/%s", handler.Configuration.OpenStackRegion, handler.instanceID)
 	} else {
 		return ""
 	}
