@@ -1,0 +1,53 @@
+apiVersion: "nodemanager.aldunelabs.com/v1alpha2"
+kind: "ManagedNode"
+metadata:
+  name: "desktop-dev-k3s-master-02"
+spec:
+  nodegroup: desktop-dev-k3s
+  controlPlane: true
+  allowDeployment: true
+  instanceType: small
+  diskSizeInMB: 10240
+  labels:
+  - demo-label.acme.com=demo
+  - sample-label.acme.com=sample
+  annotations:
+  - demo-annotation.acme.com=demo
+  - sample-annotation.acme.com=sample
+  network:
+    vmware:
+      - network: "vmnet8"
+        dhcp: false
+        address: 192.168.2.81
+        netmask: 255.255.255.0
+        gateway: 192.168.2.254
+      - network: "vmnet0"
+        dhcp: true
+        use-dhcp-routes: false
+---
+apiVersion: "nodemanager.aldunelabs.com/v1alpha2"
+kind: "ManagedNode"
+metadata:
+  name: "desktop-dev-k3s-master-03"
+spec:
+  nodegroup: desktop-dev-k3s
+  controlPlane: true
+  allowDeployment: true
+  instanceType: small
+  diskSizeInMB: 10240
+  labels:
+  - demo-label.acme.com=demo
+  - sample-label.acme.com=sample
+  annotations:
+  - demo-annotation.acme.com=demo
+  - sample-annotation.acme.com=sample
+  network:
+    vmware:
+      - network: "vmnet8"
+        dhcp: false
+        address: 192.168.2.82
+        netmask: 255.255.255.0
+        gateway: 192.168.2.254
+      - network: "vmnet0"
+        dhcp: true
+        use-dhcp-routes: false

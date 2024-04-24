@@ -1,0 +1,44 @@
+apiVersion: "nodemanager.aldunelabs.com/v1alpha2"
+kind: "ManagedNode"
+metadata:
+  name: "multipass-dev-kubeadm-managed-01"
+spec:
+  nodegroup: multipass-dev-kubeadm
+  controlPlane: false
+  allowDeployment: true
+  instanceType: small
+  diskSizeInMB: 10240
+  labels:
+  - demo-label.acme.com=demo
+  - sample-label.acme.com=sample
+  annotations:
+  - demo-annotation.acme.com=demo
+  - sample-annotation.acme.com=sample
+  network:
+    multipass:
+      - network: "lxdbr0"
+        dhcp: true
+---
+apiVersion: "nodemanager.aldunelabs.com/v1alpha2"
+kind: "ManagedNode"
+metadata:
+  name: "multipass-dev-kubeadm-managed-02"
+spec:
+  nodegroup: multipass-dev-kubeadm
+  controlPlane: false
+  allowDeployment: true
+  instanceType: small
+  diskSizeInMB: 10240
+  labels:
+  - demo-label.acme.com=demo
+  - sample-label.acme.com=sample
+  annotations:
+  - demo-annotation.acme.com=demo
+  - sample-annotation.acme.com=sample
+  network:
+    multipass:
+      - network: "lxdbr0"
+        dhcp: true
+      - network: "mpbr0"
+        dhcp: true
+        use-dhcp-routes: false

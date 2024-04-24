@@ -1,0 +1,21 @@
+apiVersion: "nodemanager.aldunelabs.com/v1alpha2"
+kind: "ManagedNode"
+metadata:
+  name: "aws-dev-microk8s-managed-01"
+spec:
+  nodegroup: aws-dev-microk8s
+  controlPlane: false
+  allowDeployment: true
+  instanceType: t3a.medium
+  diskSizeInMB: 10240
+  diskType: gp3
+  labels:
+  - demo-label.acme.com=demo
+  - sample-label.acme.com=sample
+  annotations:
+  - demo-annotation.acme.com=demo
+  - sample-annotation.acme.com=sample
+  network:
+    eni:
+      subnetID: subnet-08978535f23892fc7
+      securityGroup: sg-0b53c559e9ae44086

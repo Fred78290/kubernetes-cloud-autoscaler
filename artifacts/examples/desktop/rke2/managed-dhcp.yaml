@@ -1,0 +1,23 @@
+apiVersion: "nodemanager.aldunelabs.com/v1alpha2"
+kind: "ManagedNode"
+metadata:
+  name: "desktop-dev-rke2-managed-01"
+spec:
+  nodegroup: desktop-dev-rke2
+  controlPlane: false
+  allowDeployment: true
+  instanceType: small
+  diskSizeInMB: 10240
+  labels:
+  - demo-label.acme.com=demo
+  - sample-label.acme.com=sample
+  annotations:
+  - demo-annotation.acme.com=demo
+  - sample-annotation.acme.com=sample
+  network:
+    vmware:
+      - network: "vmnet8"
+        dhcp: true
+      - network: "vmnet0"
+        dhcp: true
+        use-dhcp-routes: false

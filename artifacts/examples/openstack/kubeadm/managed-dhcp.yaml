@@ -1,0 +1,20 @@
+apiVersion: "nodemanager.aldunelabs.com/v1alpha2"
+kind: "ManagedNode"
+metadata:
+  name: "openstack-dev-kubeadm-managed-01"
+spec:
+  nodegroup: openstack-dev-kubeadm
+  controlPlane: false
+  allowDeployment: true
+  instanceType: k8s.small
+  diskSizeInMB: 10240
+  labels:
+  - demo-label.acme.com=demo
+  - sample-label.acme.com=sample
+  annotations:
+  - demo-annotation.acme.com=demo
+  - sample-annotation.acme.com=sample
+  network:
+    openstack:
+      - network: "private"
+        dhcp: true
