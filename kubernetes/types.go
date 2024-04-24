@@ -21,9 +21,16 @@ const (
 	errWriteFileErrorMsg     = "unable to write file: %s, reason: %v"
 	tmpConfigDestinationFile = "/tmp/config.yaml"
 	mkdirCmd                 = "mkdir -p %s"
+	kubeSystemNamespace      = "kube-system"
+	k3sPasswordNodeSecret    = "%s.node-password.k3s"
+	rke2PasswordNodeSecret   = "%s.node-password.rke2"
 )
 
+type GetStringFunc func() string
 type KubernetesProvider interface {
+	PrepareNodeCreation(c types.ClientGenerator) error
+	PrepareNodeDeletion(c types.ClientGenerator, powered bool) error
+
 	JoinCluster(c types.ClientGenerator) error
 	UploadImageCredentialProviderConfig() error
 
@@ -35,9 +42,9 @@ type kubernetesCommon struct {
 	configuration *types.AutoScalerServerConfig
 	controlPlane  bool
 	maxPods       int
-	nodeName      string
-	address       string
-	providerID    string
+	nodeName      GetStringFunc
+	address       GetStringFunc
+	providerID    GetStringFunc
 	timeout       time.Duration
 }
 
@@ -46,7 +53,7 @@ func (provider *kubernetesCommon) runCommands(args ...string) (string, error) {
 	timeout := provider.timeout
 	command := fmt.Sprintf("sh -c \"%s\"", strings.Join(args, " && "))
 
-	if out, err := utils.Sudo(config.SSH, provider.address, timeout, command); err != nil {
+	if out, err := utils.Sudo(config.SSH, provider.address(), timeout, command); err != nil {
 		return "", fmt.Errorf(unableToExecuteCmdError, command, out, err)
 	} else {
 		return out, err
@@ -67,14 +74,14 @@ func (provider *kubernetesCommon) executeCommands(args []string, restartKubelet 
 		}
 
 		return context.PollImmediate(5*time.Second, time.Duration(config.SSH.WaitSshReadyInSeconds)*time.Second, func() (done bool, err error) {
-			if node, err := c.GetNode(provider.nodeName); err == nil && node != nil {
+			if node, err := c.GetNode(provider.nodeName()); err == nil && node != nil {
 				return true, nil
 			}
 
 			if restartKubelet {
-				glog.Infof("Restart kubelet for node: %s", provider.nodeName)
+				glog.Infof("Restart kubelet for node: %s", provider.nodeName())
 
-				if out, err := utils.Sudo(config.SSH, provider.address, timeout, "systemctl restart kubelet"); err != nil {
+				if out, err := utils.Sudo(config.SSH, provider.address(), timeout, "systemctl restart kubelet"); err != nil {
 					return false, fmt.Errorf("unable to restart kubelet, output: %s, reason: %v", out, err)
 				}
 			}
@@ -106,7 +113,7 @@ func (provider *kubernetesCommon) joinClusterWithConfig(content any, destination
 		} else {
 			f.Close()
 
-			if err = utils.Scp(provider.configuration.SSH, provider.address, f.Name(), tmpConfigDestinationFile); err != nil {
+			if err = utils.Scp(provider.configuration.SSH, provider.address(), f.Name(), tmpConfigDestinationFile); err != nil {
 				result = fmt.Errorf(constantes.ErrCantCopyFileToNode, f.Name(), tmpConfigDestinationFile, err)
 			} else {
 				args := []string{
@@ -131,6 +138,14 @@ func (provider *kubernetesCommon) uploadFile(content any, destinationFile string
 	return provider.joinClusterWithConfig(content, destinationFile, nil, false)
 }
 
+func (provider *kubernetesCommon) PrepareNodeCreation(c types.ClientGenerator) (err error) {
+	return
+}
+
+func (provider *kubernetesCommon) PrepareNodeDeletion(c types.ClientGenerator, powered bool) (err error) {
+	return
+}
+
 func (provider *kubernetesCommon) UploadImageCredentialProviderConfig() (err error) {
 	config := provider.configuration
 
@@ -151,7 +166,7 @@ func (provider *kubernetesCommon) PutImageCredentialProviderConfigInCloudInit(cl
 	return
 }
 
-func NewKubernetesProvider(configuration *types.AutoScalerServerConfig, controlPlane bool, maxPods int, nodeName, providerID, address string, timeout time.Duration) (provider KubernetesProvider) {
+func NewKubernetesProvider(configuration *types.AutoScalerServerConfig, controlPlane bool, maxPods int, nodeName, providerID, address GetStringFunc, timeout time.Duration) (provider KubernetesProvider) {
 	switch configuration.KubernetesDistribution() {
 	case providers.K3SDistributionName:
 		provider = &k3sProvider{

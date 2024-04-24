@@ -31,13 +31,14 @@ func (provider *rke2Provider) joinCommand() []string {
 func (provider *rke2Provider) agentConfig() any {
 	config := provider.configuration
 	rke2 := config.RKE2
+	address := provider.address()
 	kubeletArgs := []string{
 		"fail-swap-on=false",
 		fmt.Sprintf("max-pods=%d", provider.maxPods),
 	}
 
 	if config.UseControllerManager() && !config.UseCloudInitToConfigure() {
-		kubeletArgs = append(kubeletArgs, fmt.Sprintf("provider-id=%s", provider.providerID))
+		kubeletArgs = append(kubeletArgs, fmt.Sprintf("provider-id=%s", provider.providerID()))
 	}
 
 	if config.CloudProvider != nil && len(*config.CloudProvider) > 0 {
@@ -46,13 +47,13 @@ func (provider *rke2Provider) agentConfig() any {
 
 	rke2Config := map[string]any{
 		"kubelet-arg": kubeletArgs,
-		"node-name":   provider.nodeName,
+		"node-name":   provider.nodeName(),
 		"server":      fmt.Sprintf("https://%s", rke2.Address),
 		"token":       rke2.Token,
 	}
 
-	if len(provider.address) > 0 {
-		rke2Config["advertise-address"] = provider.address
+	if len(address) > 0 {
+		rke2Config["advertise-address"] = address
 	}
 
 	if provider.controlPlane {
@@ -76,6 +77,20 @@ func (provider *rke2Provider) agentConfig() any {
 	}
 
 	return rke2Config
+}
+
+func (provider *rke2Provider) PrepareNodeCreation(c types.ClientGenerator) (err error) {
+	passwordNode := fmt.Sprintf(rke2PasswordNodeSecret, provider.nodeName())
+
+	if secret, e := c.GetSecret(passwordNode, kubeSystemNamespace); e == nil && secret != nil {
+		err = c.DeleteSecret(passwordNode, kubeSystemNamespace)
+	}
+
+	return
+}
+
+func (provider *rke2Provider) PrepareNodeDeletion(c types.ClientGenerator, powered bool) (err error) {
+	return provider.PrepareNodeCreation(c)
 }
 
 func (provider *rke2Provider) JoinCluster(c types.ClientGenerator) (err error) {

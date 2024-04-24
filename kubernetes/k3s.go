@@ -25,9 +25,9 @@ func (provider *k3sProvider) agentCommand() []string {
 	command := make([]string, 0, 5)
 
 	if config.UseControllerManager() && !config.UseCloudInitToConfigure() {
-		command = append(command, fmt.Sprintf("echo K3S_ARGS='--kubelet-arg=max-pods=%d --node-name=%s --server=https://%s --token=%s --kubelet-arg=provider-id=%s ' > /etc/systemd/system/k3s.service.env", provider.maxPods, provider.nodeName, k3s.Address, k3s.Token, provider.providerID))
+		command = append(command, fmt.Sprintf("echo K3S_ARGS='--kubelet-arg=max-pods=%d --node-name=%s --server=https://%s --token=%s --kubelet-arg=provider-id=%s ' > /etc/systemd/system/k3s.service.env", provider.maxPods, provider.nodeName(), k3s.Address, k3s.Token, provider.providerID()))
 	} else {
-		command = append(command, fmt.Sprintf("echo K3S_ARGS='--kubelet-arg=max-pods=%d --node-name=%s --server=https://%s --token=%s' > /etc/systemd/system/k3s.service.env", provider.maxPods, provider.nodeName, k3s.Address, k3s.Token))
+		command = append(command, fmt.Sprintf("echo K3S_ARGS='--kubelet-arg=max-pods=%d --node-name=%s --server=https://%s --token=%s' > /etc/systemd/system/k3s.service.env", provider.maxPods, provider.nodeName(), k3s.Address, k3s.Token))
 	}
 
 	if provider.controlPlane {
@@ -52,6 +52,20 @@ func (provider *k3sProvider) agentCommand() []string {
 	}
 
 	return append(command, provider.joinCommand()...)
+}
+
+func (provider *k3sProvider) PrepareNodeCreation(c types.ClientGenerator) (err error) {
+	passwordNode := fmt.Sprintf(k3sPasswordNodeSecret, provider.nodeName())
+
+	if secret, e := c.GetSecret(passwordNode, kubeSystemNamespace); e == nil && secret != nil {
+		err = c.DeleteSecret(passwordNode, kubeSystemNamespace)
+	}
+
+	return
+}
+
+func (provider *k3sProvider) PrepareNodeDeletion(c types.ClientGenerator, powered bool) (err error) {
+	return provider.PrepareNodeCreation(c)
 }
 
 func (provider *k3sProvider) JoinCluster(c types.ClientGenerator) (err error) {

@@ -16,13 +16,13 @@ func (provider *externalProvider) agentConfig() any {
 	external := config.External
 	externalConfig := map[string]any{
 		"max-pods":  provider.maxPods,
-		"node-name": provider.nodeName,
+		"node-name": provider.nodeName(),
 		"server":    external.Address,
 		"token":     external.Token,
 	}
 
 	if config.UseControllerManager() && !config.UseCloudInitToConfigure() {
-		externalConfig["provider-id"] = provider.providerID
+		externalConfig["provider-id"] = provider.providerID()
 	}
 
 	if external.ExtraConfig != nil {
@@ -46,6 +46,16 @@ func (provider *externalProvider) agentConfig() any {
 	}
 
 	return externalConfig
+}
+
+func (provider *externalProvider) PrepareNodeDeletion(c types.ClientGenerator, powered bool) (err error) {
+	config := provider.configuration
+
+	if powered && len(config.External.LeaveCommand) > 0 {
+		_, err = provider.runCommands(config.External.LeaveCommand)
+	}
+
+	return err
 }
 
 func (provider *externalProvider) JoinCluster(c types.ClientGenerator) (err error) {

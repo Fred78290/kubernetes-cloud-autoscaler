@@ -16,6 +16,7 @@ func (provider *kubeadmProvider) joinCommand() []string {
 	config := provider.configuration
 	commands := make([]string, 0, 2)
 	kubeAdm := config.KubeAdm
+	address := provider.address()
 
 	if config.UseImageCredentialProviderConfig() {
 		commands = append(commands, fmt.Sprintf("echo KUBELET_EXTRA_ARGS='--image-credential-provider-config=%s --image-credential-provider-bin-dir=%s' > /etc/default/kubelet", *config.ImageCredentialProviderConfig, *config.ImageCredentialProviderBinDir))
@@ -26,7 +27,7 @@ func (provider *kubeadmProvider) joinCommand() []string {
 		"join",
 		kubeAdm.Address,
 		"--node-name",
-		provider.nodeName,
+		provider.nodeName(),
 		"--token",
 		kubeAdm.Token,
 		"--discovery-token-ca-cert-hash",
@@ -38,8 +39,8 @@ func (provider *kubeadmProvider) joinCommand() []string {
 	if provider.controlPlane {
 		join = append(join, "--control-plane")
 
-		if len(provider.address) > 0 {
-			join = append(join, "--apiserver-advertise-address", provider.address)
+		if len(address) > 0 {
+			join = append(join, "--apiserver-advertise-address", address)
 		}
 	}
 
@@ -54,13 +55,13 @@ func (provider *kubeadmProvider) joinCommand() []string {
 func (provider *kubeadmProvider) agentConfig() any {
 	if provider.configuration.UseCloudInitToConfigure() {
 		return map[string]any{
-			"address": provider.address,
+			"address": provider.address(),
 			"maxPods": provider.maxPods,
 		}
 	} else {
 		return map[string]any{
-			"address":    provider.address,
-			"providerID": provider.providerID,
+			"address":    provider.address(),
+			"providerID": provider.providerID(),
 			"maxPods":    provider.maxPods,
 		}
 	}

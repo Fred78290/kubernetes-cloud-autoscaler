@@ -14,16 +14,16 @@ type microk8sProvider struct {
 
 func (provider *microk8sProvider) joinCommand() []string {
 	microk8s := provider.configuration.MicroK8S
-	worker := " --worker"
+	//worker := " --worker"
 
-	if provider.controlPlane {
-		worker = ""
-	}
+	//if provider.controlPlane {
+	//	worker = ""
+	//}
 
 	return []string{
 		fmt.Sprintf("snap install microk8s --classic --channel=%s", microk8s.Channel),
-		"microk8s status --wait-ready",
-		fmt.Sprintf("microk8s join %s/%s%s", microk8s.Address, microk8s.Token, worker),
+		//	"microk8s status --wait-ready",
+		//		fmt.Sprintf("microk8s join %s/%s%s", microk8s.Address, microk8s.Token, worker),
 	}
 }
 
@@ -32,14 +32,18 @@ func (provider *microk8sProvider) agentConfig() any {
 	microk8s := config.MicroK8S
 	extraKubeAPIServerArgs := map[string]any{}
 	extraKubeletArgs := map[string]any{
-		"--max-pods":       provider.address,
+		"--max-pods":       provider.maxPods,
 		"--cloud-provider": config.GetCloudProviderName(),
-		"--node-ip":        provider.address,
+		"--node-ip":        provider.address(),
 	}
 
 	microk8sConfig := map[string]any{
 		"version":                "0.1.0",
 		"persistentClusterToken": microk8s.Token,
+		"join": map[string]any{
+			"url":    fmt.Sprintf("%s/%s", microk8s.Address, microk8s.Token),
+			"worker": !provider.controlPlane,
+		},
 		"extraMicroK8sAPIServerProxyArgs": map[string]any{
 			"--refresh-interval": "0",
 		},
@@ -63,7 +67,7 @@ func (provider *microk8sProvider) agentConfig() any {
 			},
 		}
 
-		extraKubeAPIServerArgs["--advertise-address"] = provider.address
+		extraKubeAPIServerArgs["--advertise-address"] = provider.address()
 		extraKubeAPIServerArgs["--authorization-mode"] = "RBAC,Node"
 
 		if config.UseExternalEtdcServer() {
@@ -112,20 +116,13 @@ func (provider *microk8sProvider) JoinCluster(c types.ClientGenerator) (err erro
 
 func (provider *microk8sProvider) PutConfigInCloudInit(cloudInit cloudinit.CloudInit) (err error) {
 	config := provider.configuration
-	microk8s := config.MicroK8S
-	worker := " --worker"
-
-	if provider.controlPlane {
-		worker = ""
-	}
 
 	joinClustercript := []string{
 		"#!/bin/bash",
 		"export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin",
-		fmt.Sprintf("snap install microk8s --classic --channel=%s", microk8s.Channel),
-		"microk8s status --wait-ready",
-		fmt.Sprintf("microk8s join %s/%s%s", microk8s.Address, microk8s.Token, worker),
 	}
+
+	joinClustercript = append(joinClustercript, provider.joinCommand()...)
 
 	cloudInit.AddTextToWriteFile(strings.Join(joinClustercript, "\n"), "/usr/local/bin/join-cluster.sh", *config.CloudInitFileOwner, 0755)
 

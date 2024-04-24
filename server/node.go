@@ -193,19 +193,6 @@ func (vm *AutoScalerServerNode) recopyKubernetesPKIIfNeeded() (err error) {
 	return err
 }
 
-func (vm *AutoScalerServerNode) runCommands(args ...string) (string, error) {
-	config := vm.serverConfig
-	command := fmt.Sprintf("sh -c \"%s\"", strings.Join(args, " && "))
-
-	timeout := vm.providerHandler.GetTimeout()
-
-	if out, err := utils.Sudo(config.SSH, vm.IPAddress, timeout, command); err != nil {
-		return "", fmt.Errorf(unableToExecuteCmdError, command, out, err)
-	} else {
-		return out, err
-	}
-}
-
 func (vm *AutoScalerServerNode) retrieveNodeInfo(c types.ClientGenerator) error {
 	if nodeInfo, err := c.GetNode(vm.NodeName); err != nil {
 		return err
@@ -234,7 +221,13 @@ func (vm *AutoScalerServerNode) joinCluster(c types.ClientGenerator) (err error)
 
 func (vm *AutoScalerServerNode) getKubernetesProvider() kubernetes.KubernetesProvider {
 	if vm.kubernetesProvider == nil {
-		vm.kubernetesProvider = kubernetes.NewKubernetesProvider(vm.serverConfig, vm.ControlPlaneNode, vm.MaxPods, vm.NodeName, vm.generateProviderID(), vm.IPAddress, vm.providerHandler.GetTimeout())
+		vm.kubernetesProvider = kubernetes.NewKubernetesProvider(vm.serverConfig,
+			vm.ControlPlaneNode,
+			vm.MaxPods,
+			func() string { return vm.NodeName },
+			func() string { return vm.generateProviderID() },
+			func() string { return vm.IPAddress },
+			vm.providerHandler.GetTimeout())
 	}
 
 	return vm.kubernetesProvider
@@ -384,35 +377,11 @@ func (vm *AutoScalerServerNode) prepareCloudInit() (err error) {
 	return err
 }
 
-func (vm *AutoScalerServerNode) preNodeCreation(c types.ClientGenerator) (err error) {
-	var passwordNode string
-
-	config := vm.serverConfig
-
-	// Delete secret
-	switch config.KubernetesDistribution() {
-	case providers.K3SDistributionName:
-		passwordNode = fmt.Sprintf(k3sPasswordNodeSecret, vm.NodeName)
-
-	case providers.RKE2DistributionName:
-		passwordNode = fmt.Sprintf(rke2PasswordNodeSecret, vm.NodeName)
-
-	default:
-		return
-	}
-
-	if secret, e := c.GetSecret(passwordNode, kubeSystemNamespace); e == nil && secret != nil {
-		err = c.DeleteSecret(passwordNode, kubeSystemNamespace)
-	}
-
-	return
-}
-
 func (vm *AutoScalerServerNode) createInstance(c types.ClientGenerator) (err error) {
 	providerHandler := vm.providerHandler
 	userInfo := vm.serverConfig.SSH
 
-	if err = vm.preNodeCreation(c); err != nil {
+	if err = vm.getKubernetesProvider().PrepareNodeCreation(c); err != nil {
 		glog.Errorf("preNodeCreation failed: %v", err)
 	}
 
@@ -671,43 +640,6 @@ func (vm *AutoScalerServerNode) stopVM(c types.ClientGenerator) error {
 	return err
 }
 
-func (vm *AutoScalerServerNode) prepareNodeDeletion(c types.ClientGenerator, powered bool) error {
-	var passwordNode string
-	var err error
-
-	config := vm.serverConfig
-
-	switch config.KubernetesDistribution() {
-	case providers.K3SDistributionName:
-		passwordNode = fmt.Sprintf(k3sPasswordNodeSecret, vm.NodeName)
-
-	case providers.RKE2DistributionName:
-		passwordNode = fmt.Sprintf(rke2PasswordNodeSecret, vm.NodeName)
-
-	case providers.ExternalDistributionName:
-		if powered && len(config.External.LeaveCommand) > 0 {
-			_, err = vm.runCommands(config.External.LeaveCommand)
-		}
-
-		return err
-
-		//	case providers.MicroK8SDistributionName:
-		//		if powered {
-		//			_, err = vm.runCommands("microk8s leave")
-		//		}
-		//		return err
-
-	default:
-		return nil
-	}
-
-	if secret, e := c.GetSecret(passwordNode, kubeSystemNamespace); e == nil && secret != nil {
-		err = c.DeleteSecret(passwordNode, kubeSystemNamespace)
-	}
-
-	return err
-}
-
 func (vm *AutoScalerServerNode) deleteVM(c types.ClientGenerator) error {
 	glog.Infof("Delete VM: %s", vm.InstanceName)
 
@@ -727,7 +659,7 @@ func (vm *AutoScalerServerNode) deleteVM(c types.ClientGenerator) error {
 				glog.Warnf("unable to unregister DNS entry, reason: %v", err)
 			}
 
-			if err = vm.prepareNodeDeletion(c, powered); err != nil {
+			if err = vm.getKubernetesProvider().PrepareNodeDeletion(c, powered); err != nil {
 				glog.Errorf(constantes.ErrPrepareNodeDeletionFailed, vm.NodeName, err)
 			}
 
