@@ -593,7 +593,7 @@ func (cfg *Config) ParseFlags(args []string, version string) error {
 	app.Flag("max-grace-period", "Maximum time evicted pods will be given to terminate gracefully.").Default(DefaultMaxGracePeriod.String()).DurationVar(&cfg.MaxGracePeriod)
 
 	app.Flag("min-nodes", "Limits: minimum nodes (default: 0)").Default(strconv.FormatInt(cfg.MinNode, 10)).Int64Var(&cfg.MinNode)
-	app.Flag("max-nodes", "Limits: max nodes (default: 24)").Default(strconv.FormatInt(cfg.MaxCpus, 10)).Int64Var(&cfg.MaxCpus)
+	app.Flag("max-nodes", "Limits: max nodes (default: 24)").Default(strconv.FormatInt(cfg.MaxNode, 10)).Int64Var(&cfg.MaxCpus)
 	app.Flag("min-cpus", "Limits: minimum cpu (default: 1)").Default(strconv.FormatInt(cfg.MinCpus, 10)).Int64Var(&cfg.MinCpus)
 	app.Flag("max-cpus", "Limits: max cpu (default: 24)").Default(strconv.FormatInt(cfg.MaxCpus, 10)).Int64Var(&cfg.MaxCpus)
 	app.Flag("min-memory", "Limits: minimum memory in MB (default: 1G)").Default(strconv.FormatInt(cfg.MinMemory, 10)).Int64Var(&cfg.MinMemory)
