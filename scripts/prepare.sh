@@ -26,15 +26,15 @@ if [ -n "${NODEGROUP}" ]; then
 		echo 'address: "unix:/tmp/autoscaler.sock"' > ${CONFIG_DIR}/grpc-config.yaml
 	fi
 
-	cp ${AUTOSCALER_HOME}/cluster/${NODEGROUP}/config ${CONFIG_DIR}/config
+	cp ${AUTOSCALER_HOME}/config/${NODEGROUP}/cluster/config ${CONFIG_DIR}/config
 	cp ${AUTOSCALER_HOME}/config/${NODEGROUP}/config/machines.json ${CONFIG_DIR}/machines.json
 
 	cat ${AUTOSCALER_HOME}/config/${NODEGROUP}/config/provider.json | sed \
 		-e "s/\/etc\/ssl\/certs\/autoscaler-utility/${AUTOSCALER_DESKTOP_UTILITY_TLS}/g" > ${CONFIG_DIR}/provider.json
 
 	cat ${AUTOSCALER_HOME}/config/${NODEGROUP}/config/autoscaler.json | jq \
-		--arg ETCD_SSL_DIR "${AUTOSCALER_HOME}/cluster/${NODEGROUP}/etcd" \
-		--arg PKI_DIR "${AUTOSCALER_HOME}/cluster/${NODEGROUP}/kubernetes/pki" \
+		--arg ETCD_SSL_DIR "${AUTOSCALER_HOME}/config/${NODEGROUP}/cluster/etcd" \
+		--arg PKI_DIR "${AUTOSCALER_HOME}/config/${NODEGROUP}/cluster/kubernetes/pki" \
 		--arg SSH_KEY "${HOME}/.ssh/id_rsa" \
 		'. | .listen = "unix:/tmp/autoscaler.sock" | ."src-etcd-ssl-dir" = $ETCD_SSL_DIR | ."kubernetes-pki-srcdir" = $PKI_DIR | ."ssh-infos"."ssh-private-key" = $SSH_KEY' > ${CONFIG_DIR}/autoscaler.json
 fi
