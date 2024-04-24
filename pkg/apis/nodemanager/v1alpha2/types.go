@@ -32,20 +32,8 @@ type NetworkRoutes struct {
 	Metric int    `json:"metric,omitempty" yaml:"metric,omitempty"`
 }
 
-// ManagedNodeNetwork is a specification for a network ManagedNode resource
-type VMWareManagedNodeNetwork struct {
-	NetworkName string          `json:"network,omitempty"` //vnet for desktop
-	Adapter     string          `json:"adapter,omitempty" yaml:"adapter,omitempty"`
-	DHCP        bool            `json:"dhcp,omitempty"`
-	UseRoutes   *bool           `json:"use-dhcp-routes,omitempty" yaml:"use-dhcp-routes,omitempty"`
-	IPV4Address string          `json:"address,omitempty"`
-	Gateway     string          `json:"gateway,omitempty"`
-	Netmask     string          `json:"netmask,omitempty"`
-	MacAddress  string          `json:"mac-address,omitempty" yaml:"mac-address,omitempty"`
-	Routes      []NetworkRoutes `json:"routes,omitempty" yaml:"routes,omitempty"`
-}
-
-type OpenStackManagedNodeNetwork struct {
+// ComonManagedNodeNetwork is a specification for a common network ManagedNode resource
+type CommonManagedNodeNetwork struct {
 	NetworkName string `json:"network,omitempty"` //vnet for desktop
 	DHCP        bool   `json:"dhcp,omitempty"`
 	IPV4Address string `json:"address,omitempty"`
@@ -53,9 +41,30 @@ type OpenStackManagedNodeNetwork struct {
 	Netmask     string `json:"netmask,omitempty"`
 }
 
+// ManagedNodeNetwork is a specification for a network ManagedNode resource
+type VMWareManagedNodeNetwork struct {
+	CommonManagedNodeNetwork
+	Adapter    string          `json:"adapter,omitempty" yaml:"adapter,omitempty"`
+	UseRoutes  *bool           `json:"use-dhcp-routes,omitempty" yaml:"use-dhcp-routes,omitempty"`
+	MacAddress string          `json:"mac-address,omitempty" yaml:"mac-address,omitempty"`
+	Routes     []NetworkRoutes `json:"routes,omitempty" yaml:"routes,omitempty"`
+}
+
+type MultipassManagedNodeNetwork struct {
+	CommonManagedNodeNetwork
+	UseRoutes  *bool           `json:"use-dhcp-routes,omitempty" yaml:"use-dhcp-routes,omitempty"`
+	MacAddress string          `json:"mac-address,omitempty" yaml:"mac-address,omitempty"`
+	Routes     []NetworkRoutes `json:"routes,omitempty" yaml:"routes,omitempty"`
+}
+
+type OpenStackManagedNodeNetwork struct {
+	CommonManagedNodeNetwork
+}
+
 type ManagedNetworkConfig struct {
 	OpenStack []OpenStackManagedNodeNetwork `json:"openstack,omitempty"`
 	VMWare    []VMWareManagedNodeNetwork    `json:"vmware,omitempty"`
+	Multipass []MultipassManagedNodeNetwork `json:"multipass,omitempty"`
 	ENI       *AwsManagedNodeNetwork        `json:"eni,omitempty"`
 }
 

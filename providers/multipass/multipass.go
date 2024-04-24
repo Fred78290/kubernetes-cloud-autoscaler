@@ -99,7 +99,7 @@ func (handler *multipassHandler) GetTimeout() time.Duration {
 }
 
 func (handler *multipassHandler) ConfigureNetwork(network v1alpha2.ManagedNetworkConfig) {
-	handler.network.ConfigureVMWareNetwork(network.VMWare)
+	handler.network.ConfigureMultipassNetwork(network.Multipass)
 }
 
 func (handler *multipassHandler) RetrieveNetworkInfos() error {

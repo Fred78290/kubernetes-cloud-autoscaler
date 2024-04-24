@@ -355,6 +355,46 @@ func (vnet *Network) ConfigureOpenStackNetwork(openstack []v1alpha2.OpenStackMan
 	}
 }
 
+func (vnet *Network) ConfigureMultipassNetwork(multipass []v1alpha2.MultipassManagedNodeNetwork) {
+	for _, network := range multipass {
+		if inet := vnet.InterfaceByName(network.NetworkName); inet != nil {
+			if inet.IsEnabled() {
+				inet.DHCP = network.DHCP
+				inet.UseRoutes = network.UseRoutes
+				inet.Routes = network.Routes
+
+				if inet.DHCP {
+					inet.IPAddress = ""
+				} else if strings.ToLower(network.IPV4Address) == "none" {
+					inet.Enabled = &FALSE
+					inet.IPAddress = ""
+				} else if strings.ToLower(network.IPV4Address) == "dhcp" {
+					inet.DHCP = true
+					inet.IPAddress = ""
+				} else if len(network.IPV4Address) > 0 {
+					inet.IPAddress = network.IPV4Address
+				}
+
+				if len(network.Netmask) > 0 {
+					inet.Netmask = network.Netmask
+				}
+
+				if len(network.Gateway) > 0 {
+					inet.Gateway = network.Gateway
+				}
+
+				if len(network.MacAddress) > 0 {
+					inet.MacAddress = network.MacAddress
+				}
+			} else {
+				glog.Warnf(constantes.WarnNetworkInterfaceIsDisabled, network.NetworkName)
+			}
+		} else {
+			glog.Errorf(constantes.ErrNetworkInterfaceNotFoundToConfigure, network.NetworkName)
+		}
+	}
+}
+
 func (vnet *Network) ConfigureVMWareNetwork(vmware []v1alpha2.VMWareManagedNodeNetwork) {
 	for _, network := range vmware {
 		if inet := vnet.InterfaceByName(network.NetworkName); inet != nil {

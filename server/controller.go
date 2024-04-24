@@ -423,6 +423,70 @@ func (c *Controller) CreateCRD() error {
 														},
 													},
 												},
+												"multipass": {
+													Type: "array",
+													Items: &apiextensionv1.JSONSchemaPropsOrArray{
+														Schema: &apiextensionv1.JSONSchemaProps{
+															Type: "object",
+															Properties: map[string]apiextensionv1.JSONSchemaProps{
+																"network": {
+																	Type:        "string",
+																	Description: "Network name for vpshere or local interface for multipas and desktop, vmnetX...",
+																},
+																"dhcp": {
+																	Type:        "boolean",
+																	Description: "Tell if interface use dhcp to obtain address",
+																	Default: &apiextensionv1.JSON{
+																		Raw: []byte("true"),
+																	},
+																},
+																"use-dhcp-routes": {
+																	Type:        "boolean",
+																	Description: "Tell if we use routes declared by dhcp server",
+																	Default: &apiextensionv1.JSON{
+																		Raw: []byte("true"),
+																	},
+																},
+																"mac-address": {
+																	Type:        "string",
+																	Description: "Give a mac address, empty to let hypervisor manage mac address or generate to generate mac address by controller",
+																},
+																"address": {
+																	Type:        "string",
+																	Description: "Valid ip v4 address or DHCP or NONE",
+																},
+																"gateway": {
+																	Type:        "string",
+																	Description: "Valid ip v4 address for gateway",
+																},
+																"netmask": {
+																	Type:        "string",
+																	Description: "Netmask in format xxx.xxx.xxx.xxx",
+																},
+																"routes": {
+																	Type:        "array",
+																	Description: "Override network routes",
+																	Items: &apiextensionv1.JSONSchemaPropsOrArray{
+																		Schema: &apiextensionv1.JSONSchemaProps{
+																			Type: "object",
+																			Properties: map[string]apiextensionv1.JSONSchemaProps{
+																				"to": {
+																					Type: "string",
+																				},
+																				"via": {
+																					Type: "string",
+																				},
+																				"metric": {
+																					Type: "integer",
+																				},
+																			},
+																		},
+																	},
+																},
+															},
+														},
+													},
+												},
 												"eni": {
 													Type:        "object",
 													Description: "Create or use existing ENI",
