@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/client"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
 	managednodeClientset "github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/generated/clientset/versioned"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
@@ -172,7 +173,7 @@ func (m *baseTest) ApiExtentionClient() (apiextension.Interface, error) {
 	return nil, nil
 }
 
-func (m *baseTest) PodList(nodeName string, podFilter types.PodFilterFunc) ([]apiv1.Pod, error) {
+func (m *baseTest) PodList(nodeName string, podFilter client.PodFilterFunc) ([]apiv1.Pod, error) {
 	return nil, nil
 }
 

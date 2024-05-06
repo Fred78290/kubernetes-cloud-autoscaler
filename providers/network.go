@@ -202,7 +202,7 @@ func (vnet *Network) GetCloudInitNetwork(useMacAddress bool) *cloudinit.NetworkD
 					}
 
 					if !n.IsUseRoutes() {
-						ethernet.DHCPOverrides = map[string]any{
+						ethernet.DHCPOverrides = cloudinit.CloudInit{
 							"use-routes": false,
 						}
 					} else if len(n.Gateway) > 0 {
@@ -212,8 +212,8 @@ func (vnet *Network) GetCloudInitNetwork(useMacAddress bool) *cloudinit.NetworkD
 
 				if len(address) > 0 {
 					if len(label) > 0 {
-						addr := map[string]any{}
-						addr[cloudinit.ToCIDR(address, n.Netmask)] = map[string]any{
+						addr := cloudinit.CloudInit{}
+						addr[cloudinit.ToCIDR(address, n.Netmask)] = cloudinit.CloudInit{
 							"label": n.NicName,
 						}
 

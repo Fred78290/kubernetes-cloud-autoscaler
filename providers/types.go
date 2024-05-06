@@ -13,28 +13,12 @@ import (
 )
 
 const (
-	RKE2DistributionName     = "rke2"
-	K3SDistributionName      = "k3s"
-	KubeAdmDistributionName  = "kubeadm"
-	MicroK8SDistributionName = "microk8s"
-	ExternalDistributionName = "external"
-)
-
-const (
 	AwsCloudProviderName          = "aws"
 	VSphereCloudProviderName      = "vsphere"
 	VMWareWorkstationProviderName = "desktop"
 	MultipassProviderName         = "multipass"
 	OpenStackProviderName         = "openstack"
 )
-
-var SupportedKubernetesDistribution = []string{
-	RKE2DistributionName,
-	K3SDistributionName,
-	KubeAdmDistributionName,
-	MicroK8SDistributionName,
-	ExternalDistributionName,
-}
 
 var SupportedCloudProviders = []string{
 	AwsCloudProviderName,

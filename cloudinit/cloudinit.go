@@ -347,7 +347,7 @@ func (c CloudInit) AddToWriteFile(content []byte, destination, owner string, per
 
 	if _, err := zw.Write(content); err == nil {
 		if err = zw.Close(); err == nil {
-			fileEntry := map[string]any{
+			fileEntry := CloudInit{
 				"encoding":    GzipBase64,
 				"owner":       owner,
 				"path":        destination,

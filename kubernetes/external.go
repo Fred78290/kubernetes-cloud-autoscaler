@@ -3,9 +3,17 @@ package kubernetes
 import (
 	"fmt"
 
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/client"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/cloudinit"
-	"github.com/Fred78290/kubernetes-cloud-autoscaler/types"
 )
+
+type ExternalJoinConfig struct {
+	CommonJoinConfig
+	JoinCommand  string `json:"join-command,omitempty"`
+	LeaveCommand string `json:"leave-command,omitempty"`
+	ConfigPath   string `json:"config-path,omitempty"`
+	ExtraConfig  MapAny `json:"extra-config,omitempty"`
+}
 
 type externalProvider struct {
 	kubernetesCommon
@@ -13,8 +21,8 @@ type externalProvider struct {
 
 func (provider *externalProvider) agentConfig() any {
 	config := provider.configuration
-	external := config.External
-	externalConfig := map[string]any{
+	external := config.GetExternalConfig()
+	externalConfig := MapAny{
 		"max-pods":  provider.maxPods,
 		"node-name": provider.nodeName(),
 		"server":    external.Address,
@@ -39,34 +47,38 @@ func (provider *externalProvider) agentConfig() any {
 
 		if config.UseExternalEtdcServer() {
 			externalConfig["datastore-endpoint"] = external.DatastoreEndpoint
-			externalConfig["datastore-cafile"] = fmt.Sprintf("%s/ca.pem", config.ExtDestinationEtcdSslDir)
-			externalConfig["datastore-certfile"] = fmt.Sprintf("%s/etcd.pem", config.ExtDestinationEtcdSslDir)
-			externalConfig["datastore-keyfile"] = fmt.Sprintf("%s/etcd-key.pem", config.ExtDestinationEtcdSslDir)
+			externalConfig["datastore-cafile"] = fmt.Sprintf("%s/ca.pem", config.GetExtDestinationEtcdSslDir())
+			externalConfig["datastore-certfile"] = fmt.Sprintf("%s/etcd.pem", config.GetExtDestinationEtcdSslDir())
+			externalConfig["datastore-keyfile"] = fmt.Sprintf("%s/etcd-key.pem", config.GetExtDestinationEtcdSslDir())
 		}
 	}
 
 	return externalConfig
 }
 
-func (provider *externalProvider) PrepareNodeDeletion(c types.ClientGenerator, powered bool) (err error) {
+func (provider *externalProvider) PrepareNodeDeletion(c client.ClientGenerator, powered bool) (err error) {
 	config := provider.configuration
+	external := config.GetExternalConfig()
 
-	if powered && len(config.External.LeaveCommand) > 0 {
-		_, err = provider.runCommands(config.External.LeaveCommand)
+	if powered && len(external.LeaveCommand) > 0 {
+		_, err = provider.runCommands(external.LeaveCommand)
 	}
 
 	return err
 }
 
-func (provider *externalProvider) JoinCluster(c types.ClientGenerator) (err error) {
-	return provider.joinClusterWithConfig(provider.agentConfig(), provider.configuration.External.ConfigPath, c, false, provider.configuration.External.JoinCommand)
+func (provider *externalProvider) JoinCluster(c client.ClientGenerator) (err error) {
+	external := provider.configuration.GetExternalConfig()
+
+	return provider.joinClusterWithConfig(provider.agentConfig(), external.ConfigPath, c, false, external.JoinCommand)
 }
 
 func (provider *externalProvider) PutConfigInCloudInit(cloudInit cloudinit.CloudInit) (err error) {
 	config := provider.configuration
+	external := config.GetExternalConfig()
 
-	if err = cloudInit.AddObjectToWriteFile(provider.agentConfig(), config.External.ConfigPath, *config.CloudInitFileOwner, *config.CloudInitFileMode); err == nil {
-		cloudInit.AddRunCommand(config.External.JoinCommand)
+	if err = cloudInit.AddObjectToWriteFile(provider.agentConfig(), external.ConfigPath, config.GetCloudInitFileOwner(), config.GetCloudInitFileMode()); err == nil {
+		cloudInit.AddRunCommand(external.JoinCommand)
 	}
 
 	return

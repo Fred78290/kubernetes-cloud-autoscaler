@@ -3,9 +3,14 @@ package kubernetes
 import (
 	"fmt"
 
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/client"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/cloudinit"
-	"github.com/Fred78290/kubernetes-cloud-autoscaler/types"
 )
+
+type K3SJoinConfig struct {
+	CommonJoinConfig
+	ExtraCommands []string `json:"extras-commands,omitempty"`
+}
 
 type k3sProvider struct {
 	kubernetesCommon
@@ -21,7 +26,7 @@ func (provider *k3sProvider) joinCommand() []string {
 
 func (provider *k3sProvider) agentCommand() []string {
 	config := provider.configuration
-	k3s := config.K3S
+	k3s := config.GetK3SJoinConfig()
 	command := make([]string, 0, 5)
 
 	if config.UseControllerManager() && !config.UseCloudInitToConfigure() {
@@ -40,7 +45,7 @@ func (provider *k3sProvider) agentCommand() []string {
 		}
 
 		if config.UseExternalEtdcServer() {
-			command = append(command, fmt.Sprintf("echo K3S_SERVER_ARGS='--datastore-endpoint=%s --datastore-cafile=%s/ca.pem --datastore-certfile=%s/etcd.pem --datastore-keyfile=%s/etcd-key.pem' > /etc/systemd/system/k3s.server.env", k3s.DatastoreEndpoint, config.ExtDestinationEtcdSslDir, config.ExtDestinationEtcdSslDir, config.ExtDestinationEtcdSslDir))
+			command = append(command, fmt.Sprintf("echo K3S_SERVER_ARGS='--datastore-endpoint=%s --datastore-cafile=%s/ca.pem --datastore-certfile=%s/etcd.pem --datastore-keyfile=%s/etcd-key.pem' > /etc/systemd/system/k3s.server.env", k3s.DatastoreEndpoint, config.GetExtDestinationEtcdSslDir(), config.GetExtDestinationEtcdSslDir(), config.GetExtDestinationEtcdSslDir()))
 		}
 	} else {
 		command = append(command, "echo 'K3S_MODE=agent' > /etc/default/k3s")
@@ -54,7 +59,7 @@ func (provider *k3sProvider) agentCommand() []string {
 	return append(command, provider.joinCommand()...)
 }
 
-func (provider *k3sProvider) PrepareNodeCreation(c types.ClientGenerator) (err error) {
+func (provider *k3sProvider) PrepareNodeCreation(c client.ClientGenerator) (err error) {
 	passwordNode := fmt.Sprintf(k3sPasswordNodeSecret, provider.nodeName())
 
 	if secret, e := c.GetSecret(passwordNode, kubeSystemNamespace); e == nil && secret != nil {
@@ -64,11 +69,11 @@ func (provider *k3sProvider) PrepareNodeCreation(c types.ClientGenerator) (err e
 	return
 }
 
-func (provider *k3sProvider) PrepareNodeDeletion(c types.ClientGenerator, powered bool) (err error) {
+func (provider *k3sProvider) PrepareNodeDeletion(c client.ClientGenerator, powered bool) (err error) {
 	return provider.PrepareNodeCreation(c)
 }
 
-func (provider *k3sProvider) JoinCluster(c types.ClientGenerator) (err error) {
+func (provider *k3sProvider) JoinCluster(c client.ClientGenerator) (err error) {
 	return provider.executeCommands(provider.agentCommand(), false, c)
 }
 

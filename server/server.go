@@ -12,8 +12,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/client"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
 	apigrpc "github.com/Fred78290/kubernetes-cloud-autoscaler/grpc"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/kubernetes"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/signals"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/types"
@@ -37,7 +39,7 @@ type applicationInterface interface {
 	isNodegroupDiscovered() bool
 	getResourceLimiter() *types.ResourceLimiter
 	syncState()
-	client() types.ClientGenerator
+	client() client.ClientGenerator
 	getMachineType(instanceType string) *providers.MachineCharacteristic
 }
 
@@ -50,7 +52,7 @@ type AutoScalerServerApp struct {
 	AutoProvision   bool                                  `json:"auto"`
 	configuration   *types.AutoScalerServerConfig
 	running         bool
-	kubeClient      types.ClientGenerator
+	kubeClient      client.ClientGenerator
 	requestTimeout  time.Duration
 }
 
@@ -313,7 +315,7 @@ func (s *AutoScalerServerApp) getMachineType(instanceType string) *providers.Mac
 	return nil
 }
 
-func (s *AutoScalerServerApp) client() types.ClientGenerator {
+func (s *AutoScalerServerApp) client() client.ClientGenerator {
 	return s.kubeClient
 }
 
@@ -454,7 +456,7 @@ func (s *AutoScalerServerApp) checkEtcdSslReadable() bool {
 }
 
 // StartServer start the service
-func StartServer(kubeClient types.ClientGenerator, c *types.Config) {
+func StartServer(kubeClient client.ClientGenerator, c *types.Config) {
 	var config types.AutoScalerServerConfig
 	var autoScalerServer *AutoScalerServerApp
 	var machines providers.MachineCharacteristics
@@ -521,6 +523,22 @@ func StartServer(kubeClient types.ClientGenerator, c *types.Config) {
 		config.Plateform = &c.Plateform
 	}
 
+	if config.UseBind9 == nil {
+		config.UseBind9 = &c.UseBind9
+	}
+
+	if config.Bind9Host == nil {
+		config.Bind9Host = &c.Bind9Host
+	}
+
+	if config.RndcKeyFile == nil {
+		config.RndcKeyFile = &c.RndcKeyFile
+	}
+
+	if config.UseEtcHosts == nil {
+		config.UseEtcHosts = &c.UseEtcHosts
+	}
+
 	if config.UseCloudInitConfig == nil {
 		config.UseCloudInitConfig = &c.UseCloudInitConfig
 	}
@@ -542,23 +560,23 @@ func StartServer(kubeClient types.ClientGenerator, c *types.Config) {
 	}
 
 	switch *config.Distribution {
-	case providers.KubeAdmDistributionName:
+	case kubernetes.KubeAdmDistributionName:
 		if config.KubeAdm == nil {
 			glog.Fatal("KubeAdm configuration is not defined")
 		}
-	case providers.K3SDistributionName:
+	case kubernetes.K3SDistributionName:
 		if config.K3S == nil {
 			glog.Fatal("K3S configuration is not defined")
 		}
-	case providers.RKE2DistributionName:
+	case kubernetes.RKE2DistributionName:
 		if config.RKE2 == nil {
 			glog.Fatal("RKE2 configuration is not defined")
 		}
-	case providers.MicroK8SDistributionName:
+	case kubernetes.MicroK8SDistributionName:
 		if config.MicroK8S == nil {
 			glog.Fatal("MicroK8S configuration is not defined")
 		}
-	case providers.ExternalDistributionName:
+	case kubernetes.ExternalDistributionName:
 		if config.External == nil {
 			glog.Fatal("External configuration is not defined")
 		}

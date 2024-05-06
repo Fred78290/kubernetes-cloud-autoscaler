@@ -1,11 +1,10 @@
-package utils
+package client
 
 import (
 	"context"
 	"fmt"
 	"strings"
 
-	"github.com/Fred78290/kubernetes-cloud-autoscaler/types"
 	apiv1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,6 +15,9 @@ const (
 	kindDaemonSet   = "DaemonSet"
 	kindStatefulSet = "StatefulSet"
 )
+
+// A PodFilterFunc returns true if the supplied pod passes the filter.
+type PodFilterFunc func(p apiv1.Pod) (bool, error)
 
 // MirrorPodFilter returns true if the supplied pod is not a mirror pod, i.e. a
 // pod created by a manifest on the node rather than the API server.
@@ -50,7 +52,7 @@ func UnreplicatedPodFilter(p apiv1.Pod) (bool, error) {
 
 // NewDaemonSetPodFilter returns a FilterFunc that returns true if the supplied
 // pod is not managed by an extant DaemonSet.
-func NewDaemonSetPodFilter(ctx context.Context, client kubernetes.Interface) types.PodFilterFunc {
+func NewDaemonSetPodFilter(ctx context.Context, client kubernetes.Interface) PodFilterFunc {
 	return func(p apiv1.Pod) (bool, error) {
 		c := metav1.GetControllerOf(&p)
 		if c == nil || c.Kind != kindDaemonSet {
@@ -71,7 +73,7 @@ func NewDaemonSetPodFilter(ctx context.Context, client kubernetes.Interface) typ
 
 // NewStatefulSetPodFilter returns a FilterFunc that returns true if the supplied
 // pod is not managed by an extant StatefulSet.
-func NewStatefulSetPodFilter(ctx context.Context, client kubernetes.Interface) types.PodFilterFunc {
+func NewStatefulSetPodFilter(ctx context.Context, client kubernetes.Interface) PodFilterFunc {
 	return func(p apiv1.Pod) (bool, error) {
 		c := metav1.GetControllerOf(&p)
 		if c == nil || c.Kind != kindStatefulSet {
@@ -93,7 +95,7 @@ func NewStatefulSetPodFilter(ctx context.Context, client kubernetes.Interface) t
 // UnprotectedPodFilter returns a FilterFunc that returns true if the
 // supplied pod does not have any of the user-specified annotations for
 // protection from eviction
-func UnprotectedPodFilter(annotations ...string) types.PodFilterFunc {
+func UnprotectedPodFilter(annotations ...string) PodFilterFunc {
 	return func(p apiv1.Pod) (bool, error) {
 		var filter bool
 		for _, annot := range annotations {
@@ -120,7 +122,7 @@ func UnprotectedPodFilter(annotations ...string) types.PodFilterFunc {
 
 // NewPodFilters returns a FilterFunc that returns true if all of the supplied
 // FilterFuncs return true.
-func NewPodFilters(filters ...types.PodFilterFunc) types.PodFilterFunc {
+func NewPodFilters(filters ...PodFilterFunc) PodFilterFunc {
 	return func(p apiv1.Pod) (bool, error) {
 		for _, fn := range filters {
 			passes, err := fn(p)

@@ -4,9 +4,16 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/client"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/cloudinit"
-	"github.com/Fred78290/kubernetes-cloud-autoscaler/types"
 )
+
+// KubeJoinConfig give element to join kube master
+type KubeJoinConfig struct {
+	CommonJoinConfig
+	CACert         string   `json:"ca,omitempty"`
+	ExtraArguments []string `json:"extras-args,omitempty"`
+}
 
 type kubeadmProvider struct {
 	kubernetesCommon
@@ -15,11 +22,11 @@ type kubeadmProvider struct {
 func (provider *kubeadmProvider) joinCommand() []string {
 	config := provider.configuration
 	commands := make([]string, 0, 2)
-	kubeAdm := config.KubeAdm
+	kubeAdm := config.GetKubeAdmConfig()
 	address := provider.address()
 
 	if config.UseImageCredentialProviderConfig() {
-		commands = append(commands, fmt.Sprintf("echo KUBELET_EXTRA_ARGS='--image-credential-provider-config=%s --image-credential-provider-bin-dir=%s' > /etc/default/kubelet", *config.ImageCredentialProviderConfig, *config.ImageCredentialProviderBinDir))
+		commands = append(commands, fmt.Sprintf("echo KUBELET_EXTRA_ARGS='--image-credential-provider-config=%s --image-credential-provider-bin-dir=%s' > /etc/default/kubelet", config.GetImageCredentialProviderConfig(), config.GetImageCredentialProviderBinDir()))
 	}
 
 	join := []string{
@@ -54,12 +61,12 @@ func (provider *kubeadmProvider) joinCommand() []string {
 
 func (provider *kubeadmProvider) agentConfig() any {
 	if provider.configuration.UseCloudInitToConfigure() {
-		return map[string]any{
+		return MapAny{
 			"address": provider.address(),
 			"maxPods": provider.maxPods,
 		}
 	} else {
-		return map[string]any{
+		return MapAny{
 			"address":    provider.address(),
 			"providerID": provider.providerID(),
 			"maxPods":    provider.maxPods,
@@ -67,14 +74,14 @@ func (provider *kubeadmProvider) agentConfig() any {
 	}
 }
 
-func (provider *kubeadmProvider) JoinCluster(c types.ClientGenerator) (err error) {
+func (provider *kubeadmProvider) JoinCluster(c client.ClientGenerator) (err error) {
 	return provider.joinClusterWithConfig(provider.agentConfig(), "/etc/kubernetes/patches/kubeletconfiguration0+merge.yaml", c, true, provider.joinCommand()...)
 }
 
 func (provider *kubeadmProvider) PutConfigInCloudInit(cloudInit cloudinit.CloudInit) (err error) {
 	config := provider.configuration
 
-	if err = cloudInit.AddObjectToWriteFile(provider.agentConfig(), "/etc/kubernetes/patches/kubeletconfiguration0+merge.yaml", *config.CloudInitFileOwner, *config.CloudInitFileMode); err == nil {
+	if err = cloudInit.AddObjectToWriteFile(provider.agentConfig(), "/etc/kubernetes/patches/kubeletconfiguration0+merge.yaml", config.GetCloudInitFileOwner(), config.GetCloudInitFileMode()); err == nil {
 		cloudInit.AddRunCommand(provider.joinCommand()...)
 	}
 

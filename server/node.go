@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/client"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/cloudinit"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/context"
@@ -114,7 +115,7 @@ func (s AutoScalerServerNodeState) String() string {
 	return autoScalerServerNodeStateString[s]
 }
 
-func (vm *AutoScalerServerNode) waitReady(c types.ClientGenerator) error {
+func (vm *AutoScalerServerNode) waitReady(c client.ClientGenerator) error {
 
 	if vm.serverConfig.UseCloudInitToConfigure() {
 		glog.Infof("Wait node: %s joined the cluster", vm.NodeName)
@@ -169,7 +170,7 @@ func (vm *AutoScalerServerNode) recopyEtcdSslFilesIfNeeded() (err error) {
 	config := vm.serverConfig
 
 	if !vm.serverConfig.UseCloudInitToConfigure() {
-		if config.KubernetesDistribution() != providers.RKE2DistributionName && vm.ControlPlaneNode && config.UseExternalEtdcServer() {
+		if config.KubernetesDistribution() != kubernetes.RKE2DistributionName && vm.ControlPlaneNode && config.UseExternalEtdcServer() {
 			glog.Infof("Recopy Etcd ssl files for instance: %s in node group: %s", vm.InstanceName, vm.NodeGroup)
 
 			err = vm.recopyDirectory(config.ExtSourceEtcdSslDir, config.ExtDestinationEtcdSslDir)
@@ -183,7 +184,7 @@ func (vm *AutoScalerServerNode) recopyKubernetesPKIIfNeeded() (err error) {
 	config := vm.serverConfig
 
 	if !config.UseCloudInitToConfigure() {
-		if config.KubernetesDistribution() == providers.KubeAdmDistributionName && vm.ControlPlaneNode {
+		if config.KubernetesDistribution() == kubernetes.KubeAdmDistributionName && vm.ControlPlaneNode {
 			glog.Infof("Recopy PKI for instance: %s in node group: %s", vm.InstanceName, vm.NodeGroup)
 
 			err = vm.recopyDirectory(config.KubernetesPKISourceDir, config.KubernetesPKIDestDir)
@@ -193,7 +194,7 @@ func (vm *AutoScalerServerNode) recopyKubernetesPKIIfNeeded() (err error) {
 	return err
 }
 
-func (vm *AutoScalerServerNode) retrieveNodeInfo(c types.ClientGenerator) error {
+func (vm *AutoScalerServerNode) retrieveNodeInfo(c client.ClientGenerator) error {
 	if nodeInfo, err := c.GetNode(vm.NodeName); err != nil {
 		return err
 	} else {
@@ -205,7 +206,7 @@ func (vm *AutoScalerServerNode) retrieveNodeInfo(c types.ClientGenerator) error 
 	return nil
 }
 
-func (vm *AutoScalerServerNode) joinCluster(c types.ClientGenerator) (err error) {
+func (vm *AutoScalerServerNode) joinCluster(c client.ClientGenerator) (err error) {
 	glog.Infof("Register node in cluster for instance: %s in node group: %s", vm.InstanceName, vm.NodeGroup)
 
 	kubernetesProvider := vm.getKubernetesProvider()
@@ -233,7 +234,7 @@ func (vm *AutoScalerServerNode) getKubernetesProvider() kubernetes.KubernetesPro
 	return vm.kubernetesProvider
 }
 
-func (vm *AutoScalerServerNode) setNodeLabels(c types.ClientGenerator, nodeLabels, systemLabels types.KubernetesLabel) error {
+func (vm *AutoScalerServerNode) setNodeLabels(c client.ClientGenerator, nodeLabels, systemLabels types.KubernetesLabel) error {
 	topology := vm.providerHandler.GetTopologyLabels()
 	labels := types.MergeKubernetesLabel(nodeLabels, topology, systemLabels, vm.ExtraLabels)
 
@@ -321,7 +322,7 @@ func (vm *AutoScalerServerNode) WaitForIP() (string, error) {
 func (vm *AutoScalerServerNode) appendEtcdSslFilesIfNeededInCloudInit() error {
 	config := vm.serverConfig
 
-	if config.KubernetesDistribution() != providers.RKE2DistributionName && (vm.ControlPlaneNode && config.UseExternalEtdcServer()) {
+	if config.KubernetesDistribution() != kubernetes.RKE2DistributionName && (vm.ControlPlaneNode && config.UseExternalEtdcServer()) {
 		glog.Infof("Put in cloud-init Etcd ssl files for instance: %s in node group: %s", vm.InstanceName, vm.NodeGroup)
 
 		return vm.CloudInit.AddDirectoryToWriteFile(config.ExtSourceEtcdSslDir, config.ExtDestinationEtcdSslDir, *config.CloudInitFileOwner)
@@ -333,7 +334,7 @@ func (vm *AutoScalerServerNode) appendEtcdSslFilesIfNeededInCloudInit() error {
 func (vm *AutoScalerServerNode) appendKubernetesPKIIfNeededInCloudInit() error {
 	config := vm.serverConfig
 
-	if (config.KubernetesDistribution() != providers.RKE2DistributionName) && vm.ControlPlaneNode {
+	if (config.KubernetesDistribution() != kubernetes.RKE2DistributionName) && vm.ControlPlaneNode {
 		glog.Infof("Put in cloud-init PKI for instance: %s in node group: %s", vm.InstanceName, vm.NodeGroup)
 
 		return vm.CloudInit.AddDirectoryToWriteFile(config.KubernetesPKISourceDir, config.KubernetesPKIDestDir, *config.CloudInitFileOwner)
@@ -377,7 +378,7 @@ func (vm *AutoScalerServerNode) prepareCloudInit() (err error) {
 	return err
 }
 
-func (vm *AutoScalerServerNode) createInstance(c types.ClientGenerator) (err error) {
+func (vm *AutoScalerServerNode) createInstance(c client.ClientGenerator) (err error) {
 	providerHandler := vm.providerHandler
 	userInfo := vm.serverConfig.SSH
 
@@ -430,7 +431,7 @@ func (vm *AutoScalerServerNode) createInstance(c types.ClientGenerator) (err err
 	return err
 }
 
-func (vm *AutoScalerServerNode) postCloudInitConfiguration(c types.ClientGenerator) (err error) {
+func (vm *AutoScalerServerNode) postCloudInitConfiguration(c client.ClientGenerator) (err error) {
 	providerHandler := vm.providerHandler
 
 	if err = vm.waitReady(c); err != nil {
@@ -454,7 +455,7 @@ func (vm *AutoScalerServerNode) postCloudInitConfiguration(c types.ClientGenerat
 	return err
 }
 
-func (vm *AutoScalerServerNode) postSshConfiguration(c types.ClientGenerator) (err error) {
+func (vm *AutoScalerServerNode) postSshConfiguration(c client.ClientGenerator) (err error) {
 	var status AutoScalerServerNodeState
 
 	providerHandler := vm.providerHandler
@@ -507,7 +508,7 @@ func (vm *AutoScalerServerNode) postSshConfiguration(c types.ClientGenerator) (e
 	return err
 }
 
-func (vm *AutoScalerServerNode) launchVM(c types.ClientGenerator, nodeLabels, systemLabels types.KubernetesLabel) (err error) {
+func (vm *AutoScalerServerNode) launchVM(c client.ClientGenerator, nodeLabels, systemLabels types.KubernetesLabel) (err error) {
 	glog.Infof("Launch VM: %s for nodegroup: %s", vm.InstanceName, vm.NodeGroup)
 
 	if vm.State != AutoScalerServerNodeStateNotCreated {
@@ -536,7 +537,7 @@ func (vm *AutoScalerServerNode) launchVM(c types.ClientGenerator, nodeLabels, sy
 	return err
 }
 
-func (vm *AutoScalerServerNode) startVM(c types.ClientGenerator) error {
+func (vm *AutoScalerServerNode) startVM(c client.ClientGenerator) error {
 	glog.Infof("Start VM: %s", vm.InstanceName)
 
 	var err error
@@ -597,7 +598,7 @@ func (vm *AutoScalerServerNode) startVM(c types.ClientGenerator) error {
 	return err
 }
 
-func (vm *AutoScalerServerNode) stopVM(c types.ClientGenerator) error {
+func (vm *AutoScalerServerNode) stopVM(c client.ClientGenerator) error {
 	glog.Infof("Stop VM: %s", vm.InstanceName)
 
 	var err error
@@ -640,7 +641,7 @@ func (vm *AutoScalerServerNode) stopVM(c types.ClientGenerator) error {
 	return err
 }
 
-func (vm *AutoScalerServerNode) deleteVM(c types.ClientGenerator) error {
+func (vm *AutoScalerServerNode) deleteVM(c client.ClientGenerator) error {
 	glog.Infof("Delete VM: %s", vm.InstanceName)
 
 	var err error
@@ -736,7 +737,7 @@ func (vm *AutoScalerServerNode) statusVM() (AutoScalerServerNodeState, error) {
 	return AutoScalerServerNodeStateUndefined, fmt.Errorf(constantes.ErrAutoScalerInfoNotFound, vm.InstanceName)
 }
 
-func (vm *AutoScalerServerNode) setProviderID(c types.ClientGenerator) error {
+func (vm *AutoScalerServerNode) setProviderID(c client.ClientGenerator) error {
 	// provider is set by config in ssh config mode
 	if vm.serverConfig.DisableCloudController() && vm.serverConfig.UseCloudInitToConfigure() {
 		providerID := vm.providerHandler.GenerateProviderID()
@@ -756,9 +757,9 @@ func (vm *AutoScalerServerNode) generateProviderID() string {
 	}
 
 	if vm.serverConfig.Distribution != nil {
-		if *vm.serverConfig.Distribution == providers.K3SDistributionName {
+		if *vm.serverConfig.Distribution == kubernetes.K3SDistributionName {
 			return fmt.Sprintf("k3s://%s", vm.NodeName)
-		} else if *vm.serverConfig.Distribution == providers.RKE2DistributionName {
+		} else if *vm.serverConfig.Distribution == kubernetes.RKE2DistributionName {
 			return fmt.Sprintf("rke2://%s", vm.NodeName)
 		}
 	}
@@ -792,7 +793,7 @@ func (vm *AutoScalerServerNode) retrieveNetworkInfos() error {
 }
 
 // cleanOnLaunchError called when error occurs during launch
-func (vm *AutoScalerServerNode) cleanOnLaunchError(c types.ClientGenerator, err error) {
+func (vm *AutoScalerServerNode) cleanOnLaunchError(c client.ClientGenerator, err error) {
 	glog.Errorf(constantes.ErrUnableToLaunchVM, vm.InstanceName, err)
 
 	exists := fmt.Sprintf(constantes.ErrVMAlreadyExists, vm.InstanceName)

@@ -30,7 +30,11 @@ func (net *openStackNetwork) ConfigurationDns(ctx *context.Context, client *goph
 	var allPages pagination.Page
 	var allZones []zones.Zone
 
-	if allPages, err = zones.List(client, zones.ListOpts{Name: net.Domain + "."}).AllPages(ctx); err == nil {
+	opts := zones.ListOpts{
+		Name: net.Domain + ".",
+	}
+
+	if allPages, err = zones.List(client, opts).AllPages(ctx); err == nil {
 		if allZones, err = zones.ExtractZones(allPages); err == nil && len(allZones) > 0 {
 			net.dnsZoneID = aws.String(allZones[0].ID)
 		}
@@ -61,30 +65,44 @@ func (net *openStackNetwork) Clone(controlPlane bool, nodeIndex int) (copy *open
 func (net *openStackNetwork) registerDNS(ctx *context.Context, client *gophercloud.ServiceClient, name, address string) (err error) {
 	if client != nil && net.dnsZoneID != nil {
 		var record *recordsets.RecordSet
+		var dnsEntryID string
 
-		opts := recordsets.CreateOpts{
-			Name: name + "." + net.Domain + ".",
-			Records: []string{
-				address,
-			},
-			Type: "A",
-		}
+		if dnsEntryID, err = net.findDNSEntry(ctx, client, name, "A"); err == nil {
+			opts := recordsets.UpdateOpts{
+				Records: []string{
+					address,
+				},
+			}
 
-		if record, err = recordsets.Create(ctx, client, *net.dnsZoneID, opts).Extract(); err == nil {
-			net.dnsEntryID = aws.String(record.ID)
+			if record, err = recordsets.Update(ctx, client, *net.dnsZoneID, dnsEntryID, opts).Extract(); err == nil {
+				net.dnsEntryID = aws.String(record.ID)
+			}
+		} else {
+			opts := recordsets.CreateOpts{
+				Name: name + "." + net.Domain + ".",
+				Type: "A",
+				Records: []string{
+					address,
+				},
+			}
+
+			if record, err = recordsets.Create(ctx, client, *net.dnsZoneID, opts).Extract(); err == nil {
+				net.dnsEntryID = aws.String(record.ID)
+			}
 		}
 	}
 
 	return
 }
 
-func (net *openStackNetwork) findDNSEntry(ctx *context.Context, client *gophercloud.ServiceClient, name string) (dnsEntryID string, err error) {
+func (net *openStackNetwork) findDNSEntry(ctx *context.Context, client *gophercloud.ServiceClient, name string, recordType string) (dnsEntryID string, err error) {
 	var allPages pagination.Page
 	var allRecords []recordsets.RecordSet
 
 	opts := recordsets.ListOpts{
 		Name:   name + "." + net.Domain + ".",
 		ZoneID: *net.dnsZoneID,
+		Type:   recordType,
 	}
 
 	if allPages, err = recordsets.ListByZone(client, *net.dnsZoneID, opts).AllPages(ctx); err == nil {
@@ -105,7 +123,7 @@ func (net *openStackNetwork) unregisterDNS(ctx *context.Context, client *gopherc
 
 		if net.dnsEntryID != nil {
 			dnsEntryID = *net.dnsEntryID
-		} else if dnsEntryID, err = net.findDNSEntry(ctx, client, name); err != nil {
+		} else if dnsEntryID, err = net.findDNSEntry(ctx, client, name, "A"); err != nil {
 			return
 		}
 
@@ -121,7 +139,7 @@ func (net *openStackNetwork) retrieveNetworkInfos(ctx *context.Context, client *
 	if client != nil && net.dnsZoneID != nil {
 		var dnsEntryID string
 
-		if dnsEntryID, err = net.findDNSEntry(ctx, client, name); err != nil {
+		if dnsEntryID, err = net.findDNSEntry(ctx, client, name, "A"); err != nil {
 			return
 		}
 

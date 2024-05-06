@@ -11,15 +11,14 @@ import (
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/context"
-	"github.com/Fred78290/kubernetes-cloud-autoscaler/types"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/utils"
+	apiv1 "k8s.io/api/core/v1"
 
 	managednodeClientset "github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/generated/clientset/versioned"
 	apiextensionClientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 
 	"github.com/linki/instrumented_http"
 	glog "github.com/sirupsen/logrus"
-	apiv1 "k8s.io/api/core/v1"
 	policy "k8s.io/api/policy/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,8 +35,8 @@ const (
 	retrySleep                = time.Millisecond * 250
 )
 
-// SingletonClientGenerator provides clients
-type SingletonClientGenerator struct {
+// singletonClientGenerator provides clients
+type singletonClientGenerator struct {
 	KubeConfig           string
 	APIServerURL         string
 	RequestTimeout       time.Duration
@@ -126,12 +125,12 @@ func newKubeClient(kubeConfig, apiServerURL string, requestTimeout time.Duration
 	return client, nodeManagerClientset, apiExtensionClient, err
 }
 
-func (p *SingletonClientGenerator) newRequestContext() *context.Context {
+func (p *singletonClientGenerator) newRequestContext() *context.Context {
 	return utils.NewRequestContext(p.RequestTimeout)
 }
 
 // KubeClient generates a kube client if it was not created before
-func (p *SingletonClientGenerator) KubeClient() (kubernetes.Interface, error) {
+func (p *singletonClientGenerator) KubeClient() (kubernetes.Interface, error) {
 	var err error
 	p.kubeOnce.Do(func() {
 		p.kubeClient, p.nodeManagerClientset, p.apiExtensionClient, err = newKubeClient(p.KubeConfig, p.APIServerURL, p.RequestTimeout)
@@ -140,7 +139,7 @@ func (p *SingletonClientGenerator) KubeClient() (kubernetes.Interface, error) {
 }
 
 // NodeManagerClient generates node manager client if it was not created before
-func (p *SingletonClientGenerator) NodeManagerClient() (managednodeClientset.Interface, error) {
+func (p *singletonClientGenerator) NodeManagerClient() (managednodeClientset.Interface, error) {
 	var err error
 	p.kubeOnce.Do(func() {
 		p.kubeClient, p.nodeManagerClientset, p.apiExtensionClient, err = newKubeClient(p.KubeConfig, p.APIServerURL, p.RequestTimeout)
@@ -149,7 +148,7 @@ func (p *SingletonClientGenerator) NodeManagerClient() (managednodeClientset.Int
 }
 
 // ApiExtentionClient generates an api extension client if it was not created before
-func (p *SingletonClientGenerator) ApiExtentionClient() (apiextensionClientset.Interface, error) {
+func (p *singletonClientGenerator) ApiExtentionClient() (apiextensionClientset.Interface, error) {
 	var err error
 	p.kubeOnce.Do(func() {
 		p.kubeClient, p.nodeManagerClientset, p.apiExtensionClient, err = newKubeClient(p.KubeConfig, p.APIServerURL, p.RequestTimeout)
@@ -157,7 +156,7 @@ func (p *SingletonClientGenerator) ApiExtentionClient() (apiextensionClientset.I
 	return p.apiExtensionClient, err
 }
 
-func (p *SingletonClientGenerator) WaitNodeToBeReady(nodeName string) error {
+func (p *singletonClientGenerator) WaitNodeToBeReady(nodeName string) error {
 	var nodeInfo *apiv1.Node
 	kubeclient, err := p.KubeClient()
 
@@ -198,7 +197,7 @@ func (p *SingletonClientGenerator) WaitNodeToBeReady(nodeName string) error {
 	return fmt.Errorf(constantes.ErrNodeIsNotReady, nodeName)
 }
 
-func (p *SingletonClientGenerator) awaitDeletion(pod apiv1.Pod, timeout time.Duration) error {
+func (p *singletonClientGenerator) awaitDeletion(pod apiv1.Pod, timeout time.Duration) error {
 	kubeclient, err := p.KubeClient()
 
 	if err != nil {
@@ -223,7 +222,7 @@ func (p *SingletonClientGenerator) awaitDeletion(pod apiv1.Pod, timeout time.Dur
 	})
 }
 
-func (p *SingletonClientGenerator) evictPod(pod apiv1.Pod, abort <-chan struct{}, e chan<- error) {
+func (p *singletonClientGenerator) evictPod(pod apiv1.Pod, abort <-chan struct{}, e chan<- error) {
 	gracePeriod := int64(p.MaxGracePeriod.Seconds())
 
 	if pod.Spec.TerminationGracePeriodSeconds != nil && *pod.Spec.TerminationGracePeriodSeconds < gracePeriod {
@@ -275,7 +274,7 @@ func (p *SingletonClientGenerator) evictPod(pod apiv1.Pod, abort <-chan struct{}
 }
 
 // PodList return list of pods hosted on named node
-func (p *SingletonClientGenerator) PodList(nodeName string, podFilter types.PodFilterFunc) ([]apiv1.Pod, error) {
+func (p *singletonClientGenerator) PodList(nodeName string, podFilter PodFilterFunc) ([]apiv1.Pod, error) {
 	var pods *apiv1.PodList
 
 	kubeclient, err := p.KubeClient()
@@ -309,7 +308,7 @@ func (p *SingletonClientGenerator) PodList(nodeName string, podFilter types.PodF
 }
 
 // NodeList return node list from cluster
-func (p *SingletonClientGenerator) NodeList() (*apiv1.NodeList, error) {
+func (p *singletonClientGenerator) NodeList() (*apiv1.NodeList, error) {
 
 	kubeclient, err := p.KubeClient()
 
@@ -323,7 +322,7 @@ func (p *SingletonClientGenerator) NodeList() (*apiv1.NodeList, error) {
 	return kubeclient.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 }
 
-func (p *SingletonClientGenerator) cordonOrUncordonNode(nodeName string, flag bool) error {
+func (p *singletonClientGenerator) cordonOrUncordonNode(nodeName string, flag bool) error {
 	ctx := p.newRequestContext()
 	defer ctx.Cancel()
 
@@ -354,15 +353,15 @@ func (p *SingletonClientGenerator) cordonOrUncordonNode(nodeName string, flag bo
 	})
 }
 
-func (p *SingletonClientGenerator) UncordonNode(nodeName string) error {
+func (p *singletonClientGenerator) UncordonNode(nodeName string) error {
 	return p.cordonOrUncordonNode(nodeName, false)
 }
 
-func (p *SingletonClientGenerator) CordonNode(nodeName string) error {
+func (p *singletonClientGenerator) CordonNode(nodeName string) error {
 	return p.cordonOrUncordonNode(nodeName, true)
 }
 
-func (p *SingletonClientGenerator) SetProviderID(nodeName, providerID string) error {
+func (p *singletonClientGenerator) SetProviderID(nodeName, providerID string) error {
 	ctx := p.newRequestContext()
 	defer ctx.Cancel()
 
@@ -407,7 +406,7 @@ func (p *SingletonClientGenerator) SetProviderID(nodeName, providerID string) er
 	})
 }
 
-func (p *SingletonClientGenerator) MarkDrainNode(nodeName string) error {
+func (p *singletonClientGenerator) MarkDrainNode(nodeName string) error {
 	ctx := p.newRequestContext()
 	defer ctx.Cancel()
 
@@ -462,21 +461,23 @@ func (p *SingletonClientGenerator) MarkDrainNode(nodeName string) error {
 	})
 }
 
-func (p *SingletonClientGenerator) DrainNode(nodeName string, ignoreDaemonSet, deleteLocalData bool) error {
+func (p *singletonClientGenerator) DrainNode(nodeName string, ignoreDaemonSet, deleteLocalData bool) error {
 	ctx := p.newRequestContext()
 	defer ctx.Cancel()
 
-	pf := []types.PodFilterFunc{utils.MirrorPodFilter}
+	pf := []PodFilterFunc{
+		MirrorPodFilter,
+	}
 
 	if ignoreDaemonSet {
-		pf = append(pf, utils.NewDaemonSetPodFilter(ctx, p.kubeClient))
+		pf = append(pf, NewDaemonSetPodFilter(ctx, p.kubeClient))
 	}
 
 	if !deleteLocalData {
-		pf = append(pf, utils.LocalStoragePodFilter)
+		pf = append(pf, LocalStoragePodFilter)
 	}
 
-	pods, err := p.PodList(nodeName, utils.NewPodFilters(pf...))
+	pods, err := p.PodList(nodeName, NewPodFilters(pf...))
 	if err != nil {
 		return fmt.Errorf(constantes.ErrUnableToGetPodListOnNode, nodeName, err)
 	}
@@ -506,7 +507,7 @@ func (p *SingletonClientGenerator) DrainNode(nodeName string, ignoreDaemonSet, d
 	return nil
 }
 
-func (p *SingletonClientGenerator) GetNode(nodeName string) (*apiv1.Node, error) {
+func (p *singletonClientGenerator) GetNode(nodeName string) (*apiv1.Node, error) {
 	kubeclient, err := p.KubeClient()
 
 	if err != nil {
@@ -520,7 +521,7 @@ func (p *SingletonClientGenerator) GetNode(nodeName string) (*apiv1.Node, error)
 
 }
 
-func (p *SingletonClientGenerator) DeleteNode(nodeName string) error {
+func (p *singletonClientGenerator) DeleteNode(nodeName string) error {
 	kubeclient, err := p.KubeClient()
 
 	if err != nil {
@@ -534,7 +535,7 @@ func (p *SingletonClientGenerator) DeleteNode(nodeName string) error {
 }
 
 // AnnoteNode set annotation on node
-func (p *SingletonClientGenerator) AnnoteNode(nodeName string, annotations map[string]string) error {
+func (p *singletonClientGenerator) AnnoteNode(nodeName string, annotations map[string]string) error {
 	ctx := p.newRequestContext()
 	defer ctx.Cancel()
 
@@ -569,7 +570,7 @@ func (p *SingletonClientGenerator) AnnoteNode(nodeName string, annotations map[s
 }
 
 // LabelNode set label on node
-func (p *SingletonClientGenerator) LabelNode(nodeName string, labels map[string]string) error {
+func (p *singletonClientGenerator) LabelNode(nodeName string, labels map[string]string) error {
 	ctx := p.newRequestContext()
 	defer ctx.Cancel()
 
@@ -613,7 +614,7 @@ func containTaint(key string, taints *[]apiv1.Taint) (int, bool) {
 }
 
 // TaintNode set annotation on node
-func (p *SingletonClientGenerator) TaintNode(nodeName string, taints ...apiv1.Taint) error {
+func (p *singletonClientGenerator) TaintNode(nodeName string, taints ...apiv1.Taint) error {
 	ctx := p.newRequestContext()
 	defer ctx.Cancel()
 
@@ -658,7 +659,7 @@ func (p *SingletonClientGenerator) TaintNode(nodeName string, taints ...apiv1.Ta
 	})
 }
 
-func (p *SingletonClientGenerator) GetSecret(secretName, namespace string) (*apiv1.Secret, error) {
+func (p *singletonClientGenerator) GetSecret(secretName, namespace string) (*apiv1.Secret, error) {
 	ctx := p.newRequestContext()
 	defer ctx.Cancel()
 
@@ -669,7 +670,7 @@ func (p *SingletonClientGenerator) GetSecret(secretName, namespace string) (*api
 	}
 }
 
-func (p *SingletonClientGenerator) DeleteSecret(secretName, namespace string) error {
+func (p *singletonClientGenerator) DeleteSecret(secretName, namespace string) error {
 	ctx := p.newRequestContext()
 	defer ctx.Cancel()
 
@@ -680,13 +681,13 @@ func (p *SingletonClientGenerator) DeleteSecret(secretName, namespace string) er
 	}
 }
 
-func NewClientGenerator(cfg *types.Config) types.ClientGenerator {
-	return &SingletonClientGenerator{
-		KubeConfig:       cfg.KubeConfig,
-		APIServerURL:     cfg.APIServerURL,
-		RequestTimeout:   cfg.RequestTimeout,
-		NodeReadyTimeout: cfg.NodeReadyTimeout,
-		DeletionTimeout:  cfg.DeletionTimeout,
-		MaxGracePeriod:   cfg.MaxGracePeriod,
+func NewClientGenerator(cfg ClientConfig) ClientGenerator {
+	return &singletonClientGenerator{
+		KubeConfig:       cfg.GetKubeConfig(),
+		APIServerURL:     cfg.GetAPIServerURL(),
+		RequestTimeout:   cfg.GetRequestTimeout(),
+		NodeReadyTimeout: cfg.GetNodeReadyTimeout(),
+		DeletionTimeout:  cfg.GetDeletionTimeout(),
+		MaxGracePeriod:   cfg.GetMaxGracePeriod(),
 	}
 }

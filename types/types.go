@@ -8,6 +8,7 @@ import (
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/cloudinit"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
 	apigrpc "github.com/Fred78290/kubernetes-cloud-autoscaler/grpc"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/kubernetes"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers/aws"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers/desktop"
@@ -18,11 +19,7 @@ import (
 	"github.com/alecthomas/kingpin"
 	glog "github.com/sirupsen/logrus"
 
-	clientset "github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/generated/clientset/versioned"
-	apiv1 "k8s.io/api/core/v1"
-	apiextension "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -76,6 +73,7 @@ type Config struct {
 	KubernetesPKIDestDir          string
 	Distribution                  string
 	UseExternalEtdc               bool
+	UseEtcHosts                   bool
 	UseCloudInitConfig            bool
 	CloudInitFileOwner            string
 	CloudInitFileMode             int
@@ -109,6 +107,33 @@ type Config struct {
 	ManagedNodeMaxDiskSize        int64
 	ImageCredentialProviderConfig string
 	ImageCredentialProviderBinDir string
+	UseBind9                      bool
+	Bind9Host                     string
+	RndcKeyFile                   string
+}
+
+func (c *Config) GetKubeConfig() string {
+	return c.KubeConfig
+}
+
+func (c *Config) GetAPIServerURL() string {
+	return c.APIServerURL
+}
+
+func (c *Config) GetRequestTimeout() time.Duration {
+	return c.RequestTimeout
+}
+
+func (c *Config) GetNodeReadyTimeout() time.Duration {
+	return c.NodeReadyTimeout
+}
+
+func (c *Config) GetDeletionTimeout() time.Duration {
+	return c.DeletionTimeout
+}
+
+func (c *Config) GetMaxGracePeriod() time.Duration {
+	return c.MaxGracePeriod
 }
 
 func (c *Config) GetResourceLimiter() *ResourceLimiter {
@@ -141,68 +166,10 @@ func (c *Config) GetManagedNodeResourceLimiter() *ResourceLimiter {
 	}
 }
 
-// A PodFilterFunc returns true if the supplied pod passes the filter.
-type PodFilterFunc func(p apiv1.Pod) (bool, error)
-
-// ClientGenerator provides clients
-type ClientGenerator interface {
-	KubeClient() (kubernetes.Interface, error)
-	NodeManagerClient() (clientset.Interface, error)
-	ApiExtentionClient() (apiextension.Interface, error)
-
-	PodList(nodeName string, podFilter PodFilterFunc) ([]apiv1.Pod, error)
-	NodeList() (*apiv1.NodeList, error)
-	GetNode(nodeName string) (*apiv1.Node, error)
-	SetProviderID(nodeName, providerID string) error
-	UncordonNode(nodeName string) error
-	CordonNode(nodeName string) error
-	MarkDrainNode(nodeName string) error
-	DrainNode(nodeName string, ignoreDaemonSet, deleteLocalData bool) error
-	DeleteNode(nodeName string) error
-	AnnoteNode(nodeName string, annotations map[string]string) error
-	LabelNode(nodeName string, labels map[string]string) error
-	TaintNode(nodeName string, taints ...apiv1.Taint) error
-	GetSecret(secretName, namespace string) (*apiv1.Secret, error)
-	DeleteSecret(secretName, namespace string) error
-	WaitNodeToBeReady(nodeName string) error
-}
-
 // ResourceLimiter define limit, not really used
 type ResourceLimiter struct {
 	MinLimits map[string]int64 `json:"min"`
 	MaxLimits map[string]int64 `json:"max"`
-}
-
-type CommonJoinConfig struct {
-	Address           string `json:"address,omitempty"`
-	Token             string `json:"token,omitempty"`
-	DatastoreEndpoint string `json:"datastore-endpoint,omitempty"`
-}
-
-// KubeJoinConfig give element to join kube master
-type KubeJoinConfig struct {
-	CommonJoinConfig
-	CACert         string   `json:"ca,omitempty"`
-	ExtraArguments []string `json:"extras-args,omitempty"`
-}
-
-type RancherJoinConfig struct {
-	CommonJoinConfig
-	ExtraCommands []string `json:"extras-commands,omitempty"`
-}
-
-type MicroK8SJoinConfig struct {
-	CommonJoinConfig
-	Channel        string         `json:"channel,omitempty"`
-	OverrideConfig map[string]any `json:"override-config,omitempty"`
-}
-
-type ExternalJoinConfig struct {
-	CommonJoinConfig
-	JoinCommand  string         `json:"join-command,omitempty"`
-	LeaveCommand string         `json:"leave-command,omitempty"`
-	ConfigPath   string         `json:"config-path,omitempty"`
-	ExtraConfig  map[string]any `json:"extra-config,omitempty"`
 }
 
 // AutoScalerServerOptionals declare wich features must be optional
@@ -249,6 +216,7 @@ type AutoScalerServerConfig struct {
 	ImageCredentialProviderConfig *string                         `json:"image-credential-provider-config"`
 	ImageCredentialProviderBinDir *string                         `json:"image-credential-provider-bin-dir"`
 	UseExternalEtdc               *bool                           `json:"use-external-etcd"`
+	UseEtcHosts                   *bool                           `json:"use-etc-hosts"`
 	UseCloudInitConfig            *bool                           `json:"use-cloudinit-config"`
 	CloudInitFileOwner            *string                         `json:"cloudinit-file-owner"`
 	CloudInitFileMode             *uint                           `json:"cloudinit-file-mode"`
@@ -273,11 +241,11 @@ type AutoScalerServerConfig struct {
 	ControlPlaneNamePrefix        string                          `default:"master" json:"controlplane-name-prefix"` // Optional, the created node name prefix
 	NodePrice                     float64                         `json:"nodePrice"`                                 // Optional, The VM price
 	PodPrice                      float64                         `json:"podPrice"`                                  // Optional, The pod price
-	KubeAdm                       *KubeJoinConfig                 `json:"kubeadm"`
-	K3S                           *RancherJoinConfig              `json:"k3s,omitempty"`
-	RKE2                          *RancherJoinConfig              `json:"rke2,omitempty"`
-	MicroK8S                      *MicroK8SJoinConfig             `json:"microk8s,omitempty"`
-	External                      *ExternalJoinConfig             `json:"external,omitempty"`
+	KubeAdm                       *kubernetes.KubeJoinConfig      `json:"kubeadm"`
+	K3S                           *kubernetes.K3SJoinConfig       `json:"k3s,omitempty"`
+	RKE2                          *kubernetes.RKE2JoinConfig      `json:"rke2,omitempty"`
+	MicroK8S                      *kubernetes.MicroK8SJoinConfig  `json:"microk8s,omitempty"`
+	External                      *kubernetes.ExternalJoinConfig  `json:"external,omitempty"`
 	DefaultMachineType            string                          `default:"standard" json:"default-machine"`
 	NodeLabels                    KubernetesLabel                 `json:"nodeLabels"`
 	CloudInit                     cloudinit.CloudInit             `json:"cloud-init"` // Optional, The cloud init conf file
@@ -288,6 +256,9 @@ type AutoScalerServerConfig struct {
 	DebugMode                     *bool                           `json:"debug,omitempty"`
 	AllowUpgrade                  *bool                           `json:"allow-upgrade,omitempty"`
 	CredentialProviderConfig      any                             `json:"credential-provider-config,omitempty"`
+	UseBind9                      *bool                           `json:"use-bind9"`
+	Bind9Host                     *string                         `json:"bind9-host"`
+	RndcKeyFile                   *string                         `json:"rndc-key-file"`
 	providerConfiguration         providers.ProviderConfiguration `json:"-"`
 	autoScalingOptions            *apigrpc.AutoscalingOptions     `json:"-"`
 }
@@ -378,6 +349,82 @@ func (limits *ResourceLimiter) GetMinValue(key string, defaultValue int) int {
 	return defaultValue
 }
 
+func (conf *AutoScalerServerConfig) GetExternalConfig() *kubernetes.ExternalJoinConfig {
+	return conf.External
+}
+
+func (conf *AutoScalerServerConfig) GetK3SJoinConfig() *kubernetes.K3SJoinConfig {
+	return conf.K3S
+}
+
+func (conf *AutoScalerServerConfig) GetKubeAdmConfig() *kubernetes.KubeJoinConfig {
+	return conf.KubeAdm
+}
+
+func (conf *AutoScalerServerConfig) GetMicroK8SConfig() *kubernetes.MicroK8SJoinConfig {
+	return conf.MicroK8S
+}
+
+func (conf *AutoScalerServerConfig) GetRKE2Config() *kubernetes.RKE2JoinConfig {
+	return conf.RKE2
+}
+
+func (conf *AutoScalerServerConfig) GetCloudInitFileMode() uint {
+	if conf.CloudInitFileMode == nil {
+		return 0644
+	}
+
+	return *conf.CloudInitFileMode
+}
+
+func (conf *AutoScalerServerConfig) GetCloudInitFileOwner() string {
+	if conf.CloudInitFileOwner == nil {
+		return "root:root"
+	}
+
+	return *conf.CloudInitFileOwner
+}
+
+func (conf *AutoScalerServerConfig) GetExtDestinationEtcdSslDir() string {
+	return conf.ExtDestinationEtcdSslDir
+}
+
+func (conf *AutoScalerServerConfig) GetExtSourceEtcdSslDir() string {
+	return conf.ExtSourceEtcdSslDir
+}
+
+func (conf *AutoScalerServerConfig) GetKubernetesPKISourceDir() string {
+	return conf.KubernetesPKISourceDir
+}
+
+func (conf *AutoScalerServerConfig) GetKubernetesPKIDestDir() string {
+	return conf.KubernetesPKIDestDir
+}
+
+func (conf *AutoScalerServerConfig) GetSSHConfig() *sshutils.AutoScalerServerSSH {
+	return conf.SSH
+}
+
+func (conf *AutoScalerServerConfig) GetCredentialProviderConfig() any {
+	return conf.CredentialProviderConfig
+}
+
+func (conf *AutoScalerServerConfig) GetImageCredentialProviderConfig() string {
+	if conf.ImageCredentialProviderConfig == nil {
+		return ""
+	}
+
+	return *conf.ImageCredentialProviderConfig
+}
+
+func (conf *AutoScalerServerConfig) GetImageCredentialProviderBinDir() string {
+	if conf.ImageCredentialProviderBinDir == nil {
+		return "/usr/local/bin"
+	}
+
+	return *conf.ImageCredentialProviderBinDir
+}
+
 // SetupCloudConfiguration returns the cloud configuration
 func (conf *AutoScalerServerConfig) SetupCloudConfiguration(configFile string) error {
 	var err error
@@ -410,9 +457,17 @@ func (conf *AutoScalerServerConfig) SetupCloudConfiguration(configFile string) e
 
 func (conf *AutoScalerServerConfig) KubernetesDistribution() string {
 	if conf.Distribution == nil {
-		return providers.KubeAdmDistributionName
+		return kubernetes.KubeAdmDistributionName
 	}
 	return *conf.Distribution
+}
+
+func (conf *AutoScalerServerConfig) UseEtcHostsToConfigure() bool {
+	if conf.UseEtcHosts == nil {
+		return false
+	}
+
+	return *conf.UseEtcHosts
 }
 
 func (conf *AutoScalerServerConfig) UseCloudInitToConfigure() bool {
@@ -507,7 +562,8 @@ func NewConfig() *Config {
 		MachineConfig:            "/etc/cluster/machines.json",
 		Config:                   "/etc/cluster/autoscaler.json",
 		Listen:                   "unix:///var/run/autoscaler.sock",
-		Distribution:             providers.KubeAdmDistributionName,
+		Distribution:             kubernetes.KubeAdmDistributionName,
+		UseEtcHosts:              false,
 		UseExternalEtdc:          false,
 		UseCloudInitConfig:       false,
 		CloudInitFileOwner:       "root:adm",
@@ -568,13 +624,19 @@ func (cfg *Config) ParseFlags(args []string, version string) error {
 	app.Flag("plateform", "Which plateform used: vsphere, aws, desktop, multipass, openstack").Default(cfg.Plateform).EnumVar(&cfg.Plateform, providers.SupportedCloudProviders...)
 	app.Flag("plateform-config", "Plateform provider config file").Default(cfg.ProviderConfig).StringVar(&cfg.ProviderConfig)
 
-	app.Flag("distribution", "Which kubernetes distribution to use: kubeadm, k3s, rke2, microk8s, external").Default(cfg.Distribution).EnumVar(&cfg.Distribution, providers.SupportedKubernetesDistribution...)
+	app.Flag("distribution", "Which kubernetes distribution to use: kubeadm, k3s, rke2, microk8s, external").Default(cfg.Distribution).EnumVar(&cfg.Distribution, kubernetes.SupportedKubernetesDistribution...)
 	app.Flag("grpc-provider", "Which grpc provider to use: externalgrpc, grpc").Default(cfg.GrpcProvider).EnumVar(&cfg.GrpcProvider, "grpc", "externalgrpc")
 	app.Flag("cloud-provider", "Which controller manager used: external").Default(cfg.CloudProvider).EnumVar(&cfg.CloudProvider, "external", "")
 	app.Flag("nodegroup", "Autoscaler nodegroup name").Default(cfg.Nodegroup).StringVar(&cfg.Nodegroup)
+	app.Flag("use-etc-hosts", "Tell we use /etc/hosts for control-endpoint (overriden by config file if defined)").Default("false").BoolVar(&cfg.UseEtcHosts)
 	app.Flag("use-cloudinit-config", "Tell we use cloud-init mechanism to configure kubernetes service (overriden by config file if defined)").Default("false").BoolVar(&cfg.UseCloudInitConfig)
 	app.Flag("cloudinit-file-owner", "Tell owner of cloud-init file to configure kubernetes service (overriden by config file if defined)").Default(cfg.CloudInitFileOwner).StringVar(&cfg.CloudInitFileOwner)
 	app.Flag("cloudinit-file-mode", "Tell file mode of cloud-init file to configure kubernetes service (overriden by config file if defined)").Default(fmt.Sprintf("%d", cfg.CloudInitFileMode)).IntVar(&cfg.CloudInitFileMode)
+
+	// Bind9 usage
+	app.Flag("use-bind9-server", "Tell we use bind9 for dns registration (overriden by config file if defined)").Default("false").BoolVar(&cfg.UseBind9)
+	app.Flag("bind9-host", "Locate bind9 server (overriden by config file if defined)").Default(cfg.Bind9Host).StringVar(&cfg.Bind9Host)
+	app.Flag("rndc-key-file", "Locate rnd key (overriden by config file if defined)").Default(cfg.RndcKeyFile).StringVar(&cfg.RndcKeyFile)
 
 	// External Etcd
 	app.Flag("use-external-etcd", "Tell we use an external etcd service (overriden by config file if defined)").Default("false").BoolVar(&cfg.UseExternalEtdc)

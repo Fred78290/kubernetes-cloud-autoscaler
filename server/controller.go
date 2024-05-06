@@ -43,6 +43,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/client"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
 	nodemanager "github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha2"
@@ -50,7 +51,6 @@ import (
 	informers "github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/generated/informers/externalversions"
 	listers "github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/generated/listers/nodemanager/v1alpha2"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
-	"github.com/Fred78290/kubernetes-cloud-autoscaler/types"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/utils"
 )
 
@@ -77,7 +77,7 @@ const (
 // Controller is the controller implementation for Foo resources
 type Controller struct {
 	// kubeclientset is a standard kubernetes clientset
-	client            types.ClientGenerator
+	client            client.ClientGenerator
 	nodesLister       nodelisters.NodeLister
 	nodesSynced       cache.InformerSynced
 	managedNodeLister listers.ManagedNodeLister

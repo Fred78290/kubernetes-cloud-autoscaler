@@ -4,54 +4,54 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/client"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/cloudinit"
-	"github.com/Fred78290/kubernetes-cloud-autoscaler/types"
 )
+
+type MicroK8SJoinConfig struct {
+	CommonJoinConfig
+	UseLoadBalancer bool   `json:"use-nlb"`
+	Channel         string `json:"channel,omitempty"`
+	OverrideConfig  MapAny `json:"override-config,omitempty"`
+}
 
 type microk8sProvider struct {
 	kubernetesCommon
 }
 
 func (provider *microk8sProvider) joinCommand() []string {
-	microk8s := provider.configuration.MicroK8S
-	//worker := " --worker"
-
-	//if provider.controlPlane {
-	//	worker = ""
-	//}
+	microk8s := provider.configuration.GetMicroK8SConfig()
 
 	return []string{
 		fmt.Sprintf("snap install microk8s --classic --channel=%s", microk8s.Channel),
-		//	"microk8s status --wait-ready",
-		//		fmt.Sprintf("microk8s join %s/%s%s", microk8s.Address, microk8s.Token, worker),
 	}
 }
 
 func (provider *microk8sProvider) agentConfig() any {
 	config := provider.configuration
-	microk8s := config.MicroK8S
-	extraKubeAPIServerArgs := map[string]any{}
-	extraKubeletArgs := map[string]any{
+	microk8s := config.GetMicroK8SConfig()
+	extraKubeAPIServerArgs := MapAny{}
+	extraKubeletArgs := MapAny{
 		"--max-pods":       provider.maxPods,
 		"--cloud-provider": config.GetCloudProviderName(),
 		"--node-ip":        provider.address(),
 	}
 
-	microk8sConfig := map[string]any{
+	microk8sConfig := MapAny{
 		"version":                "0.1.0",
 		"persistentClusterToken": microk8s.Token,
-		"join": map[string]any{
+		"join": MapAny{
 			"url":    fmt.Sprintf("%s/%s", microk8s.Address, microk8s.Token),
 			"worker": !provider.controlPlane,
 		},
-		"extraMicroK8sAPIServerProxyArgs": map[string]any{
+		"extraMicroK8sAPIServerProxyArgs": MapAny{
 			"--refresh-interval": "0",
 		},
 	}
 
 	if config.UseImageCredentialProviderConfig() {
-		extraKubeletArgs["--image-credential-provider-config"] = *config.ImageCredentialProviderConfig
-		extraKubeletArgs["--image-credential-provider-bin-dir"] = *config.ImageCredentialProviderBinDir
+		extraKubeletArgs["--image-credential-provider-config"] = config.GetImageCredentialProviderConfig()
+		extraKubeletArgs["--image-credential-provider-bin-dir"] = config.GetImageCredentialProviderBinDir()
 	}
 
 	if provider.controlPlane {
@@ -72,22 +72,27 @@ func (provider *microk8sProvider) agentConfig() any {
 
 		if config.UseExternalEtdcServer() {
 			extraKubeAPIServerArgs["--etcd-servers"] = microk8s.DatastoreEndpoint
-			extraKubeAPIServerArgs["--etcd-cafile"] = fmt.Sprintf("%s/ca.pem", config.ExtDestinationEtcdSslDir)
-			extraKubeAPIServerArgs["--etcd-certfile"] = fmt.Sprintf("%s/etcd.pem", config.ExtDestinationEtcdSslDir)
-			extraKubeAPIServerArgs["--etcd-keyfile"] = fmt.Sprintf("%s/etcd-key.pem", config.ExtDestinationEtcdSslDir)
+			extraKubeAPIServerArgs["--etcd-cafile"] = fmt.Sprintf("%s/ca.pem", config.GetExtDestinationEtcdSslDir())
+			extraKubeAPIServerArgs["--etcd-certfile"] = fmt.Sprintf("%s/etcd.pem", config.GetExtDestinationEtcdSslDir())
+			extraKubeAPIServerArgs["--etcd-keyfile"] = fmt.Sprintf("%s/etcd-key.pem", config.GetExtDestinationEtcdSslDir())
+		}
+	} else if microk8s.UseLoadBalancer {
+		microk8sConfig["extraMicroK8sAPIServerProxyArgs"] = MapAny{
+			"--refresh-interval": "0",
+			"--traefik-config":   "/usr/local/etc/microk8s/traefik.yaml",
 		}
 	}
 
 	if microk8s.OverrideConfig != nil {
 		for k, v := range microk8s.OverrideConfig {
 			if k == "extraKubeletArgs" {
-				extra := v.(map[string]any)
+				extra := v.(MapAny)
 
 				for k1, v1 := range extra {
 					extraKubeletArgs[k1] = v1
 				}
 			} else if k == "extraKubeAPIServerArgs" {
-				extra := v.(map[string]any)
+				extra := v.(MapAny)
 
 				for k1, v1 := range extra {
 					extraKubeAPIServerArgs[k1] = v1
@@ -110,12 +115,13 @@ func (provider *microk8sProvider) agentConfig() any {
 	return microk8sConfig
 }
 
-func (provider *microk8sProvider) JoinCluster(c types.ClientGenerator) (err error) {
+func (provider *microk8sProvider) JoinCluster(c client.ClientGenerator) (err error) {
 	return provider.joinClusterWithConfig(provider.agentConfig(), "/var/snap/microk8s/common/.microk8s.yaml", c, false, provider.joinCommand()...)
 }
 
 func (provider *microk8sProvider) PutConfigInCloudInit(cloudInit cloudinit.CloudInit) (err error) {
 	config := provider.configuration
+	microk8s := config.GetMicroK8SConfig()
 
 	joinClustercript := []string{
 		"#!/bin/bash",
@@ -124,9 +130,53 @@ func (provider *microk8sProvider) PutConfigInCloudInit(cloudInit cloudinit.Cloud
 
 	joinClustercript = append(joinClustercript, provider.joinCommand()...)
 
-	cloudInit.AddTextToWriteFile(strings.Join(joinClustercript, "\n"), "/usr/local/bin/join-cluster.sh", *config.CloudInitFileOwner, 0755)
+	cloudInit.AddTextToWriteFile(strings.Join(joinClustercript, "\n"), "/usr/local/bin/join-cluster.sh", config.GetCloudInitFileOwner(), 0755)
 
-	if err = cloudInit.AddObjectToWriteFile(provider.agentConfig(), "/var/snap/microk8s/common/.microk8s.yaml", *config.CloudInitFileOwner, *config.CloudInitFileMode); err == nil {
+	if !provider.controlPlane && microk8s.UseLoadBalancer {
+		traefik := MapAny{
+			"entryPoints": MapAny{
+				"apiserver": MapAny{
+					"address": "':16443'",
+				},
+			},
+			"providers": MapAny{
+				"file": MapAny{
+					"filename": "/usr/local/etc/microk8s/provider.yaml",
+					"watch":    true,
+				},
+			},
+		}
+
+		provider := MapAny{
+			"tcp": MapAny{
+				"routers": MapAny{
+					"Router-1": MapAny{
+						"rule":    "HostSNI(`*`)",
+						"service": "kube-apiserver",
+						"tls": MapAny{
+							"passthrough": true,
+						},
+					},
+				},
+			},
+			"services": MapAny{
+				"kube-apiserver": MapAny{
+					"loadBalancer": MapAny{
+						"servers": []MapAny{
+							{
+								"address": microk8s.Address,
+							},
+						},
+					},
+				},
+			},
+		}
+
+		cloudInit.AddObjectToWriteFile(traefik, "/usr/local/etc/microk8s/traefik.yaml", config.GetCloudInitFileOwner(), config.GetCloudInitFileMode())
+		cloudInit.AddObjectToWriteFile(provider, "/usr/local/etc/microk8s/provider.yaml", config.GetCloudInitFileOwner(), config.GetCloudInitFileMode())
+	}
+
+	if err = cloudInit.AddObjectToWriteFile(provider.agentConfig(), "/var/snap/microk8s/common/.microk8s.yaml", config.GetCloudInitFileOwner(), config.GetCloudInitFileMode()); err == nil {
 		cloudInit.AddRunCommand("nohup /usr/local/bin/join-cluster.sh > /var/log/join-cluster.log &")
 	}
 

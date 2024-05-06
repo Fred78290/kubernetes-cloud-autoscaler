@@ -6,8 +6,10 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/client"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
 	apigrpc "github.com/Fred78290/kubernetes-cloud-autoscaler/grpc"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/kubernetes"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha2"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/types"
@@ -133,7 +135,7 @@ func (g *AutoScalerServerNodeGroup) findNextNodeIndex() int {
 	return g.LastCreatedNodeIndex
 }
 
-func (g *AutoScalerServerNodeGroup) cleanup(c types.ClientGenerator) error {
+func (g *AutoScalerServerNodeGroup) cleanup(c client.ClientGenerator) error {
 	glog.Debugf("AutoScalerServerNodeGroup::cleanup, nodeGroupID: %s", g.NodeGroupIdentifier)
 
 	var lastError error
@@ -179,7 +181,7 @@ func (g *AutoScalerServerNodeGroup) AllNodes() []*AutoScalerServerNode {
 	return append(utils.Values(g.Nodes), utils.Values(g.pendingNodes)...)
 }
 
-func (g *AutoScalerServerNodeGroup) setNodeGroupSize(c types.ClientGenerator, newSize int, prepareOnly bool) ([]*AutoScalerServerNode, error) {
+func (g *AutoScalerServerNodeGroup) setNodeGroupSize(c client.ClientGenerator, newSize int, prepareOnly bool) ([]*AutoScalerServerNode, error) {
 	glog.Debugf("AutoScalerServerNodeGroup::setNodeGroupSize, nodeGroupID: %s", g.NodeGroupIdentifier)
 
 	g.Lock()
@@ -253,7 +255,7 @@ func (g *AutoScalerServerNodeGroup) prepareDeleteNodes(delta int) []*AutoScalerS
 	return tempNodes
 }
 
-func (g *AutoScalerServerNodeGroup) destroyNode(c types.ClientGenerator, node *AutoScalerServerNode) error {
+func (g *AutoScalerServerNodeGroup) destroyNode(c client.ClientGenerator, node *AutoScalerServerNode) error {
 	g.RunningNodes[node.NodeIndex] = ServerNodeStateDeleting
 
 	e := node.deleteVM(c)
@@ -264,7 +266,7 @@ func (g *AutoScalerServerNodeGroup) destroyNode(c types.ClientGenerator, node *A
 	return e
 }
 
-func (g *AutoScalerServerNodeGroup) destroyNodes(c types.ClientGenerator, nodes []*AutoScalerServerNode) ([]*AutoScalerServerNode, error) {
+func (g *AutoScalerServerNodeGroup) destroyNodes(c client.ClientGenerator, nodes []*AutoScalerServerNode) ([]*AutoScalerServerNode, error) {
 	var err error
 	deletedNodes := make([]*AutoScalerServerNode, 0, len(nodes))
 
@@ -280,7 +282,7 @@ func (g *AutoScalerServerNodeGroup) destroyNodes(c types.ClientGenerator, nodes 
 }
 
 // delta must be negative and will delete nodes in pending!!!!
-func (g *AutoScalerServerNodeGroup) deleteNodes(c types.ClientGenerator, delta int) ([]*AutoScalerServerNode, error) {
+func (g *AutoScalerServerNodeGroup) deleteNodes(c client.ClientGenerator, delta int) ([]*AutoScalerServerNode, error) {
 	glog.Debugf("AutoScalerServerNodeGroup::deleteNodes, nodeGroupID: %s", g.NodeGroupIdentifier)
 
 	return g.destroyNodes(c, g.prepareDeleteNodes(-delta))
@@ -334,7 +336,7 @@ func (g *AutoScalerServerNodeGroup) addManagedNode(crd *v1alpha2.ManagedNode) (*
 
 			annoteMaster := ""
 
-			if g.configuration.Distribution != nil && *g.configuration.Distribution != providers.KubeAdmDistributionName {
+			if g.configuration.Distribution != nil && *g.configuration.Distribution != kubernetes.KubeAdmDistributionName {
 				annoteMaster = "true"
 			}
 
@@ -365,7 +367,7 @@ func (g *AutoScalerServerNodeGroup) prepareNodes(delta int) ([]*AutoScalerServer
 	annoteMaster := ""
 	machine := g.Machine()
 
-	if g.configuration.Distribution != nil && *g.configuration.Distribution != providers.KubeAdmDistributionName {
+	if g.configuration.Distribution != nil && *g.configuration.Distribution != kubernetes.KubeAdmDistributionName {
 		annoteMaster = "true"
 	}
 
@@ -424,7 +426,7 @@ func (g *AutoScalerServerNodeGroup) prepareNodes(delta int) ([]*AutoScalerServer
 	return tempNodes, nil
 }
 
-func (g *AutoScalerServerNodeGroup) addNodes(c types.ClientGenerator, delta int) ([]*AutoScalerServerNode, error) {
+func (g *AutoScalerServerNodeGroup) addNodes(c client.ClientGenerator, delta int) ([]*AutoScalerServerNode, error) {
 	glog.Debugf("AutoScalerServerNodeGroup::addNodes, nodeGroupID: %s", g.NodeGroupIdentifier)
 
 	if tempNodes, err := g.prepareNodes(delta); err == nil {
@@ -435,7 +437,7 @@ func (g *AutoScalerServerNodeGroup) addNodes(c types.ClientGenerator, delta int)
 }
 
 // return the list of successfuly created nodes
-func (g *AutoScalerServerNodeGroup) createNodes(c types.ClientGenerator, nodes []*AutoScalerServerNode) ([]*AutoScalerServerNode, error) {
+func (g *AutoScalerServerNodeGroup) createNodes(c client.ClientGenerator, nodes []*AutoScalerServerNode) ([]*AutoScalerServerNode, error) {
 	var mu sync.Mutex
 	createdNodes := make([]*AutoScalerServerNode, 0, len(nodes))
 
@@ -618,7 +620,7 @@ func (g *AutoScalerServerNodeGroup) hasInstance(nodeName string) (bool, error) {
 	return false, fmt.Errorf(constantes.ErrNodeNotFoundInNodeGroup, nodeName, g.NodeGroupIdentifier)
 }
 
-func (g *AutoScalerServerNodeGroup) findManagedNodeDeleted(client types.ClientGenerator, formerNodes map[string]*AutoScalerServerNode) {
+func (g *AutoScalerServerNodeGroup) findManagedNodeDeleted(client client.ClientGenerator, formerNodes map[string]*AutoScalerServerNode) {
 
 	for nodeName, formerNode := range formerNodes {
 		if found := g.findNamedNode(nodeName); found == nil {
@@ -632,7 +634,7 @@ func (g *AutoScalerServerNodeGroup) findManagedNodeDeleted(client types.ClientGe
 	}
 }
 
-func (g *AutoScalerServerNodeGroup) autoDiscoveryNodes(client types.ClientGenerator, includeExistingNode bool) (map[string]*AutoScalerServerNode, error) {
+func (g *AutoScalerServerNodeGroup) autoDiscoveryNodes(client client.ClientGenerator, includeExistingNode bool) (map[string]*AutoScalerServerNode, error) {
 	var lastNodeIndex = 0
 	var nodeInfos *apiv1.NodeList
 	var err error
@@ -802,7 +804,7 @@ func (g *AutoScalerServerNodeGroup) autoDiscoveryNodes(client types.ClientGenera
 	return formerNodes, nil
 }
 
-func (g *AutoScalerServerNodeGroup) deleteNode(c types.ClientGenerator, node *AutoScalerServerNode) error {
+func (g *AutoScalerServerNodeGroup) deleteNode(c client.ClientGenerator, node *AutoScalerServerNode) error {
 	var err error
 
 	if node.ControlPlaneNode {
@@ -827,7 +829,7 @@ func (g *AutoScalerServerNodeGroup) deleteNode(c types.ClientGenerator, node *Au
 	return err
 }
 
-func (g *AutoScalerServerNodeGroup) deleteNodeByName(c types.ClientGenerator, nodeName string) error {
+func (g *AutoScalerServerNodeGroup) deleteNodeByName(c client.ClientGenerator, nodeName string) error {
 	glog.Debugf("AutoScalerServerNodeGroup::deleteNodeByName, nodeGroupID: %s, nodeName: %s", g.NodeGroupIdentifier, nodeName)
 
 	if node := g.findNamedNode(nodeName); node != nil {
@@ -854,7 +856,7 @@ func (g *AutoScalerServerNodeGroup) setConfiguration(config *types.AutoScalerSer
 	return err
 }
 
-func (g *AutoScalerServerNodeGroup) deleteNodeGroup(c types.ClientGenerator) error {
+func (g *AutoScalerServerNodeGroup) deleteNodeGroup(c client.ClientGenerator) error {
 	glog.Debugf("AutoScalerServerNodeGroup::deleteNodeGroup, nodeGroupID: %s", g.NodeGroupIdentifier)
 
 	return g.cleanup(c)

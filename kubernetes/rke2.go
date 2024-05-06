@@ -4,9 +4,14 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/client"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/cloudinit"
-	"github.com/Fred78290/kubernetes-cloud-autoscaler/types"
 )
+
+type RKE2JoinConfig struct {
+	CommonJoinConfig
+	ExtraCommands []string `json:"extras-commands,omitempty"`
+}
 
 type rke2Provider struct {
 	kubernetesCommon
@@ -30,7 +35,7 @@ func (provider *rke2Provider) joinCommand() []string {
 
 func (provider *rke2Provider) agentConfig() any {
 	config := provider.configuration
-	rke2 := config.RKE2
+	rke2 := config.GetRKE2Config()
 	address := provider.address()
 	kubeletArgs := []string{
 		"fail-swap-on=false",
@@ -41,11 +46,11 @@ func (provider *rke2Provider) agentConfig() any {
 		kubeletArgs = append(kubeletArgs, fmt.Sprintf("provider-id=%s", provider.providerID()))
 	}
 
-	if config.CloudProvider != nil && len(*config.CloudProvider) > 0 {
-		kubeletArgs = append(kubeletArgs, fmt.Sprintf("cloud-provider=%s", *config.CloudProvider))
+	if len(config.GetCloudProviderName()) > 0 {
+		kubeletArgs = append(kubeletArgs, fmt.Sprintf("cloud-provider=%s", config.GetCloudProviderName()))
 	}
 
-	rke2Config := map[string]any{
+	rke2Config := MapAny{
 		"kubelet-arg": kubeletArgs,
 		"node-name":   provider.nodeName(),
 		"server":      fmt.Sprintf("https://%s", rke2.Address),
@@ -79,7 +84,7 @@ func (provider *rke2Provider) agentConfig() any {
 	return rke2Config
 }
 
-func (provider *rke2Provider) PrepareNodeCreation(c types.ClientGenerator) (err error) {
+func (provider *rke2Provider) PrepareNodeCreation(c client.ClientGenerator) (err error) {
 	passwordNode := fmt.Sprintf(rke2PasswordNodeSecret, provider.nodeName())
 
 	if secret, e := c.GetSecret(passwordNode, kubeSystemNamespace); e == nil && secret != nil {
@@ -89,18 +94,18 @@ func (provider *rke2Provider) PrepareNodeCreation(c types.ClientGenerator) (err 
 	return
 }
 
-func (provider *rke2Provider) PrepareNodeDeletion(c types.ClientGenerator, powered bool) (err error) {
+func (provider *rke2Provider) PrepareNodeDeletion(c client.ClientGenerator, powered bool) (err error) {
 	return provider.PrepareNodeCreation(c)
 }
 
-func (provider *rke2Provider) JoinCluster(c types.ClientGenerator) (err error) {
+func (provider *rke2Provider) JoinCluster(c client.ClientGenerator) (err error) {
 	return provider.joinClusterWithConfig(provider.agentConfig(), "/etc/rancher/rke2/config.yaml", c, false, provider.joinCommand()...)
 }
 
 func (provider *rke2Provider) PutConfigInCloudInit(cloudInit cloudinit.CloudInit) (err error) {
 	config := provider.configuration
 
-	if err = cloudInit.AddObjectToWriteFile(provider.agentConfig(), "/etc/rancher/rke2/config.yaml", *config.CloudInitFileOwner, *config.CloudInitFileMode); err == nil {
+	if err = cloudInit.AddObjectToWriteFile(provider.agentConfig(), "/etc/rancher/rke2/config.yaml", config.GetCloudInitFileOwner(), config.GetCloudInitFileMode()); err == nil {
 		cloudInit.AddRunCommand(provider.joinCommand()...)
 	}
 
