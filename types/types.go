@@ -107,9 +107,6 @@ type Config struct {
 	ManagedNodeMaxDiskSize        int64
 	ImageCredentialProviderConfig string
 	ImageCredentialProviderBinDir string
-	UseBind9                      bool
-	Bind9Host                     string
-	RndcKeyFile                   string
 }
 
 func (c *Config) GetKubeConfig() string {
@@ -256,9 +253,6 @@ type AutoScalerServerConfig struct {
 	DebugMode                     *bool                           `json:"debug,omitempty"`
 	AllowUpgrade                  *bool                           `json:"allow-upgrade,omitempty"`
 	CredentialProviderConfig      any                             `json:"credential-provider-config,omitempty"`
-	UseBind9                      *bool                           `json:"use-bind9"`
-	Bind9Host                     *string                         `json:"bind9-host"`
-	RndcKeyFile                   *string                         `json:"rndc-key-file"`
 	providerConfiguration         providers.ProviderConfiguration `json:"-"`
 	autoScalingOptions            *apigrpc.AutoscalingOptions     `json:"-"`
 }
@@ -632,11 +626,6 @@ func (cfg *Config) ParseFlags(args []string, version string) error {
 	app.Flag("use-cloudinit-config", "Tell we use cloud-init mechanism to configure kubernetes service (overriden by config file if defined)").Default("false").BoolVar(&cfg.UseCloudInitConfig)
 	app.Flag("cloudinit-file-owner", "Tell owner of cloud-init file to configure kubernetes service (overriden by config file if defined)").Default(cfg.CloudInitFileOwner).StringVar(&cfg.CloudInitFileOwner)
 	app.Flag("cloudinit-file-mode", "Tell file mode of cloud-init file to configure kubernetes service (overriden by config file if defined)").Default(fmt.Sprintf("%d", cfg.CloudInitFileMode)).IntVar(&cfg.CloudInitFileMode)
-
-	// Bind9 usage
-	app.Flag("use-bind9-server", "Tell we use bind9 for dns registration (overriden by config file if defined)").Default("false").BoolVar(&cfg.UseBind9)
-	app.Flag("bind9-host", "Locate bind9 server (overriden by config file if defined)").Default(cfg.Bind9Host).StringVar(&cfg.Bind9Host)
-	app.Flag("rndc-key-file", "Locate rnd key (overriden by config file if defined)").Default(cfg.RndcKeyFile).StringVar(&cfg.RndcKeyFile)
 
 	// External Etcd
 	app.Flag("use-external-etcd", "Tell we use an external etcd service (overriden by config file if defined)").Default("false").BoolVar(&cfg.UseExternalEtdc)

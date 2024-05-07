@@ -9,6 +9,7 @@ import (
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/context"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha2"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/rfc2136"
 
 	glog "github.com/sirupsen/logrus"
 )
@@ -25,7 +26,7 @@ type multipassWrapper interface {
 	providers.ProviderConfiguration
 
 	getConfiguration() *Configuration
-
+	getBind9Provider() *rfc2136.RFC2136Provider
 	powerOn(instanceName string) error
 	powerOff(instanceName string) error
 	delete(instanceName string) error
@@ -38,7 +39,8 @@ type multipassWrapper interface {
 type baseMultipassWrapper struct {
 	*Configuration
 	sync.Mutex
-	testMode bool
+	testMode      bool
+	bind9Provider *rfc2136.RFC2136Provider
 }
 
 type createInstanceInput struct {
@@ -48,6 +50,10 @@ type createInstanceInput struct {
 	instanceName string
 	template     string
 	nodeIndex    int
+}
+
+func (wrapper *baseMultipassWrapper) getBind9Provider() *rfc2136.RFC2136Provider {
+	return wrapper.bind9Provider
 }
 
 func (wrapper *baseMultipassWrapper) waitForIP(instanceName string, status multipassWrapper, callback providers.CallbackWaitSSHReady) (string, error) {
@@ -193,12 +199,20 @@ func (handler *multipassHandler) PrivateDNSName() (string, error) {
 	return handler.instanceName, nil
 }
 
-func (handler *multipassHandler) RegisterDNS(address string) error {
-	return nil
+func (handler *multipassHandler) RegisterDNS(address string) (err error) {
+	if bind9Provider := handler.getBind9Provider(); bind9Provider != nil {
+		err = bind9Provider.AddRecord(handler.instanceName, handler.network.Domain, address)
+	}
+
+	return
 }
 
-func (handler *multipassHandler) UnregisterDNS(address string) error {
-	return nil
+func (handler *multipassHandler) UnregisterDNS(address string) (err error) {
+	if bind9Provider := handler.getBind9Provider(); bind9Provider != nil {
+		err = bind9Provider.RemoveRecord(handler.instanceName, handler.network.Domain, address)
+	}
+
+	return
 }
 
 func (handler *multipassHandler) UUID(name string) (string, error) {

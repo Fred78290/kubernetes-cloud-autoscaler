@@ -523,18 +523,6 @@ func StartServer(kubeClient client.ClientGenerator, c *types.Config) {
 		config.Plateform = &c.Plateform
 	}
 
-	if config.UseBind9 == nil {
-		config.UseBind9 = &c.UseBind9
-	}
-
-	if config.Bind9Host == nil {
-		config.Bind9Host = &c.Bind9Host
-	}
-
-	if config.RndcKeyFile == nil {
-		config.RndcKeyFile = &c.RndcKeyFile
-	}
-
 	if config.UseEtcHosts == nil {
 		config.UseEtcHosts = &c.UseEtcHosts
 	}

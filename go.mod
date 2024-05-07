@@ -1,23 +1,24 @@
 module github.com/Fred78290/kubernetes-cloud-autoscaler
 
-go 1.21.6
+go 1.21.7
 
-toolchain go1.22.1
+toolchain go1.22.2
 
 require (
 	github.com/alecthomas/kingpin v2.2.6+incompatible
-	github.com/aws/aws-sdk-go v1.51.5
+	github.com/aws/aws-sdk-go v1.52.3
 	github.com/drone/envsubst v1.0.3
-	github.com/gophercloud/gophercloud/v2 v2.0.0-beta.3
+	github.com/gophercloud/gophercloud/v2 v2.0.0-beta.5
 	github.com/joho/godotenv v1.5.1
 	github.com/linki/instrumented_http v0.3.0
+	github.com/miekg/dns v1.1.59
 	github.com/praserx/ipconv v1.2.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.9.0
-	github.com/vmware/govmomi v0.36.1
-	golang.org/x/crypto v0.22.0
-	google.golang.org/grpc v1.62.1
-	google.golang.org/protobuf v1.33.0
+	github.com/vmware/govmomi v0.37.1
+	golang.org/x/crypto v0.23.0
+	google.golang.org/grpc v1.63.2
+	google.golang.org/protobuf v1.34.1
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.29.3
 	k8s.io/apiextensions-apiserver v0.29.3
@@ -64,12 +65,13 @@ require (
 	github.com/prometheus/common v0.51.0 // indirect
 	github.com/prometheus/procfs v0.13.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
+	github.com/stianwa/rndc v0.1.4 // indirect
 	golang.org/x/mod v0.16.0 // indirect
 	golang.org/x/net v0.22.0 // indirect
 	golang.org/x/oauth2 v0.18.0 // indirect
-	golang.org/x/sys v0.19.0 // indirect
-	golang.org/x/term v0.19.0 // indirect
-	golang.org/x/text v0.14.0 // indirect
+	golang.org/x/sys v0.20.0 // indirect
+	golang.org/x/term v0.20.0 // indirect
+	golang.org/x/text v0.15.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	golang.org/x/tools v0.19.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect

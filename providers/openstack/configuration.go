@@ -9,6 +9,7 @@ import (
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/context"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha2"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/rfc2136"
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/cloudinit"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
@@ -63,6 +64,9 @@ type Configuration struct {
 	KeyName           string            `json:"keyName"`
 	OpenStackRegion   string            `default:"home" json:"region"`
 	OpenStackZone     string            `default:"office" json:"zone"`
+	UseBind9          bool              `json:"use-bind9"`
+	Bind9Host         string            `json:"bind9-host"`
+	RndcKeyFile       string            `json:"rndc-key-file"`
 }
 
 type openstackWrapper struct {
@@ -73,6 +77,7 @@ type openstackWrapper struct {
 	networkClient  *gophercloud.ServiceClient
 	imageClient    *gophercloud.ServiceClient
 	dnsClient      *gophercloud.ServiceClient
+	bind9Provider  *rfc2136.RFC2136Provider
 	testMode       bool
 }
 
@@ -196,6 +201,12 @@ func (wrapper *openstackWrapper) ConfigurationDidLoad() (err error) {
 	var endpointOptions gophercloud.EndpointOpts
 	var tlsConfig *tls.Config
 
+	if wrapper.Configuration.UseBind9 {
+		if wrapper.bind9Provider, err = rfc2136.NewDNSRFC2136ProviderCredentials(wrapper.Configuration.Bind9Host, wrapper.Configuration.RndcKeyFile); err != nil {
+			return err
+		}
+	}
+
 	ctx := context.NewContext(wrapper.Timeout)
 	defer ctx.Cancel()
 
@@ -223,9 +234,11 @@ func (wrapper *openstackWrapper) ConfigurationDidLoad() (err error) {
 		return err
 	}
 
-	if wrapper.dnsClient, err = openstackapi.NewDNSV2(wrapper.providerClient, endpointOptions); err != nil {
-		glog.Warnf("service DNS got error: %v. Ignoring", err)
-		wrapper.dnsClient = nil
+	if !wrapper.Configuration.UseBind9 {
+		if wrapper.dnsClient, err = openstackapi.NewDNSV2(wrapper.providerClient, endpointOptions); err != nil {
+			glog.Warnf("service DNS got error: %v. Ignoring", err)
+			wrapper.dnsClient = nil
+		}
 	}
 
 	if wrapper.Image, err = wrapper.getImage(ctx, wrapper.Image); err != nil {
@@ -286,9 +299,11 @@ func (wrapper *openstackWrapper) ConfigurationDidLoad() (err error) {
 
 	wrapper.network = onet
 
-	if wrapper.dnsClient != nil {
-		if err = onet.ConfigurationDns(ctx, wrapper.dnsClient); err != nil {
-			return err
+	if !wrapper.Configuration.UseBind9 {
+		if wrapper.dnsClient != nil {
+			if err = onet.ConfigurationDns(ctx, wrapper.dnsClient); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -583,17 +598,29 @@ func (handler *openstackHandler) PrivateDNSName() (string, error) {
 }
 
 func (handler *openstackHandler) RegisterDNS(address string) (err error) {
-	ctx := context.NewContext(handler.Timeout)
-	defer ctx.Cancel()
+	if handler.bind9Provider != nil {
+		err = handler.bind9Provider.AddRecord(handler.instanceName, handler.Network.Domain, address)
+	} else {
+		ctx := context.NewContext(handler.Timeout)
+		defer ctx.Cancel()
 
-	return handler.network.registerDNS(ctx, handler.dnsClient, handler.instanceName, address)
+		err = handler.network.registerDNS(ctx, handler.dnsClient, handler.instanceName, address)
+	}
+
+	return
 }
 
 func (handler *openstackHandler) UnregisterDNS(address string) (err error) {
-	ctx := context.NewContext(handler.Timeout)
-	defer ctx.Cancel()
+	if handler.bind9Provider != nil {
+		err = handler.bind9Provider.RemoveRecord(handler.instanceName, handler.Network.Domain, address)
+	} else {
+		ctx := context.NewContext(handler.Timeout)
+		defer ctx.Cancel()
 
-	return handler.network.unregisterDNS(ctx, handler.dnsClient, handler.instanceName, address)
+		err = handler.network.unregisterDNS(ctx, handler.dnsClient, handler.instanceName, address)
+	}
+
+	return
 }
 
 func (handler *openstackHandler) UUID(name string) (string, error) {

@@ -16,6 +16,7 @@ else
 fi
 
 AUTOSCALER_DESKTOP_UTILITY_TLS=$(dirname $(kubernetes-desktop-autoscaler-utility certificate generate | jq -r .ClientKey) | sed -e 's/\//\\\//g')
+BIND9_RNDCKEY="${AUTOSCALER_HOME}/config/${NODEGROUP}/cluster/rndc.key"
 
 if [ -n "${NODEGROUP}" ]; then
 	mkdir -p "${CONFIG_DIR}"
@@ -29,8 +30,9 @@ if [ -n "${NODEGROUP}" ]; then
 	cp ${AUTOSCALER_HOME}/config/${NODEGROUP}/cluster/config ${CONFIG_DIR}/config
 	cp ${AUTOSCALER_HOME}/config/${NODEGROUP}/config/machines.json ${CONFIG_DIR}/machines.json
 
-	cat ${AUTOSCALER_HOME}/config/${NODEGROUP}/config/provider.json | sed \
-		-e "s/\/etc\/ssl\/certs\/autoscaler-utility/${AUTOSCALER_DESKTOP_UTILITY_TLS}/g" > ${CONFIG_DIR}/provider.json
+	cat ${AUTOSCALER_HOME}/config/${NODEGROUP}/config/provider.json \
+		| sed -e "s/\/etc\/ssl\/certs\/autoscaler-utility/${AUTOSCALER_DESKTOP_UTILITY_TLS}/g" \
+		| jq --arg BIND9_RNDCKEY "${BIND9_RNDCKEY}" '.|."rndc-key-file" = $BIND9_RNDCKEY' > ${CONFIG_DIR}/provider.json
 
 	cat ${AUTOSCALER_HOME}/config/${NODEGROUP}/config/autoscaler.json | jq \
 		--arg ETCD_SSL_DIR "${AUTOSCALER_HOME}/config/${NODEGROUP}/cluster/etcd" \

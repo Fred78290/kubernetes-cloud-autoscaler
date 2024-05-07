@@ -6,6 +6,7 @@ import (
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/api"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/rfc2136"
 	glog "github.com/sirupsen/logrus"
 )
 
@@ -35,6 +36,9 @@ type Configuration struct {
 	VMWareZone        string             `default:"office" json:"zone"`
 	Network           *providers.Network `json:"network" `
 	Mounts            []MountPoint       `json:"mounts"`
+	UseBind9          bool               `json:"use-bind9"`
+	Bind9Host         string             `json:"bind9-host"`
+	RndcKeyFile       string             `json:"rndc-key-file"`
 }
 
 type VMStatus struct {
@@ -72,6 +76,7 @@ type MultipassVMInfos struct {
 func NewMultipassProviderConfiguration(fileName string) (providers.ProviderConfiguration, error) {
 	var config Configuration
 	var err error
+	var bind9Provider *rfc2136.RFC2136Provider
 
 	if err = providers.LoadConfig(fileName, &config); err != nil {
 		glog.Errorf("Failed to open file: %s, error: %v", fileName, err)
@@ -79,10 +84,17 @@ func NewMultipassProviderConfiguration(fileName string) (providers.ProviderConfi
 		return nil, err
 	}
 
+	if config.UseBind9 {
+		if bind9Provider, err = rfc2136.NewDNSRFC2136ProviderCredentials(config.Bind9Host, config.RndcKeyFile); err != nil {
+			return nil, err
+		}
+	}
+
 	if config.Address == "multipass" || len(config.Address) == 0 {
 		return &hostMultipassWrapper{
 			baseMultipassWrapper: baseMultipassWrapper{
 				Configuration: &config,
+				bind9Provider: bind9Provider,
 			},
 		}, nil
 	}
@@ -90,6 +102,7 @@ func NewMultipassProviderConfiguration(fileName string) (providers.ProviderConfi
 	wrapper := remoteMultipassWrapper{
 		baseMultipassWrapper: baseMultipassWrapper{
 			Configuration: &config,
+			bind9Provider: bind9Provider,
 		},
 	}
 

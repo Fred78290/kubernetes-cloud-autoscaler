@@ -9,6 +9,7 @@ import (
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/context"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha2"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/rfc2136"
 	glog "github.com/sirupsen/logrus"
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/vim25/soap"
@@ -34,11 +35,15 @@ type Configuration struct {
 	AvailableGPUTypes map[string]string `json:"gpu-types"`
 	VMWareRegion      string            `json:"region"`
 	VMWareZone        string            `json:"zone"`
+	UseBind9          bool              `json:"use-bind9"`
+	Bind9Host         string            `json:"bind9-host"`
+	RndcKeyFile       string            `json:"rndc-key-file"`
 }
 
 type vsphereWrapper struct {
 	Configuration
-	testMode bool
+	bind9Provider *rfc2136.RFC2136Provider
+	testMode      bool
 }
 
 type vsphereHandler struct {
@@ -60,6 +65,10 @@ func NewVSphereProviderConfiguration(fileName string) (providers.ProviderConfigu
 		return nil, err
 	} else if _, err = wrapper.UUID(wrapper.TemplateName); err != nil {
 		return nil, err
+	} else if wrapper.Configuration.UseBind9 {
+		if wrapper.bind9Provider, err = rfc2136.NewDNSRFC2136ProviderCredentials(wrapper.Configuration.Bind9Host, wrapper.Configuration.RndcKeyFile); err != nil {
+			return nil, err
+		}
 	}
 
 	wrapper.Configuration.Network.ConfigurationDidLoad()
@@ -290,12 +299,20 @@ func (handler *vsphereHandler) PrivateDNSName() (string, error) {
 	return handler.instanceName, nil
 }
 
-func (handler *vsphereHandler) RegisterDNS(address string) error {
-	return nil
+func (handler *vsphereHandler) RegisterDNS(address string) (err error) {
+	if handler.bind9Provider != nil {
+		err = handler.bind9Provider.AddRecord(handler.instanceName, handler.Network.Domain, address)
+	}
+
+	return
 }
 
-func (handler *vsphereHandler) UnregisterDNS(address string) error {
-	return nil
+func (handler *vsphereHandler) UnregisterDNS(address string) (err error) {
+	if handler.bind9Provider != nil {
+		err = handler.bind9Provider.RemoveRecord(handler.instanceName, handler.Network.Domain, address)
+	}
+
+	return
 }
 
 func (handler *vsphereHandler) findPreferredIPAddress(interfaces []providers.NetworkInterface) string {
