@@ -118,7 +118,7 @@ func (r *RFC2136Provider) changeRecord(action int, fqdn, zone, value string, ttl
 	// Create RR
 	rrs := []dns.RR{
 		&dns.A{
-			A: net.ParseIP(value),
+			A: net.ParseIP(value).To4(),
 			Hdr: dns.RR_Header{
 				Name:   fqdn,
 				Rrtype: dns.TypeA,
