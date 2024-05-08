@@ -44,9 +44,6 @@ func (provider *microk8sProvider) agentConfig() any {
 			"url":    fmt.Sprintf("%s/%s", microk8s.Address, microk8s.Token),
 			"worker": !provider.controlPlane,
 		},
-		"extraMicroK8sAPIServerProxyArgs": MapAny{
-			"--refresh-interval": "0",
-		},
 	}
 
 	if config.UseImageCredentialProviderConfig() {
