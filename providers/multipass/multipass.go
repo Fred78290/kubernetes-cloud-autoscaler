@@ -201,7 +201,7 @@ func (handler *multipassHandler) PrivateDNSName() (string, error) {
 
 func (handler *multipassHandler) RegisterDNS(address string) (err error) {
 	if bind9Provider := handler.getBind9Provider(); bind9Provider != nil {
-		err = bind9Provider.AddRecord(handler.instanceName, handler.network.Domain, address)
+		err = bind9Provider.AddRecord(handler.instanceName+"."+handler.network.Domain, handler.network.Domain, address)
 	}
 
 	return
@@ -209,7 +209,7 @@ func (handler *multipassHandler) RegisterDNS(address string) (err error) {
 
 func (handler *multipassHandler) UnregisterDNS(address string) (err error) {
 	if bind9Provider := handler.getBind9Provider(); bind9Provider != nil {
-		err = bind9Provider.RemoveRecord(handler.instanceName, handler.network.Domain, address)
+		err = bind9Provider.RemoveRecord(handler.instanceName+"."+handler.network.Domain, handler.network.Domain, address)
 	}
 
 	return

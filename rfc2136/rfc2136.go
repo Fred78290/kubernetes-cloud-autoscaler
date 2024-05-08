@@ -145,7 +145,7 @@ func (r *RFC2136Provider) changeRecord(action int, fqdn, zone, value string, ttl
 
 	// TSIG authentication / msg signing
 	if len(r.tsigKeyName) > 0 && len(r.tsigSecret) > 0 {
-		m.SetTsig(dns.Fqdn(r.tsigKeyName), r.tsigKey.Algorithm, 300, time.Now().Unix())
+		m.SetTsig(dns.Fqdn(r.tsigKeyName), dns.Fqdn(r.tsigKey.Algorithm), 300, time.Now().Unix())
 
 		c.TsigSecret = map[string]string{
 			dns.Fqdn(r.tsigKeyName): r.tsigSecret,

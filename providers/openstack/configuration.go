@@ -599,7 +599,7 @@ func (handler *openstackHandler) PrivateDNSName() (string, error) {
 
 func (handler *openstackHandler) RegisterDNS(address string) (err error) {
 	if handler.bind9Provider != nil {
-		err = handler.bind9Provider.AddRecord(handler.instanceName, handler.Network.Domain, address)
+		err = handler.bind9Provider.AddRecord(handler.instanceName+"."+handler.Network.Domain, handler.Network.Domain, address)
 	} else {
 		ctx := context.NewContext(handler.Timeout)
 		defer ctx.Cancel()
@@ -612,7 +612,7 @@ func (handler *openstackHandler) RegisterDNS(address string) (err error) {
 
 func (handler *openstackHandler) UnregisterDNS(address string) (err error) {
 	if handler.bind9Provider != nil {
-		err = handler.bind9Provider.RemoveRecord(handler.instanceName, handler.Network.Domain, address)
+		err = handler.bind9Provider.RemoveRecord(handler.instanceName+"."+handler.Network.Domain, handler.Network.Domain, address)
 	} else {
 		ctx := context.NewContext(handler.Timeout)
 		defer ctx.Cancel()

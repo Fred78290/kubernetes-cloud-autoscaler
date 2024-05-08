@@ -301,7 +301,7 @@ func (handler *vsphereHandler) PrivateDNSName() (string, error) {
 
 func (handler *vsphereHandler) RegisterDNS(address string) (err error) {
 	if handler.bind9Provider != nil {
-		err = handler.bind9Provider.AddRecord(handler.instanceName, handler.Network.Domain, address)
+		err = handler.bind9Provider.AddRecord(handler.instanceName+"."+handler.Network.Domain, handler.Network.Domain, address)
 	}
 
 	return
@@ -309,7 +309,7 @@ func (handler *vsphereHandler) RegisterDNS(address string) (err error) {
 
 func (handler *vsphereHandler) UnregisterDNS(address string) (err error) {
 	if handler.bind9Provider != nil {
-		err = handler.bind9Provider.RemoveRecord(handler.instanceName, handler.Network.Domain, address)
+		err = handler.bind9Provider.RemoveRecord(handler.instanceName+"."+handler.Network.Domain, handler.Network.Domain, address)
 	}
 
 	return
