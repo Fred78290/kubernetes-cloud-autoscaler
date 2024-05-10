@@ -2,6 +2,11 @@
 sudo rm -rf out
 
 VERSION=v1.29.0
-REGISTRY=devregistry.aldunelabs.com
+
+if [ -f ./.config/registry ]; then
+	REGISTRY=$(cat ./.config/registry)
+else
+	REGISTRY=devregistry.aldunelabs.com
+fi
 
 make -e REGISTRY=$REGISTRY -e TAG=$VERSION container-push-manifest
