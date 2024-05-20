@@ -1,6 +1,8 @@
 package openstack
 
 import (
+	"fmt"
+
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/context"
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
@@ -109,8 +111,10 @@ func (net *openStackNetwork) findDNSEntry(ctx *context.Context, client *gophercl
 		if allRecords, err = recordsets.ExtractRecordSets(allPages); err == nil {
 			for _, record := range allRecords {
 				dnsEntryID = record.ID
-				break
+				return
 			}
+
+			err = fmt.Errorf("recordset: %s not found in zoneid: %s", name, *net.dnsZoneID)
 		}
 	}
 
