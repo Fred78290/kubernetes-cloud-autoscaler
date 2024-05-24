@@ -10,9 +10,10 @@ import (
 
 type MicroK8SJoinConfig struct {
 	CommonJoinConfig
-	UseLoadBalancer bool   `json:"use-nlb"`
-	Channel         string `json:"channel,omitempty"`
-	OverrideConfig  MapAny `json:"override-config,omitempty"`
+	UseLoadBalancer       bool     `json:"use-nlb"`
+	LoadBalancerAddresses []string `json:"nlb-ips,omitempty"`
+	Channel               string   `json:"channel,omitempty"`
+	OverrideConfig        MapAny   `json:"override-config,omitempty"`
 }
 
 type microk8sProvider struct {
@@ -130,6 +131,7 @@ func (provider *microk8sProvider) PutConfigInCloudInit(cloudInit cloudinit.Cloud
 	cloudInit.AddTextToWriteFile(strings.Join(joinClustercript, "\n"), "/usr/local/bin/join-cluster.sh", config.GetCloudInitFileOwner(), 0755)
 
 	if !provider.controlPlane && microk8s.UseLoadBalancer {
+		addresses := make([]MapAny, 0, len(microk8s.LoadBalancerAddresses))
 		traefik := MapAny{
 			"entryPoints": MapAny{
 				"apiserver": MapAny{
@@ -142,6 +144,14 @@ func (provider *microk8sProvider) PutConfigInCloudInit(cloudInit cloudinit.Cloud
 					"watch":    true,
 				},
 			},
+		}
+
+		for _, addr := range microk8s.LoadBalancerAddresses {
+			if len(addr) > 0 {
+				addresses = append(addresses, MapAny{
+					"address": addr,
+				})
+			}
 		}
 
 		provider := MapAny{
@@ -159,11 +169,7 @@ func (provider *microk8sProvider) PutConfigInCloudInit(cloudInit cloudinit.Cloud
 			"services": MapAny{
 				"kube-apiserver": MapAny{
 					"loadBalancer": MapAny{
-						"servers": []MapAny{
-							{
-								"address": microk8s.Address,
-							},
-						},
+						"servers": addresses,
 					},
 				},
 			},
