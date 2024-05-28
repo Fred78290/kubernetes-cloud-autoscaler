@@ -20,7 +20,10 @@ spec:
         dhcp: false
         address: 192.168.2.84
         netmask: 255.255.255.0
-        gateway: 192.168.2.254
+        routes:
+        - to: default
+          via: 192.168.2.254
+          metric: 100
       - network: "vmnet0"
         dhcp: true
         use-dhcp-routes: false

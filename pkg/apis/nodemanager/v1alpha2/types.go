@@ -37,7 +37,6 @@ type CommonManagedNodeNetwork struct {
 	NetworkName string `json:"network,omitempty"` //vnet for desktop
 	DHCP        bool   `json:"dhcp,omitempty"`
 	IPV4Address string `json:"address,omitempty"`
-	Gateway     string `json:"gateway,omitempty"`
 	Netmask     string `json:"netmask,omitempty"`
 }
 

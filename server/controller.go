@@ -340,10 +340,6 @@ func (c *Controller) CreateCRD() error {
 																	Type:        "string",
 																	Description: "Valid ip v4 address or DHCP or NONE",
 																},
-																"gateway": {
-																	Type:        "string",
-																	Description: "Valid ip v4 address for gateway",
-																},
 																"netmask": {
 																	Type:        "string",
 																	Description: "Netmask in format xxx.xxx.xxx.xxx",
@@ -390,10 +386,6 @@ func (c *Controller) CreateCRD() error {
 																"address": {
 																	Type:        "string",
 																	Description: "Valid ip v4 address or DHCP or NONE",
-																},
-																"gateway": {
-																	Type:        "string",
-																	Description: "Valid ip v4 address for gateway",
 																},
 																"netmask": {
 																	Type:        "string",
@@ -454,10 +446,6 @@ func (c *Controller) CreateCRD() error {
 																"address": {
 																	Type:        "string",
 																	Description: "Valid ip v4 address or DHCP or NONE",
-																},
-																"gateway": {
-																	Type:        "string",
-																	Description: "Valid ip v4 address for gateway",
 																},
 																"netmask": {
 																	Type:        "string",

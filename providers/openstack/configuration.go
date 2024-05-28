@@ -45,7 +45,6 @@ type NetworkInterface struct {
 	DHCP        bool   `json:"dhcp,omitempty" yaml:"dhcp,omitempty"`
 	IPAddress   string `json:"address,omitempty" yaml:"address,omitempty"`
 	Netmask     string `json:"netmask,omitempty" yaml:"netmask,omitempty"`
-	Gateway     string `json:"gateway,omitempty" yaml:"gateway,omitempty"`
 }
 
 type Network struct {
@@ -283,7 +282,6 @@ func (wrapper *openstackWrapper) ConfigurationDidLoad() (err error) {
 				NicName:     inf.NicName,
 				DHCP:        inf.DHCP,
 				IPAddress:   inf.IPAddress,
-				Gateway:     inf.Gateway,
 			},
 		}
 

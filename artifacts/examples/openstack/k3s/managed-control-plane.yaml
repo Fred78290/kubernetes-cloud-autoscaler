@@ -20,7 +20,10 @@ spec:
         dhcp: false
         address: 192.168.32.11
         netmask: 255.255.255.0
-        gateway: 192.168.32.1
+        routes:
+        - to: default
+          via: 192.168.32.1
+          metric: 100
 ---
 apiVersion: "nodemanager.aldunelabs.com/v1alpha2"
 kind: "ManagedNode"
@@ -44,4 +47,3 @@ spec:
         dhcp: false
         address: 192.168.32.12
         netmask: 255.255.255.0
-        gateway: 192.168.32.1

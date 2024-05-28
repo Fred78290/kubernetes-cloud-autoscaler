@@ -388,7 +388,6 @@ data:
                   "dhcp": true,
                   "use-dhcp-routes": false,
                   "address": "192.168.1.124",
-                  "gateway": "10.0.0.1",
                   "netmask": "255.255.255.0",
                   "routes": []
                 }

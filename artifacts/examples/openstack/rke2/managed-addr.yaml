@@ -1,5 +1,5 @@
-apiVersion: "nodemanager.aldunelabs.com/v1alpha2"
-kind: "ManagedNode"
+apiVersion: nodemanager.aldunelabs.com/v1alpha2
+kind: ManagedNode
 metadata:
   name: "openstack-dev-rke2-managed-02"
 spec:
@@ -20,4 +20,3 @@ spec:
         dhcp: false
         address: 192.168.32.24
         netmask: 255.255.255.0
-        gateway: 192.168.32.1

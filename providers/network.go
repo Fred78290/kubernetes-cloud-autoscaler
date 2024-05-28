@@ -29,7 +29,6 @@ type NetworkInterface struct {
 	UseRoutes      *bool                    `json:"use-dhcp-routes,omitempty" yaml:"use-dhcp-routes,omitempty"`
 	IPAddress      string                   `json:"address,omitempty" yaml:"address,omitempty"`
 	Netmask        string                   `json:"netmask,omitempty" yaml:"netmask,omitempty"`
-	Gateway        string                   `json:"gateway,omitempty" yaml:"gateway,omitempty"`
 	Routes         []v1alpha2.NetworkRoutes `json:"routes,omitempty" yaml:"routes,omitempty"`
 	nodeIndex      int
 }
@@ -145,7 +144,6 @@ func (vnet *Network) Clone(controlPlane bool, nodeIndex int) *Network {
 			UseRoutes:      inet.UseRoutes,
 			IPAddress:      address,
 			Netmask:        inet.Netmask,
-			Gateway:        inet.Gateway,
 			Routes:         inet.Routes,
 			nodeIndex:      nodeIndex,
 		}
@@ -205,8 +203,6 @@ func (vnet *Network) GetCloudInitNetwork(useMacAddress bool) *cloudinit.NetworkD
 						ethernet.DHCPOverrides = cloudinit.CloudInit{
 							"use-routes": false,
 						}
-					} else if len(n.Gateway) > 0 {
-						ethernet.Gateway4 = &n.Gateway
 					}
 				}
 
@@ -229,10 +225,6 @@ func (vnet *Network) GetCloudInitNetwork(useMacAddress bool) *cloudinit.NetworkD
 								cloudinit.ToCIDR(address, n.Netmask),
 							},
 						}
-					}
-
-					if len(n.Gateway) > 0 {
-						ethernet.Gateway4 = &n.Gateway
 					}
 				}
 
@@ -327,7 +319,6 @@ func (vnet *Network) ConfigureOpenStackNetwork(openstack []v1alpha2.OpenStackMan
 
 				if inet.DHCP {
 					inet.IPAddress = ""
-					inet.Gateway = ""
 				} else if strings.ToLower(network.IPV4Address) == "none" {
 					inet.Enabled = &FALSE
 					inet.IPAddress = ""
@@ -336,15 +327,10 @@ func (vnet *Network) ConfigureOpenStackNetwork(openstack []v1alpha2.OpenStackMan
 					inet.IPAddress = ""
 				} else if len(network.IPV4Address) > 0 {
 					inet.IPAddress = network.IPV4Address
-					inet.Gateway = network.Gateway
 				}
 
 				if len(network.Netmask) > 0 {
 					inet.Netmask = network.Netmask
-				}
-
-				if len(network.Gateway) > 0 {
-					inet.Gateway = network.Gateway
 				}
 			} else {
 				glog.Warnf(constantes.WarnNetworkInterfaceIsDisabled, network.NetworkName)
@@ -360,8 +346,10 @@ func (vnet *Network) ConfigureMultipassNetwork(multipass []v1alpha2.MultipassMan
 		if inet := vnet.InterfaceByName(network.NetworkName); inet != nil {
 			if inet.IsEnabled() {
 				inet.DHCP = network.DHCP
-				inet.UseRoutes = network.UseRoutes
-				inet.Routes = network.Routes
+
+				if len(network.Routes) > 0 {
+					inet.Routes = network.Routes
+				}
 
 				if inet.DHCP {
 					inet.IPAddress = ""
@@ -377,10 +365,6 @@ func (vnet *Network) ConfigureMultipassNetwork(multipass []v1alpha2.MultipassMan
 
 				if len(network.Netmask) > 0 {
 					inet.Netmask = network.Netmask
-				}
-
-				if len(network.Gateway) > 0 {
-					inet.Gateway = network.Gateway
 				}
 
 				if len(network.MacAddress) > 0 {
@@ -400,8 +384,10 @@ func (vnet *Network) ConfigureVMWareNetwork(vmware []v1alpha2.VMWareManagedNodeN
 		if inet := vnet.InterfaceByName(network.NetworkName); inet != nil {
 			if inet.IsEnabled() {
 				inet.DHCP = network.DHCP
-				inet.UseRoutes = network.UseRoutes
-				inet.Routes = network.Routes
+
+				if len(network.Routes) > 0 {
+					inet.Routes = network.Routes
+				}
 
 				if inet.DHCP {
 					inet.IPAddress = ""
@@ -421,10 +407,6 @@ func (vnet *Network) ConfigureVMWareNetwork(vmware []v1alpha2.VMWareManagedNodeN
 
 				if len(network.Netmask) > 0 {
 					inet.Netmask = network.Netmask
-				}
-
-				if len(network.Gateway) > 0 {
-					inet.Gateway = network.Gateway
 				}
 
 				if len(network.MacAddress) > 0 {

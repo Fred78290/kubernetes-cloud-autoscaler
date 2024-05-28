@@ -60,7 +60,6 @@ type NetworkAdapter struct {
 	DHCP4         bool                      `json:"dhcp4,omitempty" yaml:"dhcp4,omitempty"`
 	NicName       *string                   `json:"set-name,omitempty" yaml:"set-name,omitempty"`
 	Match         *map[string]string        `json:"match,omitempty" yaml:"match,omitempty"`
-	Gateway4      *string                   `json:"gateway4,omitempty" yaml:"gateway4,omitempty"`
 	Addresses     *[]any                    `json:"addresses,omitempty" yaml:"addresses,omitempty"`
 	Nameservers   *Nameserver               `json:"nameservers,omitempty" yaml:"nameservers,omitempty"`
 	DHCPOverrides CloudInit                 `json:"dhcp4-overrides,omitempty" yaml:"dhcp4-overrides,omitempty"`

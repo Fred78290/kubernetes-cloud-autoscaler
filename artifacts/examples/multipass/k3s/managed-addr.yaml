@@ -20,7 +20,10 @@ spec:
         dhcp: false
         address: 10.144.54.14
         netmask: 255.255.255.0
-        gateway: 10.144.54.1
+        routes:
+        - to: default
+          via: 19210.144.54.1
+          metric: 100
       - network: "mpbr0"
         dhcp: true
         use-dhcp-routes: false
