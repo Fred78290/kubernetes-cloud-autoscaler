@@ -26,7 +26,7 @@ type NetworkInterface struct {
 	MacAddress     string                   `json:"mac-address,omitempty" yaml:"mac-address,omitempty"`
 	NicName        string                   `json:"nic,omitempty" yaml:"nic,omitempty"`
 	DHCP           bool                     `json:"dhcp,omitempty" yaml:"dhcp,omitempty"`
-	UseRoutes      *bool                    `json:"use-dhcp-routes,omitempty" yaml:"use-dhcp-routes,omitempty"`
+	UseDhcpRoutes  *bool                    `json:"use-dhcp-routes,omitempty" yaml:"use-dhcp-routes,omitempty"`
 	IPAddress      string                   `json:"address,omitempty" yaml:"address,omitempty"`
 	Netmask        string                   `json:"netmask,omitempty" yaml:"netmask,omitempty"`
 	Routes         []v1alpha2.NetworkRoutes `json:"routes,omitempty" yaml:"routes,omitempty"`
@@ -141,7 +141,7 @@ func (vnet *Network) Clone(controlPlane bool, nodeIndex int) *Network {
 			MacAddress:     inet.MacAddress,
 			NicName:        inet.NicName,
 			DHCP:           inet.DHCP,
-			UseRoutes:      inet.UseRoutes,
+			UseDhcpRoutes:  inet.UseDhcpRoutes,
 			IPAddress:      address,
 			Netmask:        inet.Netmask,
 			Routes:         inet.Routes,
@@ -305,7 +305,7 @@ func (vnet *Network) ConfigurationDidLoad() {
 		}
 
 		if inet.DHCP && len(inet.Routes) == 0 {
-			inet.UseRoutes = nil
+			inet.UseDhcpRoutes = nil
 		}
 	}
 }
@@ -315,7 +315,7 @@ func (vnet *Network) ConfigureOpenStackNetwork(openstack []v1alpha2.OpenStackMan
 		if inet := vnet.InterfaceByName(network.NetworkName); inet != nil {
 			if inet.IsEnabled() {
 				inet.DHCP = network.DHCP
-				inet.UseRoutes = &TRUE
+				inet.UseDhcpRoutes = &TRUE
 
 				if inet.DHCP {
 					inet.IPAddress = ""
@@ -346,6 +346,7 @@ func (vnet *Network) ConfigureMultipassNetwork(multipass []v1alpha2.MultipassMan
 		if inet := vnet.InterfaceByName(network.NetworkName); inet != nil {
 			if inet.IsEnabled() {
 				inet.DHCP = network.DHCP
+				inet.UseDhcpRoutes = network.UseRoutes
 
 				if len(network.Routes) > 0 {
 					inet.Routes = network.Routes
@@ -384,6 +385,7 @@ func (vnet *Network) ConfigureVMWareNetwork(vmware []v1alpha2.VMWareManagedNodeN
 		if inet := vnet.InterfaceByName(network.NetworkName); inet != nil {
 			if inet.IsEnabled() {
 				inet.DHCP = network.DHCP
+				inet.UseDhcpRoutes = network.UseRoutes
 
 				if len(network.Routes) > 0 {
 					inet.Routes = network.Routes
@@ -446,8 +448,8 @@ func (inet *NetworkInterface) IsExisting() bool {
 }
 
 func (inet *NetworkInterface) IsUseRoutes() bool {
-	if inet.UseRoutes != nil {
-		return *inet.UseRoutes
+	if inet.UseDhcpRoutes != nil {
+		return *inet.UseDhcpRoutes
 	}
 
 	return true
