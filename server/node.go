@@ -346,10 +346,6 @@ func (vm *AutoScalerServerNode) appendKubernetesPKIIfNeededInCloudInit() error {
 func (vm *AutoScalerServerNode) prepareCloudInit() (err error) {
 	config := vm.serverConfig
 
-	if vm.MaxPods, err = vm.providerHandler.InstanceMaxPods(int(*config.MaxPods)); err != nil {
-		return fmt.Errorf(constantes.ErrUnableToRetrieveMaxPodsForInstanceType, vm.InstanceName, err)
-	}
-
 	if vm.serverConfig.CloudInit == nil {
 		vm.CloudInit = cloudinit.CloudInit{
 			"package_update":  vm.serverConfig.AllowUpgrade,
@@ -381,6 +377,10 @@ func (vm *AutoScalerServerNode) prepareCloudInit() (err error) {
 func (vm *AutoScalerServerNode) createInstance(c client.ClientGenerator) (err error) {
 	providerHandler := vm.providerHandler
 	userInfo := vm.serverConfig.SSH
+
+	if vm.MaxPods, err = vm.providerHandler.InstanceMaxPods(int(*vm.serverConfig.MaxPods)); err != nil {
+		return fmt.Errorf(constantes.ErrUnableToRetrieveMaxPodsForInstanceType, vm.InstanceName, err)
+	}
 
 	if err = vm.getKubernetesProvider().PrepareNodeCreation(c); err != nil {
 		glog.Errorf("preNodeCreation failed: %v", err)
