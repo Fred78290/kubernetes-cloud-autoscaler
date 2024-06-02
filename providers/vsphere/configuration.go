@@ -38,6 +38,8 @@ type Configuration struct {
 	UseBind9          bool              `json:"use-bind9"`
 	Bind9Host         string            `json:"bind9-host"`
 	RndcKeyFile       string            `json:"rndc-key-file"`
+	StartDelay        int               `json:"start-delay"`
+	StopDelay         int               `json:"stop-delay"`
 }
 
 type vsphereWrapper struct {
@@ -582,7 +584,7 @@ func (wrapper *vsphereWrapper) SetAutoStartWithContext(ctx *context.Context, esx
 		if client, err = wrapper.GetClient(ctx); err == nil {
 			if dc, err = client.GetDatacenter(ctx, wrapper.DataCenter); err == nil {
 				if host, err = dc.GetHostAutoStartManager(ctx, esxi); err == nil {
-					return host.SetAutoStart(ctx, wrapper.DataStore, name, startOrder)
+					return host.SetAutoStart(ctx, wrapper.DataStore, name, startOrder, wrapper.StartDelay, wrapper.StopDelay)
 				}
 			}
 		}

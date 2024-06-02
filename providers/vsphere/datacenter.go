@@ -81,8 +81,8 @@ func (dc *Datacenter) GetHostAutoStartManager(ctx *context.Context, esxi string)
 		if err = host.Properties(ctx, host.Reference(), []string{"configManager.autoStartManager"}, &mhs); err == nil {
 			if err = host.Properties(ctx, *mhs.ConfigManager.AutoStartManager, nil, &mhas); err == nil {
 				return &HostAutoStartManager{
-					Ref:        mhas.Self,
-					Datacenter: dc,
+					HostAutoStartManager: mhas,
+					Datacenter:           dc,
 				}, nil
 			}
 		}
