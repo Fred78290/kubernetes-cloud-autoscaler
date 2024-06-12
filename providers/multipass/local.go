@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/context"
+
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/cloudinit"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
 	glog "github.com/sirupsen/logrus"
@@ -19,25 +21,38 @@ type hostMultipassWrapper struct {
 	baseMultipassWrapper
 }
 
-func (wrapper *hostMultipassWrapper) shell(args ...string) (string, error) {
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-
+func (wrapper *hostMultipassWrapper) shell(args ...string) (output string, err error) {
 	wrapper.Lock()
 	defer wrapper.Unlock()
 
 	glog.Debugf("Shell: %v", args)
 
-	cmd := exec.Command(args[0], args[1:]...)
+	err = context.PollImmediate(time.Second, time.Second*30, func() (done bool, err error) {
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
 
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+		cmd := exec.Command(args[0], args[1:]...)
 
-	if err := cmd.Run(); err != nil {
-		return stderr.String(), fmt.Errorf("%s, %s", err.Error(), strings.TrimSpace(stderr.String()))
-	}
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
 
-	return stdout.String(), nil
+		if err := cmd.Run(); err != nil {
+			if strings.Contains(stderr.String(), "failed to obtain exit status for remote process") || strings.Contains(err.Error(), "failed to obtain exit status for remote process") {
+				glog.Debugf(fmt.Sprintf("Shell: %s error: %v", stderr.String(), err))
+				return false, nil
+			}
+
+			output = stderr.String()
+
+			return false, fmt.Errorf("%s, %s", err.Error(), strings.TrimSpace(stderr.String()))
+		}
+
+		output = stdout.String()
+
+		return true, nil
+	})
+
+	return
 }
 
 func (wrapper *hostMultipassWrapper) AttachInstance(instanceName string, controlPlane bool, nodeIndex int) (providers.ProviderHandler, error) {
