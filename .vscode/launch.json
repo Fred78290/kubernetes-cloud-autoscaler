@@ -480,6 +480,69 @@
       "name": "------------------------------------------",
       "request": "custom",
       "type": "lldb"
+    },
+    {
+      "name": "Test Test_Server",
+      "type": "go",
+      "request": "launch",
+      "mode": "test",
+      "program": "${workspaceFolder}/server/all_test.go",
+      "env": {
+        "TestServer": "YES",
+        "TestServer_NodeGroups": "YES",
+        "TestServer_NodeGroupForNode": "YES",
+        "TestServer_HasInstance": "YES",
+        "TestServer_Pricing": "YES",
+        "TestServer_GetAvailableMachineTypes": "YES",
+        "TestServer_NewNodeGroup": "YES",
+        "TestServer_GetResourceLimiter": "YES",
+        "TestServer_Cleanup": "YES",
+        "TestServer_Refresh": "YES",
+        "TestServer_TargetSize": "YES",
+        "TestServer_IncreaseSize": "YES",
+        "TestServer_DecreaseTargetSize": "YES",
+        "TestServer_DeleteNodes": "YES",
+        "TestServer_Id": "YES",
+        "TestServer_Debug": "YES",
+        "TestServer_Nodes": "YES",
+        "TestServer_TemplateNodeInfo": "YES",
+        "TestServer_Exist": "YES",
+        "TestServer_Create": "YES",
+        "TestServer_Delete": "YES",
+        "TestServer_Autoprovisioned": "YES",
+        "TestServer_Belongs": "YES",
+        "TestServer_NodePrice": "YES",
+        "TestServer_PodPrice": "YES"
+      },
+      "envFile": "${workspaceFolder}/.env",
+      "showLog": true,
+      "args": ["-test.run", "^Test_Server$"]
+    },
+    {
+      "name": "Test Test_Nodegroup",
+      "type": "go",
+      "request": "launch",
+      "mode": "test",
+      "program": "${workspaceFolder}/server/all_test.go",
+      "env": {
+        "TestNodegroup": "YES",
+        "TestNodeGroup_launchVM": "YES",
+        "TestNodeGroup_stopVM": "YES",
+        "TestNodeGroup_startVM": "YES",
+        "TestNodeGroup_statusVM": "YES",
+        "TestNodeGroup_deleteVM": "YES",
+        "TestNodeGroupGroup_addNode": "YES",
+        "TestNodeGroupGroup_deleteNode": "YES",
+        "TestNodeGroupGroup_deleteNodeGroup": "YES"
+      },
+      "envFile": "${workspaceFolder}/.env",
+      "showLog": true,
+      "args": ["-test.run", "^Test_Nodegroup$"]
+    },
+    {
+      "name": "------------------------------------------",
+      "request": "custom",
+      "type": "lldb"
     }
   ]
 }
