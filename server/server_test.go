@@ -36,6 +36,24 @@ type autoScalerServerAppTest struct {
 }
 
 func (s *autoScalerServerAppTest) createFakeNode(nodeName string) apiv1.Node {
+	if len(s.ng.Nodes) > 0 {
+		node := s.ng.AllNodes()[0]
+
+		return apiv1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: node.NodeName,
+				UID:  node.CRDUID,
+				Annotations: map[string]string{
+					constantes.AnnotationNodeGroupName:        node.NodeGroup,
+					constantes.AnnotationNodeIndex:            fmt.Sprintf("%d", node.NodeIndex),
+					constantes.AnnotationInstanceID:           node.VMUUID,
+					constantes.AnnotationInstanceName:         node.InstanceName,
+					constantes.AnnotationNodeAutoProvisionned: "true",
+				},
+			},
+		}
+	}
+
 	return apiv1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: nodeName,
@@ -44,6 +62,7 @@ func (s *autoScalerServerAppTest) createFakeNode(nodeName string) apiv1.Node {
 				constantes.AnnotationNodeGroupName:        testGroupID,
 				constantes.AnnotationNodeIndex:            "0",
 				constantes.AnnotationInstanceID:           findInstanceID(s.ng.testConfig, nodeName),
+				constantes.AnnotationInstanceName:         nodeName,
 				constantes.AnnotationNodeAutoProvisionned: "true",
 			},
 		},
@@ -52,6 +71,7 @@ func (s *autoScalerServerAppTest) createFakeNode(nodeName string) apiv1.Node {
 
 type serverTest struct {
 	baseTest
+	appTest *autoScalerServerAppTest
 }
 
 func (m *serverTest) NodeGroups() {
@@ -613,9 +633,12 @@ func (m *serverTest) extractAvailableMachineTypes(availableMachineTypes *apigrpc
 }
 
 func (m *serverTest) newTestServer(addNodeGroup, addTestNode, controlPlane bool, desiredState ...AutoScalerServerNodeState) (*autoScalerServerAppTest, error) {
+	if m.appTest != nil {
+		return m.appTest, nil
+	}
 
 	if ng, err := m.newTestNodeGroup(); err == nil {
-		s := &autoScalerServerAppTest{
+		m.appTest = &autoScalerServerAppTest{
 			ng: ng,
 			AutoScalerServerApp: AutoScalerServerApp{
 				ResourceLimiter: &types.ResourceLimiter{
@@ -628,9 +651,9 @@ func (m *serverTest) newTestServer(addNodeGroup, addTestNode, controlPlane bool,
 			},
 		}
 
-		if s.grpcServerApp, err = NewGrpcServerApp(&s.AutoScalerServerApp); err == nil {
+		if m.appTest.grpcServerApp, err = NewGrpcServerApp(&m.appTest.AutoScalerServerApp); err == nil {
 			if addNodeGroup {
-				s.Groups[ng.NodeGroupIdentifier] = &ng.AutoScalerServerNodeGroup
+				m.appTest.Groups[ng.NodeGroupIdentifier] = &ng.AutoScalerServerNodeGroup
 
 				if addTestNode {
 					ng.createTestNode(testNodeName, controlPlane, desiredState...)
@@ -638,7 +661,7 @@ func (m *serverTest) newTestServer(addNodeGroup, addTestNode, controlPlane bool,
 			}
 		}
 
-		return s, err
+		return m.appTest, err
 	} else {
 		return nil, err
 	}
