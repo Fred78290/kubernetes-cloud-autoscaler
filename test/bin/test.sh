@@ -6,7 +6,8 @@ if [ -z "${GITHUB_RUN_ID}" ]; then
     exit 1
 fi
 
-cat > ${CURDIR}/local.env <<EOF
+cat > ${CURDIR}/../local.env <<EOF
+export SSH_KEYFILE=test_rsa
 export SEED_IMAGE=$SEED_IMAGE
 export AWS_IAM_ROLE_ARN=$IAM_ROLE_ARN
 export AWS_SSH_KEYNAME=$SSH_KEYNAME

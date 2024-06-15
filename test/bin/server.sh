@@ -10,7 +10,10 @@ go mod vendor
 
 VERBOSE=-test.v
 
+export SSH_KEYFILE=id_rsa
 export TEST_CONFIG=${CURDIR}/../config/config.json
+export TEST_MODE=false
+export PLATEFORM=vsphere
 
 echo "Run server test"
 

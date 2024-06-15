@@ -54,7 +54,7 @@
 	"ssh-infos": {
 		"wait-ssh-ready-seconds": 180,
 		"user": "${SEED_USER}",
-		"ssh-private-key": "${HOME}/.ssh/test_rsa"
+		"ssh-private-key": "${HOME}/.ssh/${SSH_KEYFILE}"
 	},
 	"autoscaling-options": {
 		"scaleDownUtilizationThreshold": 0.5,
