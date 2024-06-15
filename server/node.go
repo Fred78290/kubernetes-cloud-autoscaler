@@ -348,8 +348,8 @@ func (vm *AutoScalerServerNode) prepareCloudInit() (err error) {
 
 	if vm.serverConfig.CloudInit == nil {
 		vm.CloudInit = cloudinit.CloudInit{
-			"package_update":  vm.serverConfig.AllowUpgrade,
-			"package_upgrade": vm.serverConfig.AllowUpgrade,
+			"package_update":  vm.serverConfig.GetAllowUpgrade(),
+			"package_upgrade": vm.serverConfig.GetAllowUpgrade(),
 		}
 	} else if vm.CloudInit, err = vm.serverConfig.CloudInit.Clone(); err != nil {
 		return err
@@ -392,7 +392,7 @@ func (vm *AutoScalerServerNode) createInstance(c client.ClientGenerator) (err er
 
 	createInput := &providers.InstanceCreateInput{
 		ControlPlane: vm.ControlPlaneNode,
-		AllowUpgrade: *vm.serverConfig.AllowUpgrade,
+		AllowUpgrade: vm.serverConfig.GetAllowUpgrade(),
 		NodeGroup:    vm.NodeGroup,
 		UserName:     userInfo.GetUserName(),
 		AuthKey:      userInfo.GetAuthKeys(),

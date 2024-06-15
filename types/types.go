@@ -343,6 +343,14 @@ func (limits *ResourceLimiter) GetMinValue(key string, defaultValue int) int {
 	return defaultValue
 }
 
+func (conf *AutoScalerServerConfig) GetAllowUpgrade() bool {
+	if conf.AllowUpgrade == nil {
+		return false
+	}
+
+	return *conf.AllowUpgrade
+}
+
 func (conf *AutoScalerServerConfig) GetExternalConfig() *kubernetes.ExternalJoinConfig {
 	return conf.External
 }
