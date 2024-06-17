@@ -515,7 +515,7 @@
         "TestServer_PodPrice": "YES"
       },
       "envFile": "${workspaceFolder}/.env",
-      "showLog": true,
+      "showLog": false,
       "args": ["-test.run", "^Test_Server$"]
     },
     {
@@ -536,7 +536,7 @@
         "TestNodeGroupGroup_deleteNodeGroup": "YES"
       },
       "envFile": "${workspaceFolder}/.env",
-      "showLog": true,
+      "showLog": false,
       "args": ["-test.run", "^Test_Nodegroup$"]
     },
     {
