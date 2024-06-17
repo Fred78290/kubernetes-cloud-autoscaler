@@ -23,6 +23,7 @@
 	"use-cloudinit-config": false,
 	"cloudinit-file-owner": "root:adm",
 	"cloudinit-file-mode": 420,
+	"cloud-provider": "external",
 	"grpc-provider": "grpc",
 	"optionals": {
 		"pricing": false,
