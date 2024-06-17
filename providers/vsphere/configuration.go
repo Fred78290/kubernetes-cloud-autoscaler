@@ -208,10 +208,6 @@ func (handler *vsphereHandler) InstanceID() (string, error) {
 	return handler.UUID(handler.instanceName)
 }
 
-func (handler *vsphereHandler) InstanceExists(name string) bool {
-	return handler.Exists(handler.instanceName)
-}
-
 func (handler *vsphereHandler) InstanceAutoStart() error {
 	if handler.instanceName == "" {
 		return fmt.Errorf(constantes.ErrInstanceIsNotAttachedToCloudProvider)
@@ -256,6 +252,14 @@ func (handler *vsphereHandler) InstanceDelete() error {
 	}
 
 	return handler.Delete(handler.instanceName)
+}
+
+func (handler *vsphereHandler) InstanceCreated() bool {
+	if handler.instanceName == "" {
+		return false
+	}
+
+	return handler.InstanceExists(handler.instanceName)
 }
 
 func (handler *vsphereHandler) InstanceStatus() (providers.InstanceStatus, error) {
@@ -367,10 +371,6 @@ func (wrapper *vsphereWrapper) CreateInstance(instanceName, instanceType string,
 		instanceName:   instanceName,
 		nodeIndex:      nodeIndex,
 	}, nil
-}
-
-func (wrapper *vsphereWrapper) InstanceExists(name string) bool {
-	return wrapper.Exists(name)
 }
 
 func (wrapper *vsphereWrapper) GetAvailableGpuTypes() map[string]string {
@@ -759,7 +759,7 @@ func (wrapper *vsphereWrapper) RetrieveNetworkInfos(name string, nodeIndex int, 
 }
 
 // ExistsWithContext return the current status of VM by name
-func (wrapper *vsphereWrapper) ExistsWithContext(ctx *context.Context, name string) bool {
+func (wrapper *vsphereWrapper) InstanceExistsWithContext(ctx *context.Context, name string) bool {
 	if _, err := wrapper.VirtualMachineWithContext(ctx, name); err == nil {
 		return true
 	}
@@ -767,9 +767,9 @@ func (wrapper *vsphereWrapper) ExistsWithContext(ctx *context.Context, name stri
 	return false
 }
 
-func (wrapper *vsphereWrapper) Exists(name string) bool {
+func (wrapper *vsphereWrapper) InstanceExists(name string) bool {
 	ctx := context.NewContext(wrapper.Timeout)
 	defer ctx.Cancel()
 
-	return wrapper.ExistsWithContext(ctx, name)
+	return wrapper.InstanceExistsWithContext(ctx, name)
 }

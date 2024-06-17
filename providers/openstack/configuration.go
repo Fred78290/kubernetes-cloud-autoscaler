@@ -563,6 +563,14 @@ func (handler *openstackHandler) InstanceDelete() (err error) {
 	return handler.runningInstance.Delete()
 }
 
+func (handler *openstackHandler) InstanceCreated() bool {
+	if handler.runningInstance == nil {
+		return false
+	}
+
+	return handler.runningInstance.InstanceExists(handler.instanceName)
+}
+
 func (handler *openstackHandler) InstanceStatus() (status providers.InstanceStatus, err error) {
 	if handler.runningInstance == nil {
 		return nil, fmt.Errorf(constantes.ErrInstanceIsNotAttachedToCloudProvider)

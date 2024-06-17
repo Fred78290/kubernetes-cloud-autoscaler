@@ -293,6 +293,14 @@ func (handler *awsHandler) InstanceDelete() error {
 	return handler.runningInstance.Delete()
 }
 
+func (handler *awsHandler) InstanceCreated() bool {
+	if handler.runningInstance == nil {
+		return false
+	}
+
+	return handler.runningInstance.Exists(handler.runningInstance.InstanceName)
+}
+
 func (handler *awsHandler) InstanceStatus() (providers.InstanceStatus, error) {
 	if handler.runningInstance == nil {
 		return nil, fmt.Errorf(constantes.ErrInstanceIsNotAttachedToCloudProvider)

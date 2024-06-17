@@ -175,6 +175,10 @@ func (handler *multipassHandler) InstanceDelete() error {
 	return handler.delete(handler.instanceName)
 }
 
+func (handler *multipassHandler) InstanceCreated() bool {
+	return handler.InstanceExists(handler.instanceName)
+}
+
 func (handler *multipassHandler) InstanceStatus() (providers.InstanceStatus, error) {
 	return handler.status(handler.instanceName)
 }

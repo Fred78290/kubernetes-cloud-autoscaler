@@ -101,6 +101,7 @@ type ProviderHandler interface {
 	InstancePowerOff() error
 	InstanceShutdownGuest() error
 	InstanceDelete() error
+	InstanceCreated() bool
 	InstanceStatus() (InstanceStatus, error)
 	InstanceWaitForPowered() error
 	InstanceWaitForToolsRunning() (bool, error)

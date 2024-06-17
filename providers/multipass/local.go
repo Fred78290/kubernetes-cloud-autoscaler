@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/context"
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/cloudinit"
@@ -89,7 +90,7 @@ func (wrapper *hostMultipassWrapper) UUID(name string) (string, error) {
 	if wrapper.InstanceExists(name) {
 		return name, nil
 	} else {
-		return name, fmt.Errorf("instance: %s  doesn't exists", name)
+		return name, fmt.Errorf(constantes.ErrVMNotFound, name)
 	}
 }
 

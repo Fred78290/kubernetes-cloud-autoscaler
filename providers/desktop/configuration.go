@@ -193,10 +193,6 @@ func (handler *desktopHandler) InstanceID() (string, error) {
 	return handler.instanceID, nil
 }
 
-func (handler *desktopHandler) InstanceExists(name string) bool {
-	return handler.Exists(name)
-}
-
 func (handler *desktopHandler) InstanceAutoStart() error {
 	return nil
 }
@@ -231,6 +227,14 @@ func (handler *desktopHandler) InstanceDelete() error {
 	}
 
 	return handler.Delete(handler.instanceID)
+}
+
+func (handler *desktopHandler) InstanceCreated() bool {
+	if handler.instanceID == "" {
+		return false
+	}
+
+	return handler.Exists(handler.instanceName)
 }
 
 func (handler *desktopHandler) InstanceStatus() (providers.InstanceStatus, error) {
