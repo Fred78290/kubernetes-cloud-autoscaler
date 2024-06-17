@@ -652,7 +652,9 @@ func (vm *AutoScalerServerNode) deleteVM(c client.ClientGenerator) error {
 	if vm.NodeType != AutoScalerServerNodeAutoscaled && vm.NodeType != AutoScalerServerNodeManaged {
 		err = fmt.Errorf(constantes.ErrVMNotProvisionnedByMe, vm.InstanceName)
 	} else if vm.State != AutoScalerServerNodeStateDeleting {
-		if status, err = providerHandler.InstanceStatus(); err == nil {
+		if !providerHandler.InstanceCreated() {
+			err = fmt.Errorf(constantes.ErrVMNotFound, vm.InstanceName)
+		} else if status, err = providerHandler.InstanceStatus(); err == nil {
 			vm.State = AutoScalerServerNodeStateDeleting
 			powered := status.Powered()
 
