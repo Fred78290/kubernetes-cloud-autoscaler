@@ -3,13 +3,43 @@ package utils
 import (
 	"encoding/json"
 	"os"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/context"
+	"github.com/drone/envsubst"
 	"gopkg.in/yaml.v2"
 	apiv1 "k8s.io/api/core/v1"
 )
+
+func LoadTextEnvSubst(fileName string) (string, error) {
+	if buf, err := os.ReadFile(fileName); err != nil {
+		return "", err
+	} else {
+		return envsubst.EvalEnv(string(buf))
+	}
+}
+
+func LoadConfig(fileName string, config any) error {
+	if content, err := LoadTextEnvSubst(fileName); err != nil {
+		return err
+	} else {
+		reader := strings.NewReader(content)
+
+		return json.NewDecoder(reader).Decode(config)
+	}
+}
+
+func DeserializeConfig(file string, data any) (err error) {
+	var content string
+
+	if content, err = LoadTextEnvSubst(file); err == nil {
+		err = json.NewDecoder(strings.NewReader(content)).Decode(data)
+	}
+
+	return
+}
 
 // ShouldTestFeature check if test must be done
 func ShouldTestFeature(name string) bool {

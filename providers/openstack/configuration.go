@@ -10,6 +10,7 @@ import (
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/context"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha2"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/rfc2136"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/utils"
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/cloudinit"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
@@ -96,7 +97,7 @@ func NewOpenStackProviderConfiguration(fileName string) (providers.ProviderConfi
 	var wrapper openstackWrapper
 	var err error
 
-	if err = providers.LoadConfig(fileName, &wrapper.Configuration); err != nil {
+	if err = utils.LoadConfig(fileName, &wrapper.Configuration); err != nil {
 		glog.Errorf("Failed to open file: %s, error: %v", fileName, err)
 
 		return nil, err

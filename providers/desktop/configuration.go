@@ -11,6 +11,7 @@ import (
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha2"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/rfc2136"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/utils"
 
 	glog "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/util/uuid"
@@ -66,7 +67,7 @@ func NewDesktopProviderConfiguration(fileName string) (providers.ProviderConfigu
 	var wrapper desktopWrapper
 	var err error
 
-	if err = providers.LoadConfig(fileName, &wrapper.Configuration); err != nil {
+	if err = utils.LoadConfig(fileName, &wrapper.Configuration); err != nil {
 		return nil, err
 	} else if wrapper.client, err = api.NewApiClient(wrapper.Address, wrapper.Key, wrapper.Cert, wrapper.Cacert); err != nil {
 		return nil, err

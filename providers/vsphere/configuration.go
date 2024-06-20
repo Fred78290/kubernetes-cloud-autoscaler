@@ -10,6 +10,7 @@ import (
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha2"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/rfc2136"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/utils"
 	glog "github.com/sirupsen/logrus"
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/vim25/soap"
@@ -61,7 +62,7 @@ type vsphereHandler struct {
 func NewVSphereProviderConfiguration(fileName string) (providers.ProviderConfiguration, error) {
 	var wrapper vsphereWrapper
 
-	if err := providers.LoadConfig(fileName, &wrapper.Configuration); err != nil {
+	if err := utils.LoadConfig(fileName, &wrapper.Configuration); err != nil {
 		glog.Errorf("Failed to open file: %s, error: %v", fileName, err)
 
 		return nil, err

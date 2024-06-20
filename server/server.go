@@ -9,7 +9,6 @@ import (
 	"net"
 	"net/url"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/client"
@@ -460,6 +459,7 @@ func StartServer(kubeClient client.ClientGenerator, c *types.Config) {
 	var config types.AutoScalerServerConfig
 	var autoScalerServer *AutoScalerServerApp
 	var machines providers.MachineCharacteristics
+	var err error
 
 	saveState := c.SaveLocation
 	configFileName := c.Config
@@ -469,14 +469,7 @@ func StartServer(kubeClient client.ClientGenerator, c *types.Config) {
 		phSaveState = true
 	}
 
-	content, err := providers.LoadTextEnvSubst(configFileName)
-	if err != nil {
-		glog.Fatalf("failed to open config file: %s, error: %v", configFileName, err)
-	}
-
-	decoder := json.NewDecoder(strings.NewReader(content))
-	err = decoder.Decode(&config)
-	if err != nil {
+	if err = utils.DeserializeConfig(configFileName, &config); err != nil {
 		glog.Fatalf("failed to decode config file: %s, error: %v", configFileName, err)
 	}
 
@@ -622,7 +615,7 @@ func StartServer(kubeClient client.ClientGenerator, c *types.Config) {
 		config.KubernetesPKIDestDir = c.KubernetesPKIDestDir
 	}
 
-	if err = providers.LoadConfig(*config.MachineConfig, &machines); err != nil {
+	if err = utils.LoadConfig(*config.MachineConfig, &machines); err != nil {
 		log.Fatalf(constantes.ErrMachineSpecsNotFound, *config.MachineConfig, err)
 	}
 

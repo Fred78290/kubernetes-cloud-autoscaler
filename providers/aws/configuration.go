@@ -11,6 +11,7 @@ import (
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/context"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha2"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/utils"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -124,7 +125,7 @@ type awsHandler struct {
 func NewAwsProviderConfiguration(fileName string) (providers.ProviderConfiguration, error) {
 	var wrapper awsWrapper
 
-	if err := providers.LoadConfig(fileName, &wrapper.Configuration); err != nil {
+	if err := utils.LoadConfig(fileName, &wrapper.Configuration); err != nil {
 		glog.Errorf("Failed to open file: %s, error: %v", fileName, err)
 
 		return nil, err

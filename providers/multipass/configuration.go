@@ -7,6 +7,7 @@ import (
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/api"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/rfc2136"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/utils"
 	glog "github.com/sirupsen/logrus"
 )
 
@@ -78,7 +79,7 @@ func NewMultipassProviderConfiguration(fileName string) (providers.ProviderConfi
 	var err error
 	var bind9Provider *rfc2136.RFC2136Provider
 
-	if err = providers.LoadConfig(fileName, &config); err != nil {
+	if err = utils.LoadConfig(fileName, &config); err != nil {
 		glog.Errorf("Failed to open file: %s, error: %v", fileName, err)
 
 		return nil, err
