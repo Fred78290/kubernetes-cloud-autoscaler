@@ -6,6 +6,7 @@ if [ -z "${GITHUB_RUN_ID}" ]; then
     exit 1
 fi
 
+if [ ! -f "${CURDIR}/../local.env" ]; then
 cat > ${CURDIR}/../local.env <<EOF
 export SSH_KEYFILE=test_rsa
 export SSH_PRIVATEKEY=$SSH_PRIVATEKEY
@@ -42,7 +43,7 @@ export GOVC_TEMPLATE_NAME=DC0_H0_VM0
 export GOVC_NETWORK_PRIVATE="DVS0"
 export GOVC_NETWORK_PUBLIC="VM Network"
 EOF
-
-export | grep GITHUB | sed 's/declare -x/export/g' >> ${CURDIR}/local.env
+export | grep GITHUB | sed 's/declare -x/export/g' >> ${CURDIR}/../local.env
+fi
 
 make -e REGISTRY=fred78290 -e TAG=test-ci test-in-docker

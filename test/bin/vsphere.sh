@@ -25,7 +25,7 @@ fi
 
 source ${LOCALDEFS}
 
-if [ -n "${SSH_PRIVATEKEY}" ] && [ "${SSH_KEYFILE}" != "id_rsa" ]; then
+if [ -n "${SSH_PRIVATEKEY}" ] && [ ! -f ${HOME}/.ssh/${SSH_KEYFILE} ]; then
   mkdir -p ${HOME}/.ssh
 
   echo -n ${SSH_PRIVATEKEY} | base64 -d > ${HOME}/.ssh/${SSH_KEYFILE}
