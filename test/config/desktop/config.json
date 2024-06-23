@@ -1,13 +1,4 @@
 {
-    "ssh": {
-		"user": "${SEED_USER}",
-        "wait-ssh-ready-seconds": 180,
-		"ssh-private-key": "${HOME}/.ssh/${SSH_KEYFILE}"
-    },
-    "cloud-init": {
-        "package_update": false,
-        "package_upgrade": false
-    },
     "instance-name": "vm-autoscaled-test-${GITHUB_RUN_ID}",
     "instance-type": "tiny",
 	"disk-size": 10480

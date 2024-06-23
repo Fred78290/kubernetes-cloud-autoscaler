@@ -1,15 +1,10 @@
 package providers
 
 import (
-	"encoding/json"
-	"os"
-	"strings"
 	"time"
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/cloudinit"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha2"
-	"github.com/Fred78290/kubernetes-cloud-autoscaler/sshutils"
-	"github.com/drone/envsubst"
 )
 
 const (
@@ -26,16 +21,6 @@ var SupportedCloudProviders = []string{
 	VMWareWorkstationProviderName,
 	MultipassProviderName,
 	OpenStackProviderName,
-}
-
-type BasicConfiguration struct {
-	CloudInit    cloudinit.CloudInit          `json:"cloud-init"`
-	SSH          sshutils.AutoScalerServerSSH `json:"ssh"`
-	NodeGroup    string                       `json:"nodegroup"`
-	InstanceName string                       `json:"instance-name"`
-	InstanceType string                       `json:"instance-type"`
-	DiskSize     int                          `default:"10240" json:"disk-size"`
-	DiskType     string                       `default:"gp3" json:"disk-type"`
 }
 
 // CallbackWaitSSHReady callback to test if ssh become ready or return timeout error
@@ -110,22 +95,4 @@ type ProviderHandler interface {
 	RegisterDNS(address string) error
 	UnregisterDNS(address string) error
 	UUID(name string) (string, error)
-}
-
-func LoadTextEnvSubst(fileName string) (string, error) {
-	if buf, err := os.ReadFile(fileName); err != nil {
-		return "", err
-	} else {
-		return envsubst.EvalEnv(string(buf))
-	}
-}
-
-func LoadConfig(fileName string, config any) error {
-	if content, err := LoadTextEnvSubst(fileName); err != nil {
-		return err
-	} else {
-		reader := strings.NewReader(content)
-
-		return json.NewDecoder(reader).Decode(config)
-	}
 }

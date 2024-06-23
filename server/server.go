@@ -469,7 +469,7 @@ func StartServer(kubeClient client.ClientGenerator, c *types.Config) {
 		phSaveState = true
 	}
 
-	if err = utils.DeserializeConfig(configFileName, &config); err != nil {
+	if err = utils.LoadConfig(configFileName, &config); err != nil {
 		glog.Fatalf("failed to decode config file: %s, error: %v", configFileName, err)
 	}
 

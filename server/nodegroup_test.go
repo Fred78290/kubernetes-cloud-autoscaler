@@ -1,10 +1,8 @@
 package server
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/client"
@@ -13,7 +11,6 @@ import (
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/types"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/utils"
-	"github.com/joho/godotenv"
 	glog "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	apiv1 "k8s.io/api/core/v1"
@@ -92,7 +89,7 @@ func (ng *autoScalerServerNodeGroupTest) createTestNode(nodeName string, control
 	if ng.config.GetCloudConfiguration().InstanceExists(nodeName) {
 		providerHandler, err = ng.config.GetCloudConfiguration().AttachInstance(nodeName, false, 1)
 	} else {
-		providerHandler, err = ng.config.GetCloudConfiguration().CreateInstance(nodeName, "small", false, 1)
+		providerHandler, err = ng.config.GetCloudConfiguration().CreateInstance(nodeName, ng.InstanceType, false, 1)
 	}
 
 	if err != nil {
@@ -389,60 +386,25 @@ func (m *baseTest) newTestNodeGroup() (ng *autoScalerServerNodeGroupTest, err er
 	return
 }
 
-func (m *baseTest) getProviderConfFile() string {
-	if config := os.Getenv("TEST_PROVIDER_CONFIG"); config != "" {
-		return config
-	}
-
-	return "../test/config/vsphere/provider.json"
-}
-
-func (m *baseTest) getMachinesConfFile() string {
-	if config := os.Getenv("TEST_MACHINES_CONFIG"); config != "" {
-		return config
-	}
-
-	return "../test/config/vsphere/machines.json"
-}
-
-func (m *baseTest) getConfFile() string {
-	if config := os.Getenv("TEST_SERVER_CONFIG"); config != "" {
-		return config
-	}
-
-	return "../test/config/server.json"
-}
-
 func (m *baseTest) loadTestConfig(testMode bool) (err error) {
 	var config autoScalerServerConfigTest
-	var content string
 
-	fileName := m.getConfFile()
-	machineConfig := m.getMachinesConfFile()
-	providerConfig := m.getProviderConfFile()
+	fileName := utils.GetServerConfigFile()
+	machineConfig := utils.GetMachinesConfigFile()
+	providerConfig := utils.GetProviderConfigFile()
 
-	godotenv.Overload("../.env")
-
-	if os.Getenv("LOGLEVEL") == "DEBUG" {
+	if os.Getenv("TESTLOGLEVEL") == "DEBUG" {
 		glog.SetLevel(glog.DebugLevel)
+	} else if os.Getenv("TESTLOGLEVEL") == "TRACE" {
+		glog.SetLevel(glog.TraceLevel)
 	}
 
-	if content, err = providers.LoadTextEnvSubst(fileName); err != nil {
-		glog.Errorf("failed to open config file: %s, error: %v", fileName, err)
-		return
-	}
-
-	if err = json.NewDecoder(strings.NewReader(content)).Decode(&config.AutoScalerServerConfig); err != nil {
+	if err = utils.LoadConfig(fileName, &config.AutoScalerServerConfig); err != nil {
 		glog.Errorf("failed to decode config file: %s, error: %v", fileName, err)
 		return
 	}
 
-	if content, err = providers.LoadTextEnvSubst(machineConfig); err != nil {
-		glog.Errorf("failed to open machines config file: %s, error: %v", machineConfig, err)
-		return
-	}
-
-	if err = json.NewDecoder(strings.NewReader(content)).Decode(&config.machines); err != nil {
+	if err = utils.LoadConfig(machineConfig, &config.machines); err != nil {
 		glog.Errorf("failed to decode machines config file: %s, error: %v", machineConfig, err)
 		return
 	}
@@ -483,8 +445,10 @@ func Test_SSH(t *testing.T) {
 }
 
 func createTestNodegroup(t *testing.T, stopOnFailure bool) *nodegroupTest {
-	if os.Getenv("LOGLEVEL") == "DEBUG" {
+	if os.Getenv("TESTLOGLEVEL") == "DEBUG" {
 		glog.SetLevel(glog.DebugLevel)
+	} else if os.Getenv("TESTLOGLEVEL") == "TRACE" {
+		glog.SetLevel(glog.TraceLevel)
 	}
 
 	return &nodegroupTest{
@@ -492,7 +456,7 @@ func createTestNodegroup(t *testing.T, stopOnFailure bool) *nodegroupTest {
 			parentTest:    t,
 			childTest:     t,
 			stopOnFailure: stopOnFailure,
-			testMode:      getTestMode(),
+			testMode:      utils.GetTestMode(),
 		},
 	}
 }

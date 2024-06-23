@@ -166,8 +166,6 @@ func (net *vsphereNetworkInterface) Reference(ctx *context.Context, dc *Datacent
 
 // Device return a device
 func (net *vsphereNetworkInterface) Device(ctx *context.Context, dc *Datacenter) (types.BaseVirtualDevice, error) {
-	var backing types.BaseVirtualDeviceBackingInfo
-
 	network, err := net.Reference(ctx, dc)
 
 	if err != nil {
@@ -175,19 +173,17 @@ func (net *vsphereNetworkInterface) Device(ctx *context.Context, dc *Datacenter)
 	}
 
 	networkReference := network.Reference()
-	backing, err = network.EthernetCardBackingInfo(ctx)
+	net.networkBacking, err = network.EthernetCardBackingInfo(ctx)
 
 	if err != nil {
-		strErr := err.Error()
-
-		if strings.Contains(strErr, "no System.Read privilege on:") {
+		if strings.Contains(err.Error(), "no System.Read privilege on:") {
 			if false {
-				backing = &types.VirtualEthernetCardOpaqueNetworkBackingInfo{
+				net.networkBacking = &types.VirtualEthernetCardOpaqueNetworkBackingInfo{
 					OpaqueNetworkType: networkReference.Type,
 					OpaqueNetworkId:   networkReference.Value,
 				}
 			} else {
-				backing = &types.VirtualEthernetCardNetworkBackingInfo{
+				net.networkBacking = &types.VirtualEthernetCardNetworkBackingInfo{
 					Network: &networkReference,
 					VirtualDeviceDeviceBackingInfo: types.VirtualDeviceDeviceBackingInfo{
 						DeviceName: net.NetworkName,
@@ -199,7 +195,7 @@ func (net *vsphereNetworkInterface) Device(ctx *context.Context, dc *Datacenter)
 		}
 	}
 
-	device, err := object.EthernetCardTypes().CreateEthernetCard(net.Adapter, backing)
+	device, err := object.EthernetCardTypes().CreateEthernetCard(net.Adapter, net.networkBacking)
 	if err != nil {
 		return nil, err
 	}
@@ -260,14 +256,18 @@ func (net *vsphereNetworkInterface) ConfigureEthernetCard(ctx *context.Context, 
 	} else {
 		macAddress := net.GetMacAddress()
 		networkReference := network.Reference()
-		net.networkBacking = &types.VirtualEthernetCardNetworkBackingInfo{
-			Network: &networkReference,
-			VirtualDeviceDeviceBackingInfo: types.VirtualDeviceDeviceBackingInfo{
-				DeviceName: net.NetworkName,
-			},
-		}
 
-		card.Backing = net.networkBacking
+		if _, ok := network.(*object.DistributedVirtualSwitch); ok {
+			net.networkBacking = card.Backing
+		} else {
+			net.networkBacking = &types.VirtualEthernetCardNetworkBackingInfo{
+				Network: &networkReference,
+				VirtualDeviceDeviceBackingInfo: types.VirtualDeviceDeviceBackingInfo{
+					DeviceName: net.NetworkName,
+				},
+			}
+			card.Backing = net.networkBacking
+		}
 
 		if len(macAddress) > 0 {
 			card.AddressType = string(types.VirtualEthernetCardMacTypeManual)

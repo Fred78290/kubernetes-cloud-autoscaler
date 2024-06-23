@@ -2,7 +2,7 @@
 	"use-external-etcd": false,
 	"src-etcd-ssl-dir": "/etc/etcd/ssl",
 	"dst-etcd-ssl-dir": "/etc/kubernetes/pki/etcd",
-	"distribution": "k3s",
+	"distribution": "${KUBE_ENGINE}",
 	"plateform": "${PLATEFORM}",
 	"kubernetes-pki-srcdir": "/etc/kubernetes/pki",
 	"kubernetes-pki-dstdir": "/etc/kubernetes/pki",
@@ -37,7 +37,15 @@
 		"address": "192.168.2.80:6443",
 		"token": "xxx::server:yyyy"
 	},
-	"default-machine": "medium",
+	"external": {
+		"join-command": "/usr/bin/true",
+		"leave-command": "/usr/bin/true",
+		"config-path": "/tmp/external-config.yaml",
+		"extra-config": {
+			"another": "config"
+		}
+	},
+	"default-machine": "${DEFAULT_MACHINE}",
 	"cloud-init": {
 		"package_update": false,
 		"package_upgrade": false,

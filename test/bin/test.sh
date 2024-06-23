@@ -8,12 +8,14 @@ fi
 
 cat > ${CURDIR}/../local.env <<EOF
 export SSH_KEYFILE=test_rsa
+export SSH_PRIVATEKEY=$SSH_PRIVATEKEY
 export SEED_IMAGE=$SEED_IMAGE
+export SEED_USER=$SEED_USER
+export KUBE_ENGINE=external
+
 export AWS_IAM_ROLE_ARN=$IAM_ROLE_ARN
 export AWS_SSH_KEYNAME=$SSH_KEYNAME
-export SSH_PRIVATEKEY=$SSH_PRIVATEKEY
 export AWS_SEED_IMAGE=$SEED_IMAGE
-export SEED_USER=$SEED_USER
 
 export AWS_VPC_SECURITY_GROUPID=$VPC_SECURITY_GROUPID
 export AWS_VPC_SUBNET_ID=$VPC_SUBNET_ID
@@ -39,7 +41,6 @@ export GOVC_TEMPLATE_NAME=DC0_H0_VM0
 
 export GOVC_NETWORK_PRIVATE="DVS0"
 export GOVC_NETWORK_PUBLIC="VM Network"
-export TEST_MODE=true
 EOF
 
 export | grep GITHUB | sed 's/declare -x/export/g' >> ${CURDIR}/local.env

@@ -7,11 +7,53 @@ import (
 	"syscall"
 	"time"
 
+	glog "github.com/sirupsen/logrus"
+
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/context"
 	"github.com/drone/envsubst"
 	"gopkg.in/yaml.v2"
 	apiv1 "k8s.io/api/core/v1"
 )
+
+func GetTestMode() bool {
+	if testMode := strings.ToLower(os.Getenv("TEST_MODE")); testMode != "" {
+		return testMode == "true" || testMode == "1"
+	}
+
+	return false
+}
+
+func GetServerConfigFile() (config string) {
+	if config = os.Getenv("TEST_SERVER_CONFIG"); config == "" {
+		glog.Fatal("TEST_SERVER_CONFIG not defined")
+	}
+
+	return
+}
+
+func GetConfigFile() (config string) {
+	if config = os.Getenv("TEST_CONFIG"); config == "" {
+		glog.Fatal("TEST_CONFIG not defined")
+	}
+
+	return
+}
+
+func GetMachinesConfigFile() (config string) {
+	if config = os.Getenv("TEST_MACHINES_CONFIG"); config == "" {
+		glog.Fatal("TEST_MACHINES_CONFIG not defined")
+	}
+
+	return
+}
+
+func GetProviderConfigFile() (config string) {
+	if config = os.Getenv("TEST_PROVIDER_CONFIG"); config == "" {
+		glog.Fatal("TEST_PROVIDER_CONFIG not defined")
+	}
+
+	return
+}
 
 func LoadTextEnvSubst(fileName string) (string, error) {
 	if buf, err := os.ReadFile(fileName); err != nil {
@@ -21,21 +63,16 @@ func LoadTextEnvSubst(fileName string) (string, error) {
 	}
 }
 
-func LoadConfig(fileName string, config any) error {
-	if content, err := LoadTextEnvSubst(fileName); err != nil {
-		return err
-	} else {
-		reader := strings.NewReader(content)
-
-		return json.NewDecoder(reader).Decode(config)
-	}
-}
-
-func DeserializeConfig(file string, data any) (err error) {
+func LoadConfig(fileName string, config any) (err error) {
 	var content string
 
-	if content, err = LoadTextEnvSubst(file); err == nil {
-		err = json.NewDecoder(strings.NewReader(content)).Decode(data)
+	if content, err = LoadTextEnvSubst(fileName); err == nil {
+		err = json.NewDecoder(strings.NewReader(content)).Decode(config)
+
+		if glog.GetLevel() > glog.DebugLevel {
+			glog.Debugf("loaded: %s", fileName)
+			glog.Debug(ToYAML(config))
+		}
 	}
 
 	return

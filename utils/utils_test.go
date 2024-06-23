@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"os"
 	"testing"
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/cloudinit"
@@ -19,21 +18,13 @@ type configurationTest struct {
 
 var testConfig configurationTest
 
-func getConfigFile() (config string) {
-	if config = os.Getenv("TEST_SERVER_CONFIG"); config == "" {
-		glog.Fatal("TEST_SERVER_CONFIG not defined")
-	}
-
-	return
-}
-
 func loadFromJson(t *testing.T) *configurationTest {
 	if !testConfig.inited {
 		var err error
 
-		configFile := getConfigFile()
+		configFile := GetConfigFile()
 
-		if err = DeserializeConfig(configFile, &testConfig); err != nil {
+		if err = LoadConfig(configFile, &testConfig); err != nil {
 			glog.Fatalf("failed to decode test config file: %s, error: %v", configFile, err)
 		}
 
