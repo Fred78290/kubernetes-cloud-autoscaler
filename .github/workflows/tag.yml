@@ -106,6 +106,7 @@ jobs:
         with:
           tag_name: ${{ steps.prep.outputs.tag }}
           draft: false
+          token: ${{ secrets.GIT_PAT }}
           files: |
             kubernetes-cloud-autoscaler-amd64
             kubernetes-cloud-autoscaler-arm64
