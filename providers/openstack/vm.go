@@ -261,7 +261,7 @@ func (instance *ServerInstance) Create(controlPlane bool, nodeGroup, flavorRef s
 		},
 	}
 
-	if server, err = servers.Create(ctx, instance.computeClient, opts).Extract(); err != nil {
+	if server, err = servers.Create(ctx, instance.computeClient, opts, servers.SchedulerHintOpts{}).Extract(); err != nil {
 		err = fmt.Errorf("server creation failed for: %s, reason: %v", instance.InstanceName, err)
 	} else {
 		instance.InstanceID = server.ID
