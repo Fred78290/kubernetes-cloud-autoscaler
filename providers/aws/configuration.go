@@ -399,7 +399,6 @@ func (wrapper *awsWrapper) GetMode() bool {
 
 func (wrapper *awsWrapper) AttachInstance(instanceName string, controlPlane bool, nodeIndex int) (providers.ProviderHandler, error) {
 	if instance, err := wrapper.GetEc2Instance(instanceName); err != nil {
-		instance.NodeIndex = nodeIndex
 		return nil, err
 	} else {
 		return &awsHandler{
