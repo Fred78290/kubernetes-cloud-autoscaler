@@ -42,7 +42,7 @@ jobs:
       - name: test-in-docker
         shell: bash
         run: |
-          ./scripts/test.sh
+          ./test/bin/test.sh
 
   deploy:
     name: Deploy
