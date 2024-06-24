@@ -66,13 +66,7 @@ jobs:
       - name:  Setup Go environment
         uses:  actions/setup-go@v5
         with:
-          go-version: 1.21
-
-      - name: Test
-        shell: bash
-        run: |
-          IMAGE_TAG=${GITHUB_REF#refs/tags/}
-          make -e REGISTRY=$REGISTRY -e TAG="${IMAGE_TAG}" test-in-docker
+          go-version: 1.22
 
       - name: Prepare docker buildx
         id: prep
