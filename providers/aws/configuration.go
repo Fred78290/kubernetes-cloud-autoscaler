@@ -36,7 +36,7 @@ const (
 
 type MetadataOptionsConfiguration struct {
 	HttpEndpoint            *string `default:"enabled" json:"http-endpoint" type:"string" enum:"InstanceMetadataEndpointState"`
-	HttpProtocolIpv6        *string `default:"enabled" json:"http-protocol-ipv6" type:"string" enum:"InstanceMetadataProtocolState"`
+	HttpProtocolIpv6        *string `default:"disabled" json:"http-protocol-ipv6" type:"string" enum:"InstanceMetadataProtocolState"`
 	HttpPutResponseHopLimit *int64  `default:"2" json:"http-put-responsehop-limit" type:"integer"`
 	HttpTokens              *string `default:"optional" json:"http-tokens" type:"string" enum:"HttpTokensState"`
 	InstanceMetadataTags    *string `default:"enabled" json:"instance-metadata-tags" type:"string" enum:"InstanceMetadataTagsState"`
