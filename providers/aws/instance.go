@@ -398,6 +398,17 @@ func (instance *Ec2Instance) Create(nodeGroup, instanceType string, userData *st
 	ctx := instance.NewContext()
 	defer ctx.Cancel()
 
+	metadataOptions := &ec2.InstanceMetadataOptionsRequest{
+		HttpEndpoint:            instance.MetadataOptions.HttpEndpoint,
+		HttpTokens:              instance.MetadataOptions.HttpTokens,
+		HttpPutResponseHopLimit: instance.MetadataOptions.HttpPutResponseHopLimit,
+		InstanceMetadataTags:    instance.MetadataOptions.InstanceMetadataTags,
+	}
+
+	iamInstanceProfile := &ec2.IamInstanceProfileSpecification{
+		Arn: &instance.IamRole,
+	}
+
 	input := &ec2.RunInstancesInput{
 		InstanceType:                      aws.String(instanceType),
 		ImageId:                           aws.String(instance.ImageID),
@@ -406,9 +417,8 @@ func (instance *Ec2Instance) Create(nodeGroup, instanceType string, userData *st
 		MaxCount:                          aws.Int64(1),
 		MinCount:                          aws.Int64(1),
 		UserData:                          userData,
-		IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
-			Arn: &instance.IamRole,
-		},
+		MetadataOptions:                   metadataOptions,
+		IamInstanceProfile:                iamInstanceProfile,
 	}
 
 	// Add tags

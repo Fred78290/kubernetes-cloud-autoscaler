@@ -34,22 +34,31 @@ const (
 	VirtualMachinePowerStateSuspended = VirtualMachinePowerState("suspended")
 )
 
+type MetadataOptionsConfiguration struct {
+	HttpEndpoint            *string `default:"enabled" json:"http-endpoint" type:"string" enum:"InstanceMetadataEndpointState"`
+	HttpProtocolIpv6        *string `default:"enabled" json:"http-protocol-ipv6" type:"string" enum:"InstanceMetadataProtocolState"`
+	HttpPutResponseHopLimit *int64  `default:"2" json:"http-put-responsehop-limit" type:"integer"`
+	HttpTokens              *string `default:"optional" json:"http-tokens" type:"string" enum:"HttpTokensState"`
+	InstanceMetadataTags    *string `default:"enabled" json:"instance-metadata-tags" type:"string" enum:"InstanceMetadataTagsState"`
+}
+
 // Configuration declares aws connection info
 type Configuration struct {
-	AccessKey         string            `json:"accessKey,omitempty"`
-	SecretKey         string            `json:"secretKey,omitempty"`
-	Token             string            `json:"token,omitempty"`
-	Filename          string            `json:"filename,omitempty"`
-	Profile           string            `json:"profile,omitempty"`
-	Region            string            `json:"region,omitempty"`
-	Timeout           time.Duration     `json:"timeout"`
-	ImageID           string            `json:"ami"`
-	IamRole           string            `json:"iam-role-arn"`
-	KeyName           string            `json:"keyName"`
-	VolumeType        string            `default:"gp3" json:"volume-type"`
-	Tags              []Tag             `json:"tags,omitempty"`
-	Network           Network           `json:"network"`
-	AvailableGPUTypes map[string]string `json:"gpu-types"`
+	AccessKey         string                       `json:"accessKey,omitempty"`
+	SecretKey         string                       `json:"secretKey,omitempty"`
+	Token             string                       `json:"token,omitempty"`
+	Filename          string                       `json:"filename,omitempty"`
+	Profile           string                       `json:"profile,omitempty"`
+	Region            string                       `json:"region,omitempty"`
+	Timeout           time.Duration                `json:"timeout"`
+	ImageID           string                       `json:"ami"`
+	IamRole           string                       `json:"iam-role-arn"`
+	KeyName           string                       `json:"keyName"`
+	VolumeType        string                       `default:"gp3" json:"volume-type"`
+	Tags              []Tag                        `json:"tags,omitempty"`
+	Network           Network                      `json:"network"`
+	AvailableGPUTypes map[string]string            `json:"gpu-types"`
+	MetadataOptions   MetadataOptionsConfiguration `json:"metadata-options"`
 	ec2Client         *ec2.EC2
 }
 
