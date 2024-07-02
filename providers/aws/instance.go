@@ -356,13 +356,6 @@ func (instance *Ec2Instance) buildTagSpecifications(nodeGroup string) ([]*ec2.Ta
 		Value: aws.String(strconv.Itoa(instance.NodeIndex)),
 	})
 
-	if instance.MetadataOptions.HttpTokens != nil && *instance.MetadataOptions.HttpTokens == "enabled" {
-		instanceTags = append(instanceTags, &ec2.Tag{
-			Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", nodeGroup)),
-			Value: aws.String("owned"),
-		})
-	}
-
 	// Add tags
 	if instance.Tags != nil && len(instance.Tags) > 0 {
 		for _, tag := range instance.Tags {
