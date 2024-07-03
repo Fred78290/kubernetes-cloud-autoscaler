@@ -18,7 +18,7 @@ data:
       "maxNode": 9,
       "maxPods": 110,
       "maxNode-per-cycle": 2,
-      "nodegroup": "desktop-openstack-rke2",
+      "nodegroup": "desktop-dev-rke2",
       "node-name-prefix": "autoscaled",
       "managed-name-prefix": "managed",
       "controlplane-name-prefix": "master",
@@ -147,7 +147,7 @@ data:
       "key": "/etc/ssl/certs/autoscaler-utility/client.key",
       "cert": "/etc/ssl/certs/autoscaler-utility/client.crt",
       "cacert": "/etc/ssl/certs/autoscaler-utility/ca.crt",
-      "nodegroup": "desktop-openstack-rke2",
+      "nodegroup": "desktop-dev-rke2",
       "timeout": 300,
       "template-name": "IENMA4BQGV87VCI0KI6V1RSLEEE6HSM1",
       "linked": false,
@@ -530,7 +530,7 @@ spec:
           command:
             - /usr/local/bin/kubernetes-cloud-autoscaler
             - --distribution=rke2
-            - --nodegroup=desktop-openstack-rke2
+            - --nodegroup=desktop-dev-rke2
             - --plateform=desktop
             - --plateform-config=/etc/cluster/provider.json
             - --config=/etc/cluster/autoscaler.json
@@ -579,7 +579,7 @@ spec:
             - --stderrthreshold=info
             - --cloud-provider=externalgrpc
             - --cloud-config=/etc/cluster/grpc-config.yaml
-            - --nodes=0:9:true/desktop-openstack-rke2
+            - --nodes=0:9:true/desktop-dev-rke2
             - --max-nodes-total=9
             - --cores-total=0:24
             - --memory-total=0:96

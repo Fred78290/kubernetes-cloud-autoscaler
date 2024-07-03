@@ -18,7 +18,7 @@ data:
       "maxNode": 9,
       "maxPods": 110,
       "maxNode-per-cycle": 2,
-      "nodegroup": "desktop-openstack-microk8s",
+      "nodegroup": "desktop-dev-microk8s",
       "node-name-prefix": "autoscaled",
       "managed-name-prefix": "managed",
       "controlplane-name-prefix": "master",
@@ -153,7 +153,7 @@ data:
       "key": "/etc/ssl/certs/autoscaler-utility/client.key",
       "cert": "/etc/ssl/certs/autoscaler-utility/client.crt",
       "cacert": "/etc/ssl/certs/autoscaler-utility/ca.crt",
-      "nodegroup": "desktop-openstack-microk8s",
+      "nodegroup": "desktop-dev-microk8s",
       "timeout": 300,
       "template-name": "HBGK2QFPDI6GJHH722CN5Q9A7BVI1MQ6",
       "linked": false,
@@ -536,7 +536,7 @@ spec:
           command:
             - /usr/local/bin/kubernetes-cloud-autoscaler
             - --distribution=microk8s
-            - --nodegroup=desktop-openstack-microk8s
+            - --nodegroup=desktop-dev-microk8s
             - --plateform=desktop
             - --plateform-config=/etc/cluster/provider.json
             - --config=/etc/cluster/autoscaler.json
@@ -585,7 +585,7 @@ spec:
             - --stderrthreshold=info
             - --cloud-provider=externalgrpc
             - --cloud-config=/etc/cluster/grpc-config.yaml
-            - --nodes=0:9:true/desktop-openstack-microk8s
+            - --nodes=0:9:true/desktop-dev-microk8s
             - --max-nodes-total=9
             - --cores-total=0:24
             - --memory-total=0:96
