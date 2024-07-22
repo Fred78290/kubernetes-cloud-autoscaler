@@ -11,6 +11,7 @@ import (
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/kubernetes"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers/aws"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers/cloudstack"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers/desktop"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers/multipass"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers/openstack"
@@ -448,6 +449,8 @@ func (conf *AutoScalerServerConfig) SetupCloudConfiguration(configFile string) e
 				conf.providerConfiguration, err = multipass.NewMultipassProviderConfiguration(configFile)
 			case providers.OpenStackProviderName:
 				conf.providerConfiguration, err = openstack.NewOpenStackProviderConfiguration(configFile)
+			case providers.CloudStackProviderName:
+				conf.providerConfiguration, err = cloudstack.NewCloudStackProviderConfiguration(configFile)
 			default:
 				glog.Fatalf("Unsupported cloud provider: %s", *conf.Plateform)
 			}
