@@ -6,7 +6,8 @@ toolchain go1.22.3
 
 require (
 	github.com/alecthomas/kingpin v2.2.6+incompatible
-	github.com/aws/aws-sdk-go v1.54.6
+	github.com/apache/cloudstack-go/v2 v2.16.0
+	github.com/aws/aws-sdk-go v1.54.20
 	github.com/drone/envsubst v1.0.3
 	github.com/gophercloud/gophercloud/v2 v2.0.0-rc.3
 	github.com/linki/instrumented_http v0.3.0
@@ -42,6 +43,7 @@ require (
 	github.com/go-openapi/swag v0.23.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
+	github.com/golang/mock v1.6.0 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect

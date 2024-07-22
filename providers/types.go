@@ -13,6 +13,7 @@ const (
 	VMWareWorkstationProviderName = "desktop"
 	MultipassProviderName         = "multipass"
 	OpenStackProviderName         = "openstack"
+	CloudStackProviderName        = "cloudstack"
 )
 
 var SupportedCloudProviders = []string{
@@ -21,6 +22,7 @@ var SupportedCloudProviders = []string{
 	VMWareWorkstationProviderName,
 	MultipassProviderName,
 	OpenStackProviderName,
+	CloudStackProviderName,
 }
 
 // CallbackWaitSSHReady callback to test if ssh become ready or return timeout error

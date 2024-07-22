@@ -4,41 +4,45 @@
 
 # kubernetes-cloud-autoscaler
 
-Kubernetes cloud autoscaler for **vsphere,aws,multipass and vmware workstation and vmware fusion** provider including a custom resource controller to create managed node without code
+Kubernetes cloud autoscaler for **vsphere,aws,multipass,openstack and vmware workstation and vmware fusion** provider including a custom resource controller to create managed node without code
 
 This autoscaler replace [kubernetes-vmware-autoscaler](https://github.com/Fred78290/kubernetes-vmware-autoscaler), [kubernetes-aws-autoscaler](https://github.com/Fred78290/kubernetes-aws-autoscaler), [kubernetes-multipass-autoscaler](https://github.com/Fred78290/kubernetes-multipass-autoscaler), [kubernetes-desktop-autoscaler](https://github.com/Fred78290/kubernetes-desktop-autoscaler).
 
-The autoscaler allow to use different kubernetes distribution
+The autoscaler allow to use different running plateform with different kubernetes distribution 
 
-## Supported cloud provider
+## Supported plateform with cloud provider
 
 * vSphere
 * AWS
 * VMWare Workstation
 * VMWare Fusion
 * Multipass
+* OpenStack
 
-## Supported kubernetes distribution
+## Supported kube engine with kubernetes distribution
 
 * Kubeadm
 * K3S
 * RKE2
+* Microk8s
 * External
 
 ## Supported kubernetes release
 
-* 1.29.0
-  * This version is supported kubernetes v1.29 and support k3s, k3s, external kubernetes distribution
+* 1.30.0
+  * This version is supported kubernetes v1.30
 
 ## How it works
 
-This tool will drive a cloud provider to deploy VM at the demand. The cluster autoscaler deployment use vanilla cluster-autoscaler or my enhanced version of [cluster-autoscaler](https://github.com/Fred78290/autoscaler).
+This tool will drive a cloud provider to deploy VM at the demand. The cluster autoscaler deployment use vanilla cluster-autoscaler or then enhanced version of [cluster-autoscaler](https://github.com/Fred78290/autoscaler).
 
 This version use grpc to communicate with the cloud provider hosted outside the pod. A docker image is available here [cluster-autoscaler](https://hub.docker.com/r/fred78290/cluster-autoscaler)
 
-A sample of the cluster-autoscaler deployment is available at [examples/vsphere/kubeadm/cluster-autoscaler.yaml](./examples/vsphere/kubeadm/cluster-autoscaler.yaml). You must fill value between <>
+Some samples of the cluster-autoscaler deployment are available at `examples/<plateform>/<kube engine>/cluster-autoscaler.yaml`. You must fill value between <>
 
-### Before you must create a kubernetes cluster on your cloud provider
+Example of vsphere deployment with k3s: [examples/vsphere/k3s/cluster-autoscaler.yaml](./examples/vsphere/k3s/cluster-autoscaler.yaml)
+
+### Before you must create a kubernetes cluster on your plateform
 
 You can do it from scrash or you can use script from project [autoscaled-masterkube-cluster](https://github.com/Fred78290/autoscaled-masterkube-cluster) to create a kubernetes cluster in single control plane or in HA mode with 3 control planes.
 

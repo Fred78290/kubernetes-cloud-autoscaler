@@ -14,6 +14,7 @@ import (
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/context"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers/aws"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers/cloudstack"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers/desktop"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers/multipass"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers/openstack"
@@ -67,6 +68,8 @@ func createProviderHandler(configFile, plateform string) (providerConfiguration 
 		providerConfiguration, err = multipass.NewMultipassProviderConfiguration(configFile)
 	case providers.OpenStackProviderName:
 		providerConfiguration, err = openstack.NewOpenStackProviderConfiguration(configFile)
+	case providers.CloudStackProviderName:
+		providerConfiguration, err = cloudstack.NewCloudStackProviderConfiguration(configFile)
 	default:
 		err = fmt.Errorf("Unsupported cloud provider: %s", plateform)
 	}
