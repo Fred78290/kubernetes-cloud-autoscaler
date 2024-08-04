@@ -27,7 +27,7 @@ ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 ARG USER=default
 
-ENV HOME /home/$USER
+ENV HOME=/home/$USER
 
 LABEL maintainer="Frederic Boltz <frederic.boltz@gmail.com>"
 

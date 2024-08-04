@@ -15,8 +15,8 @@
 FROM golang:latest
 LABEL maintainer="Frederic Boltz <frederic.boltz@gmail.com>"
 
-ENV GOPATH /gopath/
-ENV PATH $GOPATH/bin:$PATH
+ENV GOPATH=/gopath/
+ENV PATH=$GOPATH/bin:$PATH
 
 RUN apt-get update && apt-get --yes install libseccomp-dev && \
     go version && \
