@@ -46,7 +46,6 @@ data:
         "extras-args": [
           "--ignore-preflight-errors=All"
         ]
-
       },
       "default-machine": "t4g.medium",
       "ssh-infos": {
