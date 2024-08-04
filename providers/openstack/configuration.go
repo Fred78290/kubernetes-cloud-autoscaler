@@ -42,7 +42,6 @@ type NetworkInterface struct {
 	Enabled     *bool  `json:"enabled,omitempty" yaml:"primary,omitempty"`
 	Primary     bool   `json:"primary,omitempty" yaml:"primary,omitempty"`
 	NetworkName string `json:"network,omitempty" yaml:"network,omitempty"`
-	NicName     string `json:"nic,omitempty" yaml:"nic,omitempty"`
 	DHCP        bool   `json:"dhcp,omitempty" yaml:"dhcp,omitempty"`
 	IPAddress   string `json:"address,omitempty" yaml:"address,omitempty"`
 	Netmask     string `json:"netmask,omitempty" yaml:"netmask,omitempty"`
@@ -280,7 +279,7 @@ func (wrapper *openstackWrapper) ConfigurationDidLoad() (err error) {
 				MacAddress:  "ignore",
 				Primary:     inf.Primary,
 				NetworkName: inf.NetworkName,
-				NicName:     inf.NicName,
+				NicName:     "ens3",
 				DHCP:        inf.DHCP,
 				IPAddress:   inf.IPAddress,
 			},
