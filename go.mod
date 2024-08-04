@@ -6,26 +6,26 @@ toolchain go1.22.3
 
 require (
 	github.com/alecthomas/kingpin v2.2.6+incompatible
-	github.com/apache/cloudstack-go/v2 v2.16.0
-	github.com/aws/aws-sdk-go v1.54.20
+	github.com/apache/cloudstack-go/v2 v2.16.1
+	github.com/aws/aws-sdk-go v1.55.3
 	github.com/drone/envsubst v1.0.3
-	github.com/gophercloud/gophercloud/v2 v2.0.0-rc.3
+	github.com/gophercloud/gophercloud/v2 v2.1.0
 	github.com/linki/instrumented_http v0.3.0
 	github.com/miekg/dns v1.1.61
-	github.com/praserx/ipconv v1.2.1
+	github.com/praserx/ipconv v1.2.2
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stianwa/rndc v0.1.4
 	github.com/stretchr/testify v1.9.0
-	github.com/vmware/govmomi v0.37.3
-	golang.org/x/crypto v0.24.0
-	google.golang.org/grpc v1.64.0
+	github.com/vmware/govmomi v0.39.0
+	golang.org/x/crypto v0.25.0
+	google.golang.org/grpc v1.65.0
 	google.golang.org/protobuf v1.34.2
 	gopkg.in/yaml.v2 v2.4.0
-	k8s.io/api v0.30.2
-	k8s.io/apiextensions-apiserver v0.30.2
-	k8s.io/apimachinery v0.30.2
-	k8s.io/client-go v0.30.2
-	k8s.io/code-generator v0.30.2
+	k8s.io/api v0.30.3
+	k8s.io/apiextensions-apiserver v0.30.3
+	k8s.io/apimachinery v0.30.3
+	k8s.io/client-go v0.30.3
+	k8s.io/code-generator v0.30.3
 )
 
 require (
@@ -69,8 +69,8 @@ require (
 	golang.org/x/net v0.26.0 // indirect
 	golang.org/x/oauth2 v0.21.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
-	golang.org/x/sys v0.21.0 // indirect
-	golang.org/x/term v0.21.0 // indirect
+	golang.org/x/sys v0.22.0 // indirect
+	golang.org/x/term v0.22.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	golang.org/x/tools v0.22.0 // indirect

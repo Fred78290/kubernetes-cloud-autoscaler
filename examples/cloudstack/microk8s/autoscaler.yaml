@@ -1,0 +1,585 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-cluster-autoscaler
+  namespace: kube-system
+data:
+  autoscaler.json: |
+    {
+      "use-external-etcd": false,
+      "distribution": "microk8s",
+      "plateform": "cloudstack",
+      "image-credential-provider-bin-dir": "/usr/local/bin",
+      "image-credential-provider-config": "/etc/kubernetes/credential.yaml",
+      "listen": "unix:/var/run/cluster-autoscaler/autoscaler.sock",
+      "secret": "cloudstack",
+      "minNode": 0,
+      "maxNode": 9,
+      "maxPods": 110,
+      "maxNode-per-cycle": 2,
+      "nodegroup": "cloudstack-dev-microk8s",
+      "node-name-prefix": "autoscaled",
+      "managed-name-prefix": "managed",
+      "controlplane-name-prefix": "master",
+      "nodePrice": 0,
+      "podPrice": 0,
+      "use-etc-hosts": true,
+      "use-cloudinit-config": false,
+      "cloudinit-file-owner": "root:adm",
+      "cloudinit-file-mode": 420,
+      "allow-upgrade": false,
+      "optionals": {
+        "pricing": false,
+        "getAvailableMachineTypes": false,
+        "newNodeGroup": false,
+        "templateNodeInfo": false,
+        "createNodeGroup": false,
+        "deleteNodeGroup": false
+      },
+      "microk8s": {
+        "address": "172.16.0.10:25000",
+        "token": "....",
+        "use-nlb": true,
+        "nlb-addresses": [
+          "172.16.0.10"
+        ],
+        "channel": "1.30/stable"
+      },
+      "default-machine": "medium",
+      "cloud-init": {
+        "package_update": false,
+        "package_upgrade": false,
+        "growpart": {
+          "ignore_growroot_disabled": false,
+          "mode": "auto",
+          "devices": [
+            "/"
+          ]
+        },
+        "runcmd": [
+          "echo '172.16.0.10 cloudstack-dev-microk8s-masterkube cloudstack-dev-microk8s-masterkube.aldunelabs.com' >> /etc/hosts"
+        ]
+      },
+      "ssh-infos": {
+        "wait-ssh-ready-seconds": 180,
+        "user": "kubernetes",
+        "ssh-private-key": "/etc/ssh/id_rsa"
+      },
+      "autoscaling-options": {
+        "scaleDownUtilizationThreshold": 0.5,
+        "scaleDownGpuUtilizationThreshold": 0.5,
+        "scaleDownUnneededTime": "1m",
+        "scaleDownUnreadyTime": "1m",
+        "maxNodeProvisionTime": "15m",
+        "zeroOrMaxNodeScaling": false,
+        "ignoreDaemonSetsUtilization": true
+      },
+      "credential-provider-config": {
+        "apiVersion": "kubelet.config.k8s.io/v1",
+        "kind": "CredentialProviderConfig",
+        "providers": [
+          {
+            "name": "ecr-credential-provider",
+            "matchImages": [
+              "*.dkr.ecr.*.amazonaws.com",
+              "*.dkr.ecr.*.amazonaws.cn",
+              "*.dkr.ecr-fips.*.amazonaws.com",
+              "*.dkr.ecr.us-iso-east-1.c2s.ic.gov",
+              "*.dkr.ecr.us-isob-east-1.sc2s.sgov.gov"
+            ],
+            "defaultCacheDuration": "12h",
+            "apiVersion": "credentialprovider.kubelet.k8s.io/v1",
+            "args": [
+              "get-credentials"
+            ],
+            "env": [
+              {
+                "name": "AWS_ACCESS_KEY_ID",
+                "value": "<TO FILL>"
+              },
+              {
+                "name": "AWS_SECRET_ACCESS_KEY",
+                "value": "<TO FILL>"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  grpc-config.yaml: |
+    address: unix:/var/run/cluster-autoscaler/autoscaler.sock
+  machines.json: |-
+    {
+        "tiny": {
+            "memsize": 2048,
+            "vcpus": 2,
+            "cpuspeed": 1000,
+            "disksize": 10240
+        },
+        "small": {
+            "memsize": 4096,
+            "vcpus": 2,
+            "cpuspeed": 2000,
+            "disksize": 20480
+        },
+        "medium": {
+            "memsize": 4096,
+            "vcpus": 4,
+            "cpuspeed": 2000,
+            "disksize": 20480
+        },
+        "large": {
+            "memsize": 8192,
+            "vcpus": 4,
+            "cpuspeed": 2000,
+            "disksize": 51200
+        },
+        "xlarge": {
+            "memsize": 16384,
+            "vcpus": 4,
+            "cpuspeed": 2000,
+            "disksize": 102400
+        },
+        "2xlarge": {
+            "memsize": 16384,
+            "vcpus": 8,
+            "cpuspeed": 2000,
+            "disksize": 102400
+        },
+        "4xlarge": {
+            "memsize": 32768,
+            "vcpus": 8,
+            "cpuspeed": 2000,
+            "disksize": 102400
+        }
+    }
+  provider.json: |
+    {
+      "api-url": "http://192.168.4.21:8080/client/api",
+      "api-key": "....",
+      "secret-key": "....",
+      "ssl-no-verify": true,
+      "ssh-key-name": "ssh-key",
+      "project-id": "f0b04e54-c61e-4311-bda2-c43743f31565",
+      "zone-id": "4ad6c94f-a259-4dc2-b53b-06300150fe29",
+      "pod-id": "1fb922b2-10df-492c-b298-42cfcecdb0c0",
+      "cluster-id": "c9a60b4f-f365-45b6-a82f-c1c435bd484b",
+      "host-id": "41f20fa0-7f68-4b17-8f3b-938791894165",
+      "vpc-id": "b312c377-9939-474b-af83-9aeb1309e391",
+      "hypervisor": "KVM",
+      "template": "899e5de0-fc10-491f-9f99-d034846554ed",
+      "timeout": 300,
+      "use-bind9": false,
+      "bind9-host": ":53",
+      "rndc-key-file": "/etc/cluster/rndc.key",
+      "network": {
+        "security-group": {
+          "control-plane": "",
+          "worker-node": ""
+        },
+        "public-control-plane": false,
+        "public-worker-node": false,
+        "domain": "aldunelabs.ai",
+        "interfaces": [
+          {
+            "enabled": true,
+            "primary": true,
+            "network": "vpc-01",
+            "dhcp": true,
+            "address": "172.16.0.13",
+            "netmask": "255.255.255.0"
+          }
+        ]
+      }
+    }
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: autoscaler-ssh-keys
+  namespace: kube-system
+data:
+  id_rsa: Y29udGFpbnMgZXh0ZXJuYWwgZXRjZCBmaWxlcyBzc2wK
+  id_rsa.pub: Y29udGFpbnMgZXh0ZXJuYWwgZXRjZCBmaWxlcyBzc2wK
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    k8s-addon: cluster-autoscaler.addons.k8s.io
+    k8s-app: cluster-autoscaler
+  name: cluster-autoscaler
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cluster-autoscaler
+  labels:
+    k8s-addon: cluster-autoscaler.addons.k8s.io
+    k8s-app: cluster-autoscaler
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - events
+      - endpoints
+    verbs:
+      - create
+      - patch
+  - apiGroups:
+      - ""
+    resources:
+      - pods/eviction
+    verbs:
+      - create
+  - apiGroups:
+      - ""
+    resources:
+      - nodes/status
+    verbs:
+      - update
+  - apiGroups:
+      - ""
+    resources:
+      - pods/status
+    verbs:
+      - update
+  - apiGroups:
+      - ""
+    resources:
+      - endpoints
+    resourceNames:
+      - cluster-autoscaler
+    verbs:
+      - get
+      - update
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+    verbs:
+      - watch
+      - list
+      - get
+      - update
+      - delete
+      - patch
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+      - namespaces
+      - services
+      - replicationcontrollers
+      - persistentvolumeclaims
+      - persistentvolumes
+    verbs:
+      - watch
+      - list
+      - get
+      - update
+  - apiGroups:
+      - extensions
+    resources:
+      - replicasets
+      - daemonsets
+    verbs:
+      - watch
+      - list
+      - get
+  - apiGroups:
+      - policy
+    resources:
+      - poddisruptionbudgets
+    verbs:
+      - watch
+      - list
+  - apiGroups:
+      - apps
+    resources:
+      - statefulsets
+      - replicasets
+      - daemonsets
+    verbs:
+      - watch
+      - list
+      - get
+      - delete
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - storageclasses
+      - csinodes
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - batch
+    resources:
+      - jobs
+      - cronjobs
+    verbs:
+      - watch
+      - list
+      - get
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - create
+  - apiGroups:
+      - coordination.k8s.io
+    resourceNames:
+      - cluster-autoscaler
+      - kubernetes-cloud-autoscaler
+    resources:
+      - leases
+    verbs:
+      - get
+      - update
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - csistoragecapacities
+      - csidrivers
+    verbs:
+      - list
+      - get
+      - update
+      - watch
+  - apiGroups:
+      - nodemanager.aldunelabs.com
+    resources:
+      - '*'
+    verbs:
+      - list
+      - get
+      - update
+      - watch
+      - delete
+      - patch
+  - apiGroups:
+      - apiextensions.k8s.io
+    resources:
+      - customresourcedefinitions
+    verbs:
+      - list
+      - get
+      - update
+      - watch
+      - delete
+      - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: cluster-autoscaler
+  namespace: kube-system
+  labels:
+    k8s-addon: cluster-autoscaler.addons.k8s.io
+    k8s-app: cluster-autoscaler
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - create
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    resourceNames:
+      - cluster-autoscaler-status
+    verbs:
+      - delete
+      - get
+      - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cluster-autoscaler
+  labels:
+    k8s-addon: cluster-autoscaler.addons.k8s.io
+    k8s-app: cluster-autoscaler
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-autoscaler
+subjects:
+  - kind: ServiceAccount
+    name: cluster-autoscaler
+    namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cluster-autoscaler
+  namespace: kube-system
+  labels:
+    k8s-addon: cluster-autoscaler.addons.k8s.io
+    k8s-app: cluster-autoscaler
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: cluster-autoscaler
+subjects:
+  - kind: ServiceAccount
+    name: cluster-autoscaler
+    namespace: kube-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cluster-autoscaler
+  namespace: kube-system
+  labels:
+    k8s-app: cluster-autoscaler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s-app: cluster-autoscaler
+  template:
+    metadata:
+      labels:
+        k8s-app: cluster-autoscaler
+    spec:
+      priorityClassName: system-cluster-critical
+      serviceAccountName: cluster-autoscaler
+      securityContext:
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        fsGroupChangePolicy: OnRootMismatch
+      nodeSelector:
+        master: "true"
+      tolerations:
+        - key: node-role.kubernetes.io/master
+          effect: NoSchedule
+        - key: node-role.kubernetes.io/control-plane
+          effect: NoSchedule
+      initContainers:
+        - image: busybox
+          name: cluster-autoscaler-init
+          securityContext:
+            privileged: true
+          command:
+            - /bin/sh
+            - -c
+            - rm -f /var/run/cluster-autoscaler/autoscaler.sock
+          volumeMounts:
+            - name: cluster-socket
+              mountPath: /var/run/cluster-autoscaler
+      containers:
+        - image: fred78290/kubernetes-cloud-autoscaler:v1.30.0
+          name: kubernetes-cloud-autoscaler
+          resources:
+            limits:
+              cpu: 100m
+              memory: 300Mi
+            requests:
+              cpu: 100m
+              memory: 300Mi
+          command:
+            - /usr/local/bin/kubernetes-cloud-autoscaler
+            - --distribution=microk8s
+            - --nodegroup=cloudstack-dev-microk8s
+            - --plateform=cloudstack
+            - --plateform-config=/etc/cluster/provider.json
+            - --config=/etc/cluster/autoscaler.json
+            - --machines=/etc/cluster/machines.json
+            - --grpc-provider=externalgrpc
+            - --cloud-provider=external
+            - --image-credential-provider-bin-dir=/usr/local/bin
+            - --image-credential-provider-config=/etc/kubernetes/credential.yaml
+            - --min-memory=0
+            - --max-memory=98304
+            - --min-cpus=0
+            - --max-cpus=24
+            - --min-nodes=0
+            - --max-nodes=9
+            - --min-managednode-cpus=0
+            - --max-managednode-cpus=12
+            - --min-managednode-memory=0
+            - --max-managednode-memory=49152
+            - --min-managednode-disksize=10240
+            - --max-managednode-disksize=1048576
+            - --save=/var/run/cluster-autoscaler/state.json
+            - --log-level=info
+          imagePullPolicy: Always
+          volumeMounts:
+            - name: cluster-socket
+              mountPath: /var/run/cluster-autoscaler
+            - name: config-cluster-autoscaler
+              mountPath: /etc/cluster
+            - name: autoscaler-ssh-keys
+              mountPath: /etc/ssh
+        - image: registry.k8s.io/autoscaling/cluster-autoscaler:v1.30.0
+          name: cluster-autoscaler
+          resources:
+            limits:
+              cpu: 100m
+              memory: 300Mi
+            requests:
+              cpu: 100m
+              memory: 300Mi
+          command:
+            - ./cluster-autoscaler
+            - --v=1
+            - --stderrthreshold=info
+            - --cloud-provider=externalgrpc
+            - --cloud-config=/etc/cluster/grpc-config.yaml
+            - --nodes=0:9:true/cloudstack-dev-microk8s
+            - --max-nodes-total=9
+            - --cores-total=0:24
+            - --memory-total=0:96
+            - --node-autoprovisioning-enabled
+            - --max-autoprovisioned-node-group-count=1
+            - --scale-down-utilization-threshold=0.5
+            - --scale-down-gpu-utilization-threshold=0.5
+            - --scale-down-enabled=true
+            - --scale-down-delay-after-add=1m
+            - --scale-down-delay-after-delete=1m
+            - --scale-down-delay-after-failure=1m
+            - --scale-down-unneeded-time=1m
+            - --scale-down-unready-time=1m
+            - --max-node-provision-time=15m
+            - --ignore-daemonsets-utilization=true
+            - --unremovable-node-recheck-timeout=1m
+          imagePullPolicy: Always
+          volumeMounts:
+            - name: cluster-socket
+              mountPath: /var/run/cluster-autoscaler
+            - name: ssl-certs
+              mountPath: /etc/ssl/certs/ca-certificates.crt
+              readOnly: true
+            - name: config-cluster-autoscaler
+              mountPath: /etc/cluster
+              readOnly: true
+      volumes:
+        - name: cluster-socket
+          emptyDir: {}
+        - name: config-cluster-autoscaler
+          configMap:
+            name: config-cluster-autoscaler
+        - name: ssl-certs
+          hostPath:
+            path: /etc/ssl/certs/ca-certificates.crt
+        - name: autoscaler-ssh-keys
+          secret:
+            secretName: autoscaler-ssh-keys
+            defaultMode: 416

@@ -94,6 +94,27 @@
       ]
     },
     {
+      "preLaunchTask": "k3s cloudstack",
+      "name": "k3s cloudstack",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}",
+      "cwd": "${env:HOME}/go/src/github.com/Fred78290/kubernetes-cloud-autoscaler",
+      "args": [
+        "--listen=unix:/tmp/autoscaler.sock",
+        "--request-timeout=120s",
+        "--grpc-provider=externalgrpc",
+        "--distribution=k3s",
+        "--plateform=cloudstack",
+        "--plateform-config=${workspaceFolder}/.config/cloudstack/cloudstack-dev-k3s/provider.json",
+        "--machines=${workspaceFolder}/.config/cloudstack/cloudstack-dev-k3s/machines.json",
+        "--config=${workspaceFolder}/.config/cloudstack/cloudstack-dev-k3s/autoscaler.json",
+        "--save=${workspaceFolder}/.config/cloudstack/cloudstack-dev-k3s/state.json",
+        "--kubeconfig=${workspaceFolder}/.config/cloudstack/cloudstack-dev-k3s/config",
+        "--log-level=debug"
+      ]
+    },    {
       "preLaunchTask": "k3s vsphere",
       "name": "k3s vsphere",
       "type": "go",
@@ -214,6 +235,28 @@
       ]
     },
     {
+      "preLaunchTask": "kubeadm cloudstack",
+      "name": "kubeadm cloudstack",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}",
+      "cwd": "${env:HOME}/go/src/github.com/Fred78290/kubernetes-cloud-autoscaler",
+      "args": [
+        "--listen=unix:/tmp/autoscaler.sock",
+        "--request-timeout=120s",
+        "--grpc-provider=externalgrpc",
+        "--distribution=kubeadm",
+        "--plateform=cloudstack",
+        "--plateform-config=${workspaceFolder}/.config/cloudstack/cloudstack-dev-kubeadm/provider.json",
+        "--cloud-provider=external",
+        "--machines=${workspaceFolder}/.config/cloudstack/cloudstack-dev-kubeadm/machines.json",
+        "--config=${workspaceFolder}/.config/cloudstack/cloudstack-dev-kubeadm/autoscaler.json",
+        "--save=${workspaceFolder}/.config/cloudstack/cloudstack-dev-kubeadm/state.json",
+        "--kubeconfig=${workspaceFolder}/.config/cloudstack/cloudstack-dev-kubeadm/config",
+        "--log-level=info"
+      ]
+    },    {
       "preLaunchTask": "kubeadm vsphere",
       "name": "kubeadm vsphere",
       "type": "go",
@@ -334,6 +377,28 @@
       ]
     },
     {
+      "preLaunchTask": "rke2 cloudstack",
+      "name": "rke2 cloudstack",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}",
+      "cwd": "${env:HOME}/go/src/github.com/Fred78290/kubernetes-cloud-autoscaler",
+      "args": [
+        "--listen=unix:/tmp/autoscaler.sock",
+        "--request-timeout=120s",
+        "--grpc-provider=externalgrpc",
+        "--distribution=rke2",
+        "--plateform=cloudstack",
+        "--plateform-config=${workspaceFolder}/.config/cloudstack/cloudstack-dev-rke2/provider.json",
+        "--cloud-provider=external",
+        "--machines=${workspaceFolder}/.config/cloudstack/cloudstack-dev-rke2/machines.json",
+        "--config=${workspaceFolder}/.config/cloudstack/cloudstack-dev-rke2/autoscaler.json",
+        "--save=${workspaceFolder}/.config/cloudstack/cloudstack-dev-rke2/state.json",
+        "--kubeconfig=${workspaceFolder}/.config/cloudstack/cloudstack-dev-rke2/config",
+        "--log-level=debug"
+      ]
+    },    {
       "preLaunchTask": "rke2 vsphere",
       "name": "rke2 vsphere",
       "type": "go",
@@ -454,6 +519,28 @@
       ]
     },
     {
+      "preLaunchTask": "microk8s cloudstack",
+      "name": "microk8s cloudstack",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}",
+      "cwd": "${env:HOME}/go/src/github.com/Fred78290/kubernetes-cloud-autoscaler",
+      "args": [
+        "--listen=unix:/tmp/autoscaler.sock",
+        "--request-timeout=120s",
+        "--grpc-provider=externalgrpc",
+        "--distribution=microk8s",
+        "--plateform=cloudstack",
+        "--plateform-config=${workspaceFolder}/.config/cloudstack/cloudstack-dev-microk8s/provider.json",
+        "--cloud-provider=external",
+        "--machines=${workspaceFolder}/.config/cloudstack/cloudstack-dev-microk8s/machines.json",
+        "--config=${workspaceFolder}/.config/cloudstack/cloudstack-dev-microk8s/autoscaler.json",
+        "--save=${workspaceFolder}/.config/cloudstack/cloudstack-dev-microk8s/state.json",
+        "--kubeconfig=${workspaceFolder}/.config/cloudstack/cloudstack-dev-microk8s/config",
+        "--log-level=debug"
+      ]
+    },    {
       "preLaunchTask": "microk8s vsphere",
       "name": "microk8s vsphere",
       "type": "go",

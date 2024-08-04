@@ -32,7 +32,6 @@ type NetworkInterface struct {
 	Enabled   *bool  `json:"enabled,omitempty" yaml:"primary,omitempty"`
 	Primary   bool   `json:"primary,omitempty" yaml:"primary,omitempty"`
 	NetworkId string `json:"network,omitempty" yaml:"network,omitempty"`
-	NicName   string `json:"nic,omitempty" yaml:"nic,omitempty"`
 	DHCP      bool   `json:"dhcp,omitempty" yaml:"dhcp,omitempty"`
 	IPAddress string `json:"address,omitempty" yaml:"address,omitempty"`
 	Netmask   string `json:"netmask,omitempty" yaml:"netmask,omitempty"`
@@ -228,6 +227,30 @@ func (wrapper *cloudstackWrapper) ConfigurationDidLoad() (err error) {
 		},
 	)
 
+	network := wrapper.Configuration.Network
+	onet := &cloudstackNetwork{
+		Network: &providers.Network{
+			Domain:     network.Domain,
+			Interfaces: make([]*providers.NetworkInterface, 0, len(network.Interfaces)),
+		},
+	}
+
+	for _, inf := range network.Interfaces {
+		networkInterface := &providers.NetworkInterface{
+			Enabled:     inf.Enabled,
+			MacAddress:  "ignore",
+			Primary:     inf.Primary,
+			NetworkName: inf.NetworkId,
+			NicName:     "ens3",
+			DHCP:        inf.DHCP,
+			IPAddress:   inf.IPAddress,
+		}
+
+		onet.Interfaces = append(onet.Interfaces, networkInterface)
+	}
+
+	wrapper.network = onet
+
 	return
 }
 
@@ -328,7 +351,7 @@ func (handler *cloudstackHandler) GetTimeout() time.Duration {
 }
 
 func (handler *cloudstackHandler) ConfigureNetwork(network v1alpha2.ManagedNetworkConfig) {
-	handler.network.ConfigureOpenStackNetwork(network.OpenStack)
+	handler.network.ConfigureOpenStackNetwork(network.CloudStack)
 }
 
 func (handler *cloudstackHandler) RetrieveNetworkInfos() error {

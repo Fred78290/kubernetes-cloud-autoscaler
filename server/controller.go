@@ -327,7 +327,36 @@ func (c *Controller) CreateCRD() error {
 															Properties: map[string]apiextensionv1.JSONSchemaProps{
 																"network": {
 																	Type:        "string",
-																	Description: "Network name for vpshere or local interface for multipas and desktop, vmnetX...",
+																	Description: "Network name for vsphere or local interface for multipas and desktop, vmnetX...",
+																},
+																"dhcp": {
+																	Type:        "boolean",
+																	Description: "Tell if interface use dhcp to obtain address",
+																	Default: &apiextensionv1.JSON{
+																		Raw: []byte("true"),
+																	},
+																},
+																"address": {
+																	Type:        "string",
+																	Description: "Valid ip v4 address or DHCP or NONE",
+																},
+																"netmask": {
+																	Type:        "string",
+																	Description: "Netmask in format xxx.xxx.xxx.xxx",
+																},
+															},
+														},
+													},
+												},
+												"cloudstack": {
+													Type: "array",
+													Items: &apiextensionv1.JSONSchemaPropsOrArray{
+														Schema: &apiextensionv1.JSONSchemaProps{
+															Type: "object",
+															Properties: map[string]apiextensionv1.JSONSchemaProps{
+																"network": {
+																	Type:        "string",
+																	Description: "Network name for vsphere or local interface for multipass and desktop, vmnetX...",
 																},
 																"dhcp": {
 																	Type:        "boolean",
@@ -356,7 +385,7 @@ func (c *Controller) CreateCRD() error {
 															Properties: map[string]apiextensionv1.JSONSchemaProps{
 																"network": {
 																	Type:        "string",
-																	Description: "Network name for vpshere or local interface for multipas and desktop, vmnetX...",
+																	Description: "Network name for vsphere or local interface for multipass and desktop, vmnetX...",
 																},
 																"device": {
 																	Type:        "string",
@@ -423,7 +452,7 @@ func (c *Controller) CreateCRD() error {
 															Properties: map[string]apiextensionv1.JSONSchemaProps{
 																"network": {
 																	Type:        "string",
-																	Description: "Network name for vpshere or local interface for multipas and desktop, vmnetX...",
+																	Description: "Network name for vsphere or local interface for multipass and desktop, vmnetX...",
 																},
 																"dhcp": {
 																	Type:        "boolean",

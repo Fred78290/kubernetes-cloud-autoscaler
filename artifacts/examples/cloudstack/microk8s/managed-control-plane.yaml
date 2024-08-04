@@ -1,0 +1,43 @@
+apiVersion: "nodemanager.aldunelabs.com/v1alpha2"
+kind: "ManagedNode"
+metadata:
+  name: "cloudstack-dev-microk8s-master-02"
+spec:
+  nodegroup: cloudstack-dev-microk8s
+  controlPlane: true
+  allowDeployment: true
+  instanceType: medium
+  labels:
+  - demo-label.acme.com=demo
+  - sample-label.acme.com=sample
+  annotations:
+  - demo-annotation.acme.com=demo
+  - sample-annotation.acme.com=sample
+  network:
+    cloudstack:
+      - network: "vpc-01"
+        dhcp: false
+        address: 172.16.0.11
+        netmask: 255.255.252.0
+---
+apiVersion: "nodemanager.aldunelabs.com/v1alpha2"
+kind: "ManagedNode"
+metadata:
+  name: "cloudstack-dev-microk8s-master-03"
+spec:
+  nodegroup: cloudstack-dev-microk8s
+  controlPlane: true
+  allowDeployment: true
+  instanceType: medium
+  labels:
+  - demo-label.acme.com=demo
+  - sample-label.acme.com=sample
+  annotations:
+  - demo-annotation.acme.com=demo
+  - sample-annotation.acme.com=sample
+  network:
+    cloudstack:
+      - network: "vpc-01"
+        dhcp: false
+        address: 172.16.0.12
+        netmask: 255.255.252.0

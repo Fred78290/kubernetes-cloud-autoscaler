@@ -64,6 +64,15 @@
       }
     },
     {
+      "label": "k3s cloudstack",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/prepare.sh cloudstack cloudstack-dev-k3s",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },    {
       "label": "k3s vsphere",
       "type": "shell",
       "command": "${workspaceFolder}/scripts/prepare.sh vsphere vsphere-dev-k3s",
@@ -107,6 +116,16 @@
       "label": "kubeadm openstack",
       "type": "shell",
       "command": "${workspaceFolder}/scripts/prepare.sh openstack openstack-dev-kubeadm",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "kubeadm cloudstack",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/prepare.sh cloudstack cloudstack-dev-kubeadm",
       "problemMatcher": [],
       "group": {
         "kind": "build",
@@ -164,6 +183,16 @@
       }
     },
     {
+      "label": "rke2 cloudstack",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/prepare.sh cloudstack cloudstack-dev-rke2",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
       "label": "rke2 vsphere",
       "type": "shell",
       "command": "${workspaceFolder}/scripts/prepare.sh vsphere vsphere-dev-rke2",
@@ -207,6 +236,16 @@
       "label": "microk8s openstack",
       "type": "shell",
       "command": "${workspaceFolder}/scripts/prepare.sh openstack openstack-dev-microk8s",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "microk8s cloudstack",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/prepare.sh cloudstack cloudstack-dev-microk8s",
       "problemMatcher": [],
       "group": {
         "kind": "build",
