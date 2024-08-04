@@ -148,12 +148,8 @@ data:
         ]
       }
     }
-  grpc-config.json: |-
-    {
-      "address": "unix:/var/run/cluster-autoscaler/autoscaler.sock",
-      "secret": "openstack",
-      "timeout": 300
-    }
+  grpc-config.yaml: |
+    address: unix:/var/run/cluster-autoscaler/autoscaler.sock
   machines.json: |-
     {
         "tiny": {
@@ -251,7 +247,6 @@ data:
         ]
       }
     }
-  rndc.key: ""
 ---
 apiVersion: v1
 kind: Secret
@@ -561,7 +556,7 @@ spec:
             - --plateform-config=/etc/cluster/provider.json
             - --config=/etc/cluster/autoscaler.json
             - --machines=/etc/cluster/machines.json
-            - --grpc-provider=grpc
+            - --grpc-provider=externalgrpc
             - --cloud-provider=external
             - --image-credential-provider-bin-dir=/var/lib/rancher/credentialprovider/bin
             - --image-credential-provider-config=/var/lib/rancher/credentialprovider/config.yaml
@@ -590,13 +585,10 @@ spec:
               mountPath: /etc/cluster
             - name: autoscaler-ssh-keys
               mountPath: /etc/ssh
-            - name: autoscaler-utility-cert
-              mountPath: /etc/ssl/certs/autoscaler-utility
-              readOnly: true
             - name: openstack-cloud-config
               mountPath: /etc/openstack
               readOnly: true
-        - image: fred78290/cluster-autoscaler:v1.30.0
+        - image: registry.k8s.io/autoscaling/cluster-autoscaler:v1.30.0
           name: cluster-autoscaler
           resources:
             limits:
@@ -609,8 +601,8 @@ spec:
             - ./cluster-autoscaler
             - --v=1
             - --stderrthreshold=info
-            - --cloud-provider=grpc
-            - --cloud-config=/etc/cluster/grpc-config.json
+            - --cloud-provider=externalgrpc
+            - --cloud-config=/etc/cluster/grpc-config.yaml
             - --nodes=0:9:true/openstack-dev-rke2
             - --max-nodes-total=9
             - --cores-total=0:24
