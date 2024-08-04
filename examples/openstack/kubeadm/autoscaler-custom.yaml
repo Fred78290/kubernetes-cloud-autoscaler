@@ -89,6 +89,7 @@ data:
       "kubeadm": {
         "address": "192.168.32.10:6443",
         "token": "....",
+        "ca": "sha256:....",
         "extras-args": [
           "--ignore-preflight-errors=All"
         ]
