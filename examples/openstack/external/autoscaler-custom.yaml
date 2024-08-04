@@ -594,7 +594,7 @@ spec:
             - name: openstack-cloud-config
               mountPath: /etc/openstack
               readOnly: true
-        - image: registry.k8s.io/autoscaling/cluster-autoscaler:v1.30.0
+        - image: fred78290/cluster-autoscaler:v1.30.0
           name: cluster-autoscaler
           resources:
             limits:
