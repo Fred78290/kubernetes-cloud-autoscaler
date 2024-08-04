@@ -54,6 +54,7 @@ metadata:
 data:
   autoscaler.json: |
     {
+      "use-external-etcd": false,
       "distribution": "k3s",
       "plateform": "openstack",
       "image-credential-provider-bin-dir": "/var/lib/rancher/credentialprovider/bin",
