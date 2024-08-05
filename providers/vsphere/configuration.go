@@ -51,12 +51,12 @@ type vsphereWrapper struct {
 
 type vsphereHandler struct {
 	*vsphereWrapper
-	network      *vsphereNetwork
-	instanceType string
-	instanceName string
-	instanceID   string
-	controlPlane bool
-	nodeIndex    int
+	attachedNetwork *vsphereNetwork
+	instanceType    string
+	instanceName    string
+	instanceID      string
+	controlPlane    bool
+	nodeIndex       int
 }
 
 func NewVSphereProviderConfiguration(fileName string) (providers.ProviderConfiguration, error) {
@@ -112,7 +112,7 @@ func (handler *vsphereHandler) GetTimeout() time.Duration {
 }
 
 func (handler *vsphereHandler) ConfigureNetwork(network v1alpha2.ManagedNetworkConfig) {
-	handler.network.ConfigureVMWareNetwork(network.VMWare)
+	handler.attachedNetwork.ConfigureVMWareNetwork(network.VMWare)
 }
 
 func (handler *vsphereHandler) RetrieveNetworkInfos() error {
@@ -123,7 +123,7 @@ func (handler *vsphereHandler) RetrieveNetworkInfos() error {
 	ctx := context.NewContext(handler.Timeout)
 	defer ctx.Cancel()
 
-	return handler.RetrieveNetworkInfosWithContext(ctx, handler.instanceName, handler.nodeIndex, handler.network)
+	return handler.RetrieveNetworkInfosWithContext(ctx, handler.instanceName, handler.nodeIndex, handler.attachedNetwork)
 }
 
 func (handler *vsphereHandler) UpdateMacAddressTable() error {
@@ -131,7 +131,7 @@ func (handler *vsphereHandler) UpdateMacAddressTable() error {
 		return fmt.Errorf(constantes.ErrInstanceIsNotAttachedToCloudProvider)
 	}
 
-	return handler.network.UpdateMacAddressTable()
+	return handler.attachedNetwork.UpdateMacAddressTable()
 }
 
 func (handler *vsphereHandler) GenerateProviderID() string {
@@ -158,7 +158,7 @@ func (handler *vsphereHandler) InstanceCreate(input *providers.InstanceCreateInp
 		NodeIndex:           handler.nodeIndex,
 		ExpandHardDrive:     true,
 		Annotation:          handler.Annotation,
-		VSphereNetwork:      handler.network,
+		VSphereNetwork:      handler.attachedNetwork,
 	}
 
 	if vm, err := handler.Create(createInput); err != nil {
@@ -198,7 +198,7 @@ func (handler *vsphereHandler) InstanceWaitReady(callback providers.CallbackWait
 }
 
 func (handler *vsphereHandler) InstancePrimaryAddressIP() string {
-	return handler.network.PrimaryAddressIP()
+	return handler.attachedNetwork.PrimaryAddressIP()
 }
 
 func (handler *vsphereHandler) InstanceID() (string, error) {
@@ -326,7 +326,7 @@ func (handler *vsphereHandler) findPreferredIPAddress(interfaces []providers.Net
 	address := ""
 
 	for _, inf := range interfaces {
-		if declaredInf := handler.network.InterfaceByName(inf.NetworkName); declaredInf != nil {
+		if declaredInf := handler.attachedNetwork.InterfaceByName(inf.NetworkName); declaredInf != nil {
 			if declaredInf.Primary {
 				return inf.IPAddress
 			}
@@ -349,12 +349,12 @@ func (wrapper *vsphereWrapper) AttachInstance(instanceName string, controlPlane 
 		return nil, err
 	} else {
 		return &vsphereHandler{
-			vsphereWrapper: wrapper,
-			network:        newVSphereNetwork(&wrapper.Network, controlPlane, nodeIndex),
-			instanceName:   instanceName,
-			instanceID:     vmuuid,
-			controlPlane:   controlPlane,
-			nodeIndex:      nodeIndex,
+			vsphereWrapper:  wrapper,
+			attachedNetwork: newVSphereNetwork(&wrapper.Network, controlPlane, nodeIndex),
+			instanceName:    instanceName,
+			instanceID:      vmuuid,
+			controlPlane:    controlPlane,
+			nodeIndex:       nodeIndex,
 		}, nil
 	}
 }
@@ -366,11 +366,11 @@ func (wrapper *vsphereWrapper) CreateInstance(instanceName, instanceType string,
 	}
 
 	return &vsphereHandler{
-		vsphereWrapper: wrapper,
-		network:        newVSphereNetwork(&wrapper.Network, controlPlane, nodeIndex),
-		instanceType:   instanceType,
-		instanceName:   instanceName,
-		nodeIndex:      nodeIndex,
+		vsphereWrapper:  wrapper,
+		attachedNetwork: newVSphereNetwork(&wrapper.Network, controlPlane, nodeIndex),
+		instanceType:    instanceType,
+		instanceName:    instanceName,
+		nodeIndex:       nodeIndex,
 	}, nil
 }
 

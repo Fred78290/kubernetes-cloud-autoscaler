@@ -48,12 +48,12 @@ type desktopWrapper struct {
 
 type desktopHandler struct {
 	*desktopWrapper
-	network      *providers.Network
-	instanceType string
-	instanceName string
-	instanceID   string
-	controlPlane bool
-	nodeIndex    int
+	attachedNetwork *providers.Network
+	instanceType    string
+	instanceName    string
+	instanceID      string
+	controlPlane    bool
+	nodeIndex       int
 }
 
 type CreateInput struct {
@@ -105,7 +105,7 @@ func (handler *desktopHandler) GetTimeout() time.Duration {
 }
 
 func (handler *desktopHandler) ConfigureNetwork(network v1alpha2.ManagedNetworkConfig) {
-	handler.network.ConfigureVMWareNetwork(network.VMWare)
+	handler.attachedNetwork.ConfigureVMWareNetwork(network.VMWare)
 }
 
 func (handler *desktopHandler) RetrieveNetworkInfos() error {
@@ -113,7 +113,7 @@ func (handler *desktopHandler) RetrieveNetworkInfos() error {
 		return fmt.Errorf(constantes.ErrInstanceIsNotAttachedToCloudProvider)
 	}
 
-	return handler.desktopWrapper.RetrieveNetworkInfos(handler.instanceID, handler.network)
+	return handler.desktopWrapper.RetrieveNetworkInfos(handler.instanceID, handler.attachedNetwork)
 }
 
 func (handler *desktopHandler) UpdateMacAddressTable() error {
@@ -121,7 +121,7 @@ func (handler *desktopHandler) UpdateMacAddressTable() error {
 		return fmt.Errorf(constantes.ErrInstanceIsNotAttachedToCloudProvider)
 	}
 
-	return handler.network.UpdateMacAddressTable()
+	return handler.attachedNetwork.UpdateMacAddressTable()
 }
 
 func (handler *desktopHandler) GenerateProviderID() string {
@@ -146,7 +146,7 @@ func (handler *desktopHandler) InstanceCreate(input *providers.InstanceCreateInp
 		InstanceCreateInput: input,
 		NodeName:            handler.instanceName,
 		TimeZone:            handler.TimeZone,
-		Network:             handler.network,
+		Network:             handler.attachedNetwork,
 	}
 
 	if vmuuid, err := handler.Create(createInput); err != nil {
@@ -183,7 +183,7 @@ func (handler *desktopHandler) InstanceWaitReady(callback providers.CallbackWait
 }
 
 func (handler *desktopHandler) InstancePrimaryAddressIP() string {
-	return handler.network.PrimaryAddressIP()
+	return handler.attachedNetwork.PrimaryAddressIP()
 }
 
 func (handler *desktopHandler) InstanceID() (string, error) {
@@ -316,7 +316,7 @@ func (handler *desktopHandler) findPreferredIPAddress(devices []VNetDevice) stri
 }
 
 func (handler *desktopHandler) findInterface(ether *VNetDevice) *providers.NetworkInterface {
-	for _, inf := range handler.network.Interfaces {
+	for _, inf := range handler.attachedNetwork.Interfaces {
 		if ether.Same(inf) {
 			return inf
 		}
@@ -338,12 +338,12 @@ func (wrapper *desktopWrapper) AttachInstance(instanceName string, controlPlane 
 		return nil, err
 	} else {
 		return &desktopHandler{
-			desktopWrapper: wrapper,
-			network:        wrapper.Network.Clone(controlPlane, nodeIndex),
-			instanceName:   instanceName,
-			instanceID:     vmuuid,
-			controlPlane:   controlPlane,
-			nodeIndex:      nodeIndex,
+			desktopWrapper:  wrapper,
+			attachedNetwork: wrapper.Network.Clone(controlPlane, nodeIndex),
+			instanceName:    instanceName,
+			instanceID:      vmuuid,
+			controlPlane:    controlPlane,
+			nodeIndex:       nodeIndex,
 		}, nil
 	}
 }
@@ -355,12 +355,12 @@ func (wrapper *desktopWrapper) CreateInstance(instanceName, instanceType string,
 	}
 
 	return &desktopHandler{
-		desktopWrapper: wrapper,
-		network:        wrapper.Network.Clone(controlPlane, nodeIndex),
-		instanceType:   instanceType,
-		instanceName:   instanceName,
-		controlPlane:   controlPlane,
-		nodeIndex:      nodeIndex,
+		desktopWrapper:  wrapper,
+		attachedNetwork: wrapper.Network.Clone(controlPlane, nodeIndex),
+		instanceType:    instanceType,
+		instanceName:    instanceName,
+		controlPlane:    controlPlane,
+		nodeIndex:       nodeIndex,
 	}, nil
 }
 

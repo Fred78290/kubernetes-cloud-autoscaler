@@ -59,7 +59,7 @@ func (wrapper *hostMultipassWrapper) shell(args ...string) (output string, err e
 func (wrapper *hostMultipassWrapper) AttachInstance(instanceName string, controlPlane bool, nodeIndex int) (providers.ProviderHandler, error) {
 	return &multipassHandler{
 		multipassWrapper: wrapper,
-		network:          wrapper.Network.Clone(controlPlane, nodeIndex),
+		attachedNetwork:  wrapper.Network.Clone(controlPlane, nodeIndex),
 		instanceName:     instanceName,
 		controlPlane:     controlPlane,
 		nodeIndex:        nodeIndex,
@@ -69,7 +69,7 @@ func (wrapper *hostMultipassWrapper) AttachInstance(instanceName string, control
 func (wrapper *hostMultipassWrapper) CreateInstance(instanceName, instanceType string, controlPlane bool, nodeIndex int) (providers.ProviderHandler, error) {
 	return &multipassHandler{
 		multipassWrapper: wrapper,
-		network:          wrapper.Network.Clone(controlPlane, nodeIndex),
+		attachedNetwork:  wrapper.Network.Clone(controlPlane, nodeIndex),
 		instanceName:     instanceName,
 		controlPlane:     controlPlane,
 		nodeIndex:        nodeIndex,

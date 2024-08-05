@@ -486,7 +486,7 @@ func (handler *openstackHandler) GetTopologyLabels() map[string]string {
 func (handler *openstackHandler) InstanceCreate(input *providers.InstanceCreateInput) (vmuuid string, err error) {
 	var userData string
 
-	handler.runningInstance = handler.newServerInstance(handler.instanceName, "", handler.network, handler.nodeIndex)
+	handler.runningInstance = handler.newServerInstance(handler.instanceName, "", handler.attachedNetwork, handler.nodeIndex)
 
 	if userData, err = handler.encodeCloudInit(input.CloudInit); err != nil {
 		return "", err

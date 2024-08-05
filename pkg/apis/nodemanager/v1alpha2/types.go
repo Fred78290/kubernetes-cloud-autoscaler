@@ -60,12 +60,16 @@ type OpenStackManagedNodeNetwork struct {
 	CommonManagedNodeNetwork
 }
 
+type CloudStackManagedNodeNetwork struct {
+	CommonManagedNodeNetwork
+}
+
 type ManagedNetworkConfig struct {
-	OpenStack  []OpenStackManagedNodeNetwork `json:"openstack,omitempty"`
-	CloudStack []OpenStackManagedNodeNetwork `json:"cloudstack,omitempty"`
-	VMWare     []VMWareManagedNodeNetwork    `json:"vmware,omitempty"`
-	Multipass  []MultipassManagedNodeNetwork `json:"multipass,omitempty"`
-	ENI        *AwsManagedNodeNetwork        `json:"eni,omitempty"`
+	OpenStack  []OpenStackManagedNodeNetwork  `json:"openstack,omitempty"`
+	CloudStack []CloudStackManagedNodeNetwork `json:"cloudstack,omitempty"`
+	VMWare     []VMWareManagedNodeNetwork     `json:"vmware,omitempty"`
+	Multipass  []MultipassManagedNodeNetwork  `json:"multipass,omitempty"`
+	ENI        *AwsManagedNodeNetwork         `json:"eni,omitempty"`
 }
 
 // ManagedNodeSpec is the spec for a ManagedNode resource

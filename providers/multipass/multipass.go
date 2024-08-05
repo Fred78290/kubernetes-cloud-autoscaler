@@ -16,10 +16,10 @@ import (
 
 type multipassHandler struct {
 	multipassWrapper
-	network      *providers.Network
-	instanceName string
-	controlPlane bool
-	nodeIndex    int
+	attachedNetwork *providers.Network
+	instanceName    string
+	controlPlane    bool
+	nodeIndex       int
 }
 
 type multipassWrapper interface {
@@ -105,7 +105,7 @@ func (handler *multipassHandler) GetTimeout() time.Duration {
 }
 
 func (handler *multipassHandler) ConfigureNetwork(network v1alpha2.ManagedNetworkConfig) {
-	handler.network.ConfigureMultipassNetwork(network.Multipass)
+	handler.attachedNetwork.ConfigureMultipassNetwork(network.Multipass)
 }
 
 func (handler *multipassHandler) RetrieveNetworkInfos() error {
@@ -132,7 +132,7 @@ func (handler *multipassHandler) GetTopologyLabels() map[string]string {
 func (handler *multipassHandler) InstanceCreate(input *providers.InstanceCreateInput) (string, error) {
 	createInstanceInput := createInstanceInput{
 		InstanceCreateInput: input,
-		network:             handler.network,
+		network:             handler.attachedNetwork,
 		instanceName:        handler.instanceName,
 		template:            handler.getConfiguration().TemplateName,
 		nodeIndex:           handler.nodeIndex,
@@ -147,7 +147,7 @@ func (handler *multipassHandler) InstanceWaitReady(callback providers.CallbackWa
 }
 
 func (handler *multipassHandler) InstancePrimaryAddressIP() string {
-	return handler.network.PrimaryAddressIP()
+	return handler.attachedNetwork.PrimaryAddressIP()
 }
 
 func (handler *multipassHandler) InstanceID() (string, error) {
@@ -205,7 +205,7 @@ func (handler *multipassHandler) PrivateDNSName() (string, error) {
 
 func (handler *multipassHandler) RegisterDNS(address string) (err error) {
 	if bind9Provider := handler.getBind9Provider(); bind9Provider != nil {
-		err = bind9Provider.AddRecord(handler.instanceName+"."+handler.network.Domain, handler.network.Domain, address)
+		err = bind9Provider.AddRecord(handler.instanceName+"."+handler.attachedNetwork.Domain, handler.attachedNetwork.Domain, address)
 	}
 
 	return
@@ -213,7 +213,7 @@ func (handler *multipassHandler) RegisterDNS(address string) (err error) {
 
 func (handler *multipassHandler) UnregisterDNS(address string) (err error) {
 	if bind9Provider := handler.getBind9Provider(); bind9Provider != nil {
-		err = bind9Provider.RemoveRecord(handler.instanceName+"."+handler.network.Domain, handler.network.Domain, address)
+		err = bind9Provider.RemoveRecord(handler.instanceName+"."+handler.attachedNetwork.Domain, handler.attachedNetwork.Domain, address)
 	}
 
 	return
