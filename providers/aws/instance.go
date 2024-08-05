@@ -174,7 +174,7 @@ func (instance *Ec2Instance) WaitForIP(callback providers.CallbackWaitSSHReady) 
 
 			return true, nil
 		} else if code != 0 {
-			return false, fmt.Errorf(constantes.ErrWrongStateMachine, *ec2Instance.State.Name, instance.InstanceName)
+			return false, fmt.Errorf(constantes.ErrWrongStateMachine, *ec2Instance.State.Name, instance.InstanceName, "pending")
 		}
 
 		return false, nil
@@ -209,7 +209,7 @@ func (instance *Ec2Instance) WaitForPowered() error {
 
 			glog.Debugf("WaitForPowered: instance %s id (%s), unexpected state: %d", instance.InstanceName, instance.getInstanceID(), code)
 
-			return false, fmt.Errorf(constantes.ErrWrongStateMachine, *ec2Instance.State.Name, instance.InstanceName)
+			return false, fmt.Errorf(constantes.ErrWrongStateMachine, *ec2Instance.State.Name, instance.InstanceName, "running")
 		}
 
 		glog.Debugf("WaitForPowered: ready instance %s id (%s)", instance.InstanceName, instance.getInstanceID())

@@ -70,7 +70,7 @@ func (instance *ServerInstance) expectStatus(ctx *context.Context, expected, ini
 	} else if status != "IN_PROGRESS" && status != "BUILD" {
 		glog.Debugf("instance %s id (%s), unexpected state: %s", instance.InstanceName, instance.InstanceID, status)
 
-		return false, fmt.Errorf(constantes.ErrWrongStateMachine, server.Status, instance.InstanceName)
+		return false, fmt.Errorf(constantes.ErrWrongStateMachine, status, instance.InstanceName, expected)
 	}
 
 	return false, nil
