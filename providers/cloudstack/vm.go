@@ -63,7 +63,7 @@ func (instance *ServerInstance) expectStatus(expected, initial string) (bool, er
 	} else if status != "STARTING" && status != "BUILD" {
 		glog.Debugf("instance %s id (%s), unexpected state: %s", instance.InstanceName, instance.InstanceID, status)
 
-		return false, fmt.Errorf(constantes.ErrWrongStateMachine, server.State, instance.InstanceName)
+		return false, fmt.Errorf(constantes.ErrWrongStateMachine, status, instance.InstanceName, expected)
 	}
 
 	return false, nil
@@ -79,11 +79,19 @@ func (instance *ServerInstance) WaitForIP(callback providers.CallbackWaitSSHRead
 	address = instance.AddressIP
 
 	if err = context.PollImmediate(time.Second, instance.Timeout*time.Second, func() (ready bool, err error) {
-		if ready, err = instance.expectStatus("STARTED", ""); ready {
+		if ready, err = instance.expectStatus("RUNNING", ""); ready {
 			glog.Debugf("WaitForIP: instance %s id (%s), using IP: %s", instance.InstanceName, instance.InstanceID, instance.AddressIP)
 
 			if err = callback.WaitSSHReady(instance.InstanceName, instance.AddressIP); err == nil {
 				return true, nil
+			}
+
+			// Wait that VM router handle correctly the traffic
+			if strings.Contains(err.Error(), "handshake failed") || strings.Contains(err.Error(), "connect: no route to host") {
+				err = nil
+			}
+			if err != nil {
+				glog.Error(err)
 			}
 		}
 
@@ -104,7 +112,7 @@ func (instance *ServerInstance) isPowered() (powered bool, err error) {
 
 	status := strings.ToUpper(server.State)
 
-	if status == "STARTED" || status == "STARTING" {
+	if status == "RUNNING" || status == "STARTING" {
 		powered = true
 	}
 
@@ -120,9 +128,15 @@ func (instance *ServerInstance) PowerOn(ctx *context.Context) (err error) {
 		return
 	}
 
-	if _, err = instance.client.VirtualMachine.StartVirtualMachine(instance.client.VirtualMachine.NewStartVirtualMachineParams(instance.InstanceID)); err == nil {
+	p := instance.client.VirtualMachine.NewStartVirtualMachineParams(instance.InstanceID)
+
+	if err = instance.defaultOptions().ApplyOptions(instance.client, p); err != nil {
+		return
+	}
+
+	if _, err = instance.client.VirtualMachine.StartVirtualMachine(p); err == nil {
 		err = context.PollImmediate(time.Second, instance.Timeout*time.Second, func() (bool, error) {
-			return instance.expectStatus("STARTED", "STOPPED")
+			return instance.expectStatus("RUNNING", "STOPPED")
 		})
 	}
 
@@ -138,9 +152,11 @@ func (instance *ServerInstance) PowerOff(ctx *context.Context) (err error) {
 		return
 	}
 
-	if _, err = instance.client.VirtualMachine.StopVirtualMachine(instance.client.VirtualMachine.NewStopVirtualMachineParams(instance.InstanceID)); err == nil {
+	client := instance.client
+
+	if _, err = client.VirtualMachine.StopVirtualMachine(client.VirtualMachine.NewStopVirtualMachineParams(instance.InstanceID)); err == nil {
 		err = context.PollImmediate(time.Second, instance.Timeout*time.Second, func() (bool, error) {
-			return instance.expectStatus("STOPPED", "STARTED")
+			return instance.expectStatus("STOPPED", "RUNNING")
 		})
 	}
 
@@ -160,13 +176,14 @@ func (instance *ServerInstance) Delete() (err error) {
 	ctx := context.NewContext(instance.Timeout)
 	defer ctx.Cancel()
 
-	p := instance.client.VirtualMachine.NewDestroyVirtualMachineParams(instance.InstanceID)
+	client := instance.client
+	p := client.VirtualMachine.NewDestroyVirtualMachineParams(instance.InstanceID)
 
 	p.SetExpunge(true)
 
-	if _, err = instance.client.VirtualMachine.DestroyVirtualMachine(p); err == nil {
+	if _, err = client.VirtualMachine.DestroyVirtualMachine(p); err == nil {
 		if instance.PublicAddressID != "" {
-			_, err = instance.client.Address.DisassociateIpAddress(instance.client.Address.NewDisassociateIpAddressParams(instance.PublicAddressID))
+			_, err = client.Address.DisassociateIpAddress(client.Address.NewDisassociateIpAddressParams(instance.PublicAddressID))
 		}
 	}
 
@@ -192,7 +209,7 @@ func (instance *ServerInstance) Status() (status providers.InstanceStatus, err e
 
 	status = &instanceStatus{
 		address: addressIP,
-		powered: strings.ToUpper(server.State) == "STARTED",
+		powered: strings.ToUpper(server.State) == "RUNNING",
 	}
 
 	return
@@ -206,12 +223,12 @@ func (instance *ServerInstance) WaitForPowered() error {
 	defer ctx.Cancel()
 
 	return context.PollImmediate(time.Second, instance.Timeout*time.Second, func() (bool, error) {
-		return instance.expectStatus("STARTED", "STOPPED")
+		return instance.expectStatus("RUNNING", "STOPPED")
 	})
 }
 
 func (instance *ServerInstance) getServer() (vm *cloudstack.VirtualMachine, err error) {
-	vm, _, err = instance.client.VirtualMachine.GetVirtualMachineByID(instance.InstanceID)
+	vm, _, err = instance.client.VirtualMachine.GetVirtualMachineByID(instance.InstanceID, cloudstack.WithZone(instance.ZoneId), cloudstack.WithProject(instance.ProjectID))
 	return
 }
 
@@ -225,6 +242,8 @@ func (instance *ServerInstance) Create(controlPlane bool, nodeGroup, serviceOffe
 	config := instance.Configuration
 	network := instance.Configuration.Network
 	primaryInterface := instance.attachedNetwork.PrimaryInterface()
+	primaryIpAddress := primaryInterface.IPAddress
+
 	ctx := context.NewContext(instance.Timeout)
 	defer ctx.Cancel()
 
@@ -236,29 +255,39 @@ func (instance *ServerInstance) Create(controlPlane bool, nodeGroup, serviceOffe
 		useFloatingIP = network.PublicWorkerNode
 	}
 
-	p := instance.client.VirtualMachine.NewDeployVirtualMachineParams(serviceOfferingId, config.TemplateId, config.ZoneId)
+	client := instance.client
+	p := client.VirtualMachine.NewDeployVirtualMachineParams(serviceOfferingId, config.TemplateId, config.ZoneId)
+
+	if err = instance.defaultOptions().ApplyOptions(client, p); err != nil {
+		return
+	}
 
 	p.SetDisplayname(instance.InstanceName)
 	p.SetName(instance.InstanceName)
-	p.SetKeypair(config.SshKeyName)
-	p.SetUserdata(base64.StdEncoding.EncodeToString([]byte(userData)))
-	p.SetIpaddress(instance.attachedNetwork.PrimaryAddressIP())
-	p.SetNetworkids([]string{primaryInterface.NetworkName})
+	p.SetNetworkids([]string{primaryInterface.networkID})
+	p.SetStartvm(false)
+
+	if len(userData) > 0 {
+		p.SetUserdata(base64.StdEncoding.EncodeToString([]byte(userData)))
+	}
+
+	if len(primaryIpAddress) > 0 {
+		p.SetIpaddress(primaryIpAddress)
+	}
 
 	if len(config.VpcId) == 0 {
 		p.SetSecuritygroupids([]string{securityGroup})
 	}
 
-	instance.client.VirtualMachine.DeployVirtualMachine(p)
-
-	if server, err = instance.client.VirtualMachine.DeployVirtualMachine(p); err != nil {
+	if server, err = client.VirtualMachine.DeployVirtualMachine(p); err != nil {
 		err = fmt.Errorf("server creation failed for: %s, reason: %v", instance.InstanceName, err)
 	} else {
 		instance.InstanceID = server.Id
 
-		if err = instance.WaitForPowered(); err != nil {
+		/*if err = instance.WaitForPowered(); err != nil {
 			err = fmt.Errorf("server powered failed for: %s, reason: %v", instance.InstanceName, err)
-		} else if len(server.Nic) == 0 {
+		} else */
+		if len(server.Nic) == 0 {
 			err = fmt.Errorf("unable to get ip address for server: %s", instance.InstanceName)
 		} else {
 			instance.AddressIP = server.Nic[0].Ipaddress
@@ -269,13 +298,13 @@ func (instance *ServerInstance) Create(controlPlane bool, nodeGroup, serviceOffe
 				var response *cloudstack.AssociateIpAddressResponse
 				var nat *cloudstack.EnableStaticNatResponse
 
-				p := instance.client.Address.NewAssociateIpAddressParams()
+				p := client.Address.NewAssociateIpAddressParams()
 
 				p.SetNetworkid(primaryInterface.NetworkName)
 
-				if response, err = instance.client.Address.AssociateIpAddress(p); err != nil {
+				if response, err = client.Address.AssociateIpAddress(p); err != nil {
 					err = fmt.Errorf("unable to associate address for instance: %s. Reason: %v", instance.InstanceName, err)
-				} else if nat, err = instance.client.NAT.EnableStaticNat(instance.client.NAT.NewEnableStaticNatParams(response.Id, server.Id)); err != nil {
+				} else if nat, err = client.NAT.EnableStaticNat(client.NAT.NewEnableStaticNatParams(response.Id, server.Id)); err != nil {
 					err = fmt.Errorf("unable to enable static nat for instance: %s. Reason: %v", instance.InstanceName, err)
 				} else if !nat.Success {
 					err = fmt.Errorf("unable to start static nat for instance: %s. failed: %v", instance.InstanceName, nat.Displaytext)

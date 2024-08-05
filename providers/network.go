@@ -310,6 +310,37 @@ func (vnet *Network) ConfigurationDidLoad() {
 	}
 }
 
+func (vnet *Network) ConfigureCloudStackNetwork(cloudstack []v1alpha2.CloudStackManagedNodeNetwork) {
+	for _, network := range cloudstack {
+		if inet := vnet.InterfaceByName(network.NetworkName); inet != nil {
+			if inet.IsEnabled() {
+				inet.DHCP = network.DHCP
+				inet.UseDhcpRoutes = &TRUE
+
+				if inet.DHCP {
+					inet.IPAddress = ""
+				} else if strings.ToLower(network.IPV4Address) == "none" {
+					inet.Enabled = &FALSE
+					inet.IPAddress = ""
+				} else if strings.ToLower(network.IPV4Address) == "dhcp" {
+					inet.DHCP = true
+					inet.IPAddress = ""
+				} else if len(network.IPV4Address) > 0 {
+					inet.IPAddress = network.IPV4Address
+				}
+
+				if len(network.Netmask) > 0 {
+					inet.Netmask = network.Netmask
+				}
+			} else {
+				glog.Warnf(constantes.WarnNetworkInterfaceIsDisabled, network.NetworkName)
+			}
+		} else {
+			glog.Errorf(constantes.ErrNetworkInterfaceNotFoundToConfigure, network.NetworkName)
+		}
+	}
+}
+
 func (vnet *Network) ConfigureOpenStackNetwork(openstack []v1alpha2.OpenStackManagedNodeNetwork) {
 	for _, network := range openstack {
 		if inet := vnet.InterfaceByName(network.NetworkName); inet != nil {

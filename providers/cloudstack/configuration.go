@@ -29,12 +29,12 @@ type NetworkInfos struct {
 }
 
 type NetworkInterface struct {
-	Enabled   *bool  `json:"enabled,omitempty" yaml:"primary,omitempty"`
-	Primary   bool   `json:"primary,omitempty" yaml:"primary,omitempty"`
-	NetworkId string `json:"network,omitempty" yaml:"network,omitempty"`
-	DHCP      bool   `json:"dhcp,omitempty" yaml:"dhcp,omitempty"`
-	IPAddress string `json:"address,omitempty" yaml:"address,omitempty"`
-	Netmask   string `json:"netmask,omitempty" yaml:"netmask,omitempty"`
+	Enabled     *bool  `json:"enabled,omitempty" yaml:"primary,omitempty"`
+	Primary     bool   `json:"primary,omitempty" yaml:"primary,omitempty"`
+	NetworkName string `json:"network,omitempty" yaml:"network,omitempty"`
+	DHCP        bool   `json:"dhcp,omitempty" yaml:"dhcp,omitempty"`
+	IPAddress   string `json:"address,omitempty" yaml:"address,omitempty"`
+	Netmask     string `json:"netmask,omitempty" yaml:"netmask,omitempty"`
 }
 
 type Network struct {
@@ -67,11 +67,14 @@ type Configuration struct {
 	Network           Network           `json:"network"`
 }
 
+type CloudStackOptions []cloudstack.OptionFunc
+
 type cloudstackWrapper struct {
 	Configuration
 	client        *cloudstack.CloudStackClient
 	network       *cloudstackNetwork
 	bind9Provider *rfc2136.RFC2136Provider
+	options       CloudStackOptions
 	testMode      bool
 }
 
@@ -98,6 +101,10 @@ type HostIDSetter interface {
 	SetHostid(string)
 }
 
+type ProjectIDSetter interface {
+	SetProjectid(string)
+}
+
 type TemplateIDSetter interface {
 	SetTemplateid(string)
 }
@@ -108,6 +115,10 @@ type ClusterIDSetter interface {
 
 type VpcIDSetter interface {
 	SetVpcid(string)
+}
+
+type SetKeypairSetter interface {
+	SetKeypair(string)
 }
 
 func NewCloudStackProviderConfiguration(fileName string) (providers.ProviderConfiguration, error) {
@@ -125,6 +136,16 @@ func NewCloudStackProviderConfiguration(fileName string) (providers.ProviderConf
 	}
 
 	return &wrapper, nil
+}
+
+func (opts CloudStackOptions) ApplyOptions(cs *cloudstack.CloudStackClient, params interface{}) (err error) {
+	for _, fn := range opts {
+		if err = fn(cs, params); err != nil {
+			return
+		}
+	}
+
+	return
 }
 
 func (wrapper *cloudstackWrapper) SetMode(test bool) {
@@ -175,6 +196,62 @@ func (wrapper *cloudstackWrapper) CreateInstance(instanceName, instanceType stri
 	return
 }
 
+func (wrapper *cloudstackWrapper) defaultOptions() CloudStackOptions {
+	if len(wrapper.options) == 0 {
+		wrapper.options = append(wrapper.options, cloudstack.WithZone(wrapper.ZoneId), cloudstack.WithProject(wrapper.ProjectID),
+			func(cs *cloudstack.CloudStackClient, p interface{}) error {
+				if ps, ok := p.(HypervisorSetter); ok && len(wrapper.Hypervisor) > 0 {
+					ps.SetHypervisor(wrapper.Hypervisor)
+				}
+				return nil
+			},
+			func(cs *cloudstack.CloudStackClient, p interface{}) error {
+				if ps, ok := p.(TemplateIDSetter); ok && len(wrapper.TemplateId) > 0 {
+					ps.SetTemplateid(wrapper.TemplateId)
+				}
+				return nil
+			},
+			func(cs *cloudstack.CloudStackClient, p interface{}) error {
+				if ps, ok := p.(PodIDSetter); ok && len(wrapper.PodId) > 0 {
+					ps.SetPodid(wrapper.PodId)
+				}
+				return nil
+			},
+			func(cs *cloudstack.CloudStackClient, p interface{}) error {
+				if ps, ok := p.(ClusterIDSetter); ok && len(wrapper.ClusterId) > 0 {
+					ps.SetClusterid(wrapper.ClusterId)
+				}
+				return nil
+			},
+			func(cs *cloudstack.CloudStackClient, p interface{}) error {
+				if ps, ok := p.(HostIDSetter); ok && len(wrapper.HostId) > 0 {
+					ps.SetHostid(wrapper.HostId)
+				}
+				return nil
+			},
+			func(cs *cloudstack.CloudStackClient, p interface{}) error {
+				if ps, ok := p.(ProjectIDSetter); ok && len(wrapper.ProjectID) > 0 {
+					ps.SetProjectid(wrapper.ProjectID)
+				}
+				return nil
+			},
+			func(cs *cloudstack.CloudStackClient, p interface{}) error {
+				if ps, ok := p.(VpcIDSetter); ok && len(wrapper.VpcId) > 0 {
+					ps.SetVpcid(wrapper.VpcId)
+				}
+				return nil
+			},
+			func(cs *cloudstack.CloudStackClient, p interface{}) error {
+				if ps, ok := p.(SetKeypairSetter); ok && len(wrapper.SshKeyName) > 0 {
+					ps.SetKeypair(wrapper.SshKeyName)
+				}
+				return nil
+			})
+	}
+
+	return wrapper.options
+}
+
 func (wrapper *cloudstackWrapper) ConfigurationDidLoad() (err error) {
 	if wrapper.Configuration.UseBind9 {
 		if wrapper.bind9Provider, err = rfc2136.NewDNSRFC2136ProviderCredentials(wrapper.Configuration.Bind9Host, wrapper.Configuration.RndcKeyFile); err != nil {
@@ -188,44 +265,7 @@ func (wrapper *cloudstackWrapper) ConfigurationDidLoad() (err error) {
 		return errors.New("no cloud provider config given")
 	}
 
-	wrapper.client.DefaultOptions(cloudstack.WithZone(wrapper.ZoneId), cloudstack.WithProject(wrapper.ProjectID),
-		func(cs *cloudstack.CloudStackClient, p interface{}) error {
-			if ps, ok := p.(HypervisorSetter); ok && len(wrapper.Hypervisor) > 0 {
-				ps.SetHypervisor(wrapper.Hypervisor)
-			}
-			return nil
-		},
-		func(cs *cloudstack.CloudStackClient, p interface{}) error {
-			if ps, ok := p.(TemplateIDSetter); ok && len(wrapper.TemplateId) > 0 {
-				ps.SetTemplateid(wrapper.TemplateId)
-			}
-			return nil
-		},
-		func(cs *cloudstack.CloudStackClient, p interface{}) error {
-			if ps, ok := p.(PodIDSetter); ok && len(wrapper.PodId) > 0 {
-				ps.SetPodid(wrapper.PodId)
-			}
-			return nil
-		},
-		func(cs *cloudstack.CloudStackClient, p interface{}) error {
-			if ps, ok := p.(ClusterIDSetter); ok && len(wrapper.ClusterId) > 0 {
-				ps.SetClusterid(wrapper.ClusterId)
-			}
-			return nil
-		},
-		func(cs *cloudstack.CloudStackClient, p interface{}) error {
-			if ps, ok := p.(HostIDSetter); ok && len(wrapper.HostId) > 0 {
-				ps.SetHostid(wrapper.HostId)
-			}
-			return nil
-		},
-		func(cs *cloudstack.CloudStackClient, p interface{}) error {
-			if ps, ok := p.(VpcIDSetter); ok && len(wrapper.VpcId) > 0 {
-				ps.SetVpcid(wrapper.VpcId)
-			}
-			return nil
-		},
-	)
+	//wrapper.client.DefaultOptions(wrapper.defaultOptions()...)
 
 	network := wrapper.Configuration.Network
 	onet := &cloudstackNetwork{
@@ -235,40 +275,47 @@ func (wrapper *cloudstackWrapper) ConfigurationDidLoad() (err error) {
 		},
 	}
 
+	wrapper.network = onet
+
 	for _, inf := range network.Interfaces {
-		networkInterface := &providers.NetworkInterface{
-			Enabled:     inf.Enabled,
-			MacAddress:  "ignore",
-			Primary:     inf.Primary,
-			NetworkName: inf.NetworkId,
-			NicName:     "ens3",
-			DHCP:        inf.DHCP,
-			IPAddress:   inf.IPAddress,
+		var network *cloudstack.Network
+		var count int
+
+		cloudstackInterface := &cloudstackNetworkInterface{
+			NetworkInterface: &providers.NetworkInterface{
+				Enabled:     inf.Enabled,
+				MacAddress:  "ignore",
+				Primary:     inf.Primary,
+				NetworkName: inf.NetworkName,
+				NicName:     "ens3",
+				DHCP:        inf.DHCP,
+				IPAddress:   inf.IPAddress,
+			},
 		}
 
-		onet.Interfaces = append(onet.Interfaces, networkInterface)
+		onet.CloudStackInterfaces = append(onet.CloudStackInterfaces, cloudstackInterface)
+		onet.Interfaces = append(onet.Interfaces, cloudstackInterface.NetworkInterface)
+
+		if network, count, err = wrapper.client.Network.GetNetworkByName(inf.NetworkName, wrapper.defaultOptions()...); err != nil {
+			return fmt.Errorf("unable to find network: %s, reason: %v", inf.NetworkName, err)
+		} else if count == 0 {
+			return fmt.Errorf("network: %s not found", inf.NetworkName)
+		} else if count == 1 {
+			cloudstackInterface.networkID = network.Id
+		} else {
+			return fmt.Errorf("%d named networks: %s", count, inf.NetworkName)
+		}
 	}
 
-	wrapper.network = onet
+	onet.Network.ConfigurationDidLoad()
 
 	return
 }
 
 func (wrapper *cloudstackWrapper) getServiceOffering(name string) (id string, err error) {
-	id, _, err = wrapper.client.ServiceOffering.GetServiceOfferingID(name)
+	id, _, err = wrapper.client.ServiceOffering.GetServiceOfferingID(name, wrapper.defaultOptions()...)
 
 	return
-}
-
-func (wrapper *cloudstackWrapper) getImage(name string) (string, error) {
-	templateID := ""
-	template, _, err := wrapper.client.Template.GetTemplateByName(name, "community", wrapper.ZoneId)
-
-	if template != nil {
-		templateID = template.Id
-	}
-
-	return templateID, err
 }
 
 func (wrapper *cloudstackWrapper) getAddress(server *cloudstack.VirtualMachine) (addressIP string, err error) {
@@ -285,7 +332,7 @@ func (wrapper *cloudstackWrapper) getServerInstance(name string) (vm *ServerInst
 	var response *cloudstack.VirtualMachine
 	var addressIP string
 
-	if response, _, err = wrapper.client.VirtualMachine.GetVirtualMachineByName(name); err != nil {
+	if response, _, err = wrapper.client.VirtualMachine.GetVirtualMachineByName(name, cloudstack.WithZone(wrapper.ZoneId), cloudstack.WithProject(wrapper.ProjectID)); err != nil {
 		return
 	}
 
@@ -351,7 +398,7 @@ func (handler *cloudstackHandler) GetTimeout() time.Duration {
 }
 
 func (handler *cloudstackHandler) ConfigureNetwork(network v1alpha2.ManagedNetworkConfig) {
-	handler.network.ConfigureOpenStackNetwork(network.CloudStack)
+	handler.network.ConfigureCloudStackNetwork(network.CloudStack)
 }
 
 func (handler *cloudstackHandler) RetrieveNetworkInfos() error {
@@ -393,7 +440,7 @@ func (handler *cloudstackHandler) GetTopologyLabels() map[string]string {
 func (handler *cloudstackHandler) InstanceCreate(input *providers.InstanceCreateInput) (vmuuid string, err error) {
 	var userData string
 
-	handler.runningInstance = handler.newServerInstance(handler.instanceName, "", handler.network, handler.nodeIndex)
+	handler.runningInstance = handler.newServerInstance(handler.instanceName, "", handler.attachedNetwork, handler.nodeIndex)
 
 	if userData, err = handler.encodeCloudInit(input.CloudInit); err != nil {
 		return "", err
