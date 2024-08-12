@@ -13,9 +13,10 @@ import (
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/utils"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/smithy-go/logging"
 	glog "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 )
@@ -35,11 +36,11 @@ const (
 )
 
 type MetadataOptionsConfiguration struct {
-	HttpEndpoint            *string `default:"enabled" json:"http-endpoint" type:"string" enum:"InstanceMetadataEndpointState"`
-	HttpProtocolIpv6        *string `default:"disabled" json:"http-protocol-ipv6" type:"string" enum:"InstanceMetadataProtocolState"`
-	HttpPutResponseHopLimit *int64  `default:"2" json:"http-put-responsehop-limit" type:"integer"`
-	HttpTokens              *string `default:"optional" json:"http-tokens" type:"string" enum:"HttpTokensState"`
-	InstanceMetadataTags    *string `default:"enabled" json:"instance-metadata-tags" type:"string" enum:"InstanceMetadataTagsState"`
+	HttpEndpoint            types.InstanceMetadataEndpointState `default:"enabled" json:"http-endpoint" type:"string" enum:"InstanceMetadataEndpointState"`
+	HttpProtocolIpv6        types.InstanceMetadataProtocolState `default:"disabled" json:"http-protocol-ipv6" type:"string" enum:"InstanceMetadataProtocolState"`
+	HttpPutResponseHopLimit int32                               `default:"2" json:"http-put-responsehop-limit" type:"integer"`
+	HttpTokens              types.HttpTokensState               `default:"required" json:"http-tokens" type:"string" enum:"HttpTokensState"`
+	InstanceMetadataTags    types.InstanceMetadataTagsState     `default:"enabled" json:"instance-metadata-tags" type:"string" enum:"InstanceMetadataTagsState"`
 }
 
 // Configuration declares aws connection info
@@ -54,12 +55,12 @@ type Configuration struct {
 	ImageID           string                       `json:"ami"`
 	IamRole           string                       `json:"iam-role-arn"`
 	KeyName           string                       `json:"keyName"`
-	VolumeType        string                       `default:"gp3" json:"volume-type"`
+	VolumeType        types.VolumeType             `default:"gp3" json:"volume-type"`
 	Tags              []Tag                        `json:"tags,omitempty"`
 	Network           Network                      `json:"network"`
 	AvailableGPUTypes map[string]string            `json:"gpu-types"`
 	MetadataOptions   MetadataOptionsConfiguration `json:"metadata-options"`
-	ec2Client         *ec2.EC2
+	ec2Client         *ec2.Client
 }
 
 // Tag aws tag
@@ -124,7 +125,7 @@ type awsWrapper struct {
 type awsHandler struct {
 	*awsWrapper
 	instanceName    string
-	instanceType    string
+	instanceType    types.InstanceType
 	controlPlane    bool
 	nodeIndex       int
 	runningInstance *Ec2Instance
@@ -179,29 +180,29 @@ func (handler *awsHandler) UpdateMacAddressTable() error {
 }
 
 func (handler *awsHandler) GenerateProviderID() string {
-	if handler.runningInstance.Zone == nil || handler.runningInstance.InstanceID == nil {
+	if handler.runningInstance.Zone == "" || handler.runningInstance.InstanceID == "" {
 		return ""
 	}
 
-	if isNullOrEmpty(*handler.runningInstance.Zone) || isNullOrEmpty(*handler.runningInstance.InstanceID) {
+	if isNullOrEmpty(handler.runningInstance.Zone) || isNullOrEmpty(handler.runningInstance.InstanceID) {
 		return ""
 	}
 
-	return fmt.Sprintf("aws://%s/%s", *handler.runningInstance.Zone, *handler.runningInstance.InstanceID)
+	return fmt.Sprintf("aws://%s/%s", handler.runningInstance.Zone, handler.runningInstance.InstanceID)
 }
 
 func (handler *awsHandler) GetTopologyLabels() map[string]string {
 	return map[string]string{
-		constantes.NodeLabelTopologyRegion:  *handler.runningInstance.Region,
-		constantes.NodeLabelTopologyZone:    *handler.runningInstance.Zone,
-		constantes.NodeLabelVMWareCSIRegion: *handler.runningInstance.Region,
-		constantes.NodeLabelVMWareCSIZone:   *handler.runningInstance.Zone,
+		constantes.NodeLabelTopologyRegion:  handler.runningInstance.Region,
+		constantes.NodeLabelTopologyZone:    handler.runningInstance.Zone,
+		constantes.NodeLabelVMWareCSIRegion: handler.runningInstance.Region,
+		constantes.NodeLabelVMWareCSIZone:   handler.runningInstance.Zone,
 	}
 }
 
-func (handler *awsHandler) encodeCloudInit(object any) (*string, error) {
+func (handler *awsHandler) encodeCloudInit(object any) (string, error) {
 	if object == nil {
-		return nil, nil
+		return "", nil
 	}
 
 	var out bytes.Buffer
@@ -214,33 +215,34 @@ func (handler *awsHandler) encodeCloudInit(object any) (*string, error) {
 	wr.Close()
 
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	result := base64.StdEncoding.EncodeToString(out.Bytes())
 
-	return aws.String(result), nil
+	return result, nil
 }
 
 // InstanceCreate will create a named VM not powered
 // memory and disk are in megabytes
-func (handler *awsHandler) InstanceCreate(input *providers.InstanceCreateInput) (string, error) {
-	var err error
-	var userData *string
+func (handler *awsHandler) InstanceCreate(input *providers.InstanceCreateInput) (instanceID string, err error) {
+	var userData string
 
 	if userData, err = handler.encodeCloudInit(input.CloudInit); err != nil {
-		return "", err
+		return
 	}
 
 	if handler.runningInstance, err = handler.newEc2Instance(handler.instanceName, handler.nodeIndex); err != nil {
-		return "", err
+		return
 	}
 
 	if err = handler.runningInstance.Create(input.NodeGroup, handler.instanceType, userData, handler.VolumeType, input.Machine.GetDiskSize(), handler.desiredENI); err != nil {
-		return "", err
+		return
 	}
 
-	return *handler.runningInstance.InstanceID, nil
+	instanceID = handler.runningInstance.InstanceID
+
+	return
 }
 
 func (handler *awsHandler) InstanceWaitReady(callback providers.CallbackWaitSSHReady) (string, error) {
@@ -264,7 +266,7 @@ func (handler *awsHandler) InstanceID() (string, error) {
 		return "", fmt.Errorf(constantes.ErrInstanceIsNotAttachedToCloudProvider)
 	}
 
-	return *handler.runningInstance.InstanceID, nil
+	return handler.runningInstance.InstanceID, nil
 }
 
 func (handler *awsHandler) InstanceAutoStart() error {
@@ -335,13 +337,13 @@ func (handler *awsHandler) InstanceMaxPods(desiredMaxPods int) (int, error) {
 	if client, err := handler.createClient(); err != nil {
 		return 0, err
 	} else {
-		input := ec2.DescribeInstanceTypesInput{
-			InstanceTypes: []*string{
-				aws.String(handler.instanceType),
+		input := &ec2.DescribeInstanceTypesInput{
+			InstanceTypes: []types.InstanceType{
+				handler.instanceType,
 			},
 		}
 
-		if result, err := client.DescribeInstanceTypes(&input); err != nil {
+		if result, err := client.DescribeInstanceTypes(context.TODO(), input); err != nil {
 			return 0, err
 		} else {
 			networkInfos := result.InstanceTypes[0].NetworkInfo
@@ -388,13 +390,13 @@ func (handler *awsHandler) UnregisterDNS(address string) error {
 
 func (handler *awsHandler) UUID(instanceName string) (string, error) {
 	if handler.runningInstance != nil && handler.runningInstance.InstanceName == instanceName {
-		return *handler.runningInstance.InstanceID, nil
+		return handler.runningInstance.InstanceID, nil
 	}
 
 	if ec2, err := handler.GetEc2Instance(instanceName); err != nil {
 		return "", err
 	} else {
-		return *ec2.InstanceID, nil
+		return ec2.InstanceID, nil
 	}
 }
 
@@ -420,7 +422,7 @@ func (wrapper *awsWrapper) AttachInstance(instanceName string, controlPlane bool
 	}
 }
 
-func (wrapper *awsWrapper) CreateInstance(instanceName, instanceType string, controlPlane bool, nodeIndex int) (providers.ProviderHandler, error) {
+func (wrapper *awsWrapper) CreateInstance(instanceName string, instanceType string, controlPlane bool, nodeIndex int) (providers.ProviderHandler, error) {
 	if wrapper.InstanceExists(instanceName) {
 		glog.Warnf(constantes.ErrVMAlreadyExists, instanceName)
 		return nil, fmt.Errorf(constantes.ErrVMAlreadyExists, instanceName)
@@ -428,7 +430,7 @@ func (wrapper *awsWrapper) CreateInstance(instanceName, instanceType string, con
 
 	return &awsHandler{
 		awsWrapper:   wrapper,
-		instanceType: instanceType,
+		instanceType: types.InstanceType(instanceType),
 		instanceName: instanceName,
 		controlPlane: controlPlane,
 		nodeIndex:    nodeIndex,
@@ -443,29 +445,34 @@ func (wrapper *awsWrapper) GetAvailableGpuTypes() map[string]string {
 	return wrapper.AvailableGPUTypes
 }
 
-func (wrapper *awsWrapper) createClient() (*ec2.EC2, error) {
+func (wrapper *awsWrapper) createClient() (*ec2.Client, error) {
 	if wrapper.ec2Client == nil {
 		var err error
-		var sess *session.Session
+		var cfg aws.Config
 
-		if sess, err = newSessionWithOptions(wrapper.AccessKey, wrapper.SecretKey, wrapper.Token, wrapper.Filename, wrapper.Profile, wrapper.Region); err != nil {
+		if cfg, err = newSessionWithOptions(wrapper.AccessKey, wrapper.SecretKey, wrapper.Token, wrapper.Filename, wrapper.Profile, wrapper.Region); err != nil {
 			return nil, err
 		}
 
 		// Create EC2 service client
-		if glog.GetLevel() >= glog.DebugLevel {
-			wrapper.ec2Client = ec2.New(sess, aws.NewConfig().WithLogger(wrapper).WithLogLevel(aws.LogDebugWithHTTPBody).WithLogLevel(aws.LogDebugWithSigning))
-		} else {
-			wrapper.ec2Client = ec2.New(sess)
-		}
+		wrapper.ec2Client = ec2.NewFromConfig(cfg, func(o *ec2.Options) {
+			if glog.GetLevel() >= glog.TraceLevel {
+				o.Logger = wrapper
+				o.ClientLogMode = aws.LogSigning | aws.LogRequest | aws.LogResponse
+			}
+		})
 	}
 
 	return wrapper.ec2Client, nil
 }
 
 // Log logging
-func (wrapper *awsWrapper) Log(args ...any) {
-	glog.Infoln(args...)
+func (wrapper *awsWrapper) Logf(classification logging.Classification, format string, v ...interface{}) {
+	if classification == logging.Warn {
+		glog.Warnf(format, v...)
+	} else {
+		glog.Infof(format, v...)
+	}
 }
 
 func (wrapper *awsWrapper) GetFileName() string {
@@ -485,12 +492,12 @@ func (wrapper *awsWrapper) AmiExists(ami string) bool {
 		return false
 	} else {
 		input := ec2.DescribeImagesInput{
-			ImageIds: []*string{
-				aws.String(ami),
+			ImageIds: []string{
+				ami,
 			},
 		}
 
-		if _, err = client.DescribeImages(&input); err != nil {
+		if _, err = client.DescribeImages(context.Background(), &input); err != nil {
 			return false
 		}
 	}
@@ -506,11 +513,11 @@ func (wrapper *awsWrapper) GetEc2Instance(instanceName string) (*Ec2Instance, er
 		var result *ec2.DescribeInstancesOutput
 
 		input := &ec2.DescribeInstancesInput{
-			Filters: []*ec2.Filter{
+			Filters: []types.Filter{
 				{
 					Name: aws.String("tag:Name"),
-					Values: []*string{
-						aws.String(instanceName),
+					Values: []string{
+						instanceName,
 					},
 				},
 			},
@@ -519,7 +526,7 @@ func (wrapper *awsWrapper) GetEc2Instance(instanceName string) (*Ec2Instance, er
 		ctx := context.NewContext(wrapper.Timeout)
 		defer ctx.Cancel()
 
-		if result, err = client.DescribeInstancesWithContext(ctx, input); err != nil {
+		if result, err = client.DescribeInstances(ctx, input); err != nil {
 			return nil, err
 		}
 
@@ -544,9 +551,9 @@ func (wrapper *awsWrapper) GetEc2Instance(instanceName string) (*Ec2Instance, er
 						client:         client,
 						InstanceName:   instanceName,
 						PrivateDNSName: *instance.PrivateDnsName,
-						InstanceID:     instance.InstanceId,
-						Region:         &wrapper.Region,
-						Zone:           instance.Placement.AvailabilityZone,
+						InstanceID:     *instance.InstanceId,
+						Region:         wrapper.Region,
+						Zone:           *instance.Placement.AvailabilityZone,
 						AddressIP:      address,
 					}, nil
 				}
@@ -561,7 +568,7 @@ func (wrapper *awsWrapper) UUID(instanceName string) (string, error) {
 	if ec2, err := wrapper.GetEc2Instance(instanceName); err != nil {
 		return "", err
 	} else {
-		return *ec2.InstanceID, nil
+		return ec2.InstanceID, nil
 	}
 }
 

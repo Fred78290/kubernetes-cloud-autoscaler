@@ -7,7 +7,7 @@ import (
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
 
-	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/gophercloud/gophercloud/v2"
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/servers"
 	"github.com/gophercloud/gophercloud/v2/openstack/dns/v2/recordsets"

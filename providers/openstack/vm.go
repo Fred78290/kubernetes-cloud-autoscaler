@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	glog "github.com/sirupsen/logrus"
 
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"

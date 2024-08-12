@@ -13,12 +13,14 @@ import (
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/context"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/route53"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/credentials/ec2rolecreds"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go-v2/service/route53"
+	route53types "github.com/aws/aws-sdk-go-v2/service/route53/types"
 )
 
 const (
@@ -35,13 +37,13 @@ type instanceStatus struct {
 // Ec2Instance Running instance
 type Ec2Instance struct {
 	*awsWrapper
-	client         *ec2.EC2
+	client         *ec2.Client
 	NodeIndex      int
 	InstanceName   string
 	PrivateDNSName string
-	InstanceID     *string
-	Region         *string
-	Zone           *string
+	InstanceID     string
+	Region         string
+	Zone           string
 	AddressIP      *string
 }
 
@@ -76,23 +78,22 @@ func isAwsProfileValid(filename, profile string) bool {
 	return credentialsFileExists(filename)
 }
 
-func newSessionWithOptions(accessKey, secretKey, token, filename, profile, region string) (*session.Session, error) {
-	var cred *credentials.Credentials
-
+func newSessionWithOptions(accessKey, secretKey, token, filename, profile, region string) (cfg aws.Config, err error) {
 	if isAwsProfileValid(filename, profile) {
-		cred = credentials.NewSharedCredentials(filename, profile)
-	} else if !isNullOrEmpty(accessKey) && !isNullOrEmpty(secretKey) {
-		cred = credentials.NewStaticCredentials(accessKey, secretKey, token)
+		cfg, err = config.LoadDefaultConfig(context.TODO(), config.WithSharedConfigProfile(profile), config.WithSharedConfigFiles([]string{filename}))
 	} else {
-		cred = nil
+		var cred aws.CredentialsProvider
+
+		if !isNullOrEmpty(accessKey) && !isNullOrEmpty(secretKey) {
+			cred = credentials.NewStaticCredentialsProvider(accessKey, secretKey, token)
+		} else {
+			cred = ec2rolecreds.New()
+		}
+
+		cfg, err = config.LoadDefaultConfig(context.TODO(), config.WithRegion(region), config.WithCredentialsProvider(aws.NewCredentialsCache(cred)))
 	}
 
-	config := aws.Config{
-		Credentials: cred,
-		Region:      aws.String(region),
-	}
-
-	return session.NewSession(&config)
+	return
 }
 
 func (status *instanceStatus) Address() string {
@@ -103,15 +104,15 @@ func (status *instanceStatus) Powered() bool {
 	return status.powered
 }
 
-func (instance *Ec2Instance) getInstanceID() string {
-	if instance.InstanceID == nil {
-		return "<UNDEFINED>"
-	} else {
-		return *instance.InstanceID
-	}
+func (instance *Ec2Instance) getTimeout() time.Duration {
+	return instance.Timeout * time.Second
 }
 
-func (instance *Ec2Instance) getEc2Instance() (*ec2.Instance, error) {
+func (instance *Ec2Instance) getInstanceID() string {
+	return instance.InstanceID
+}
+
+func (instance *Ec2Instance) getEc2Instance() (*types.Instance, error) {
 	var err error
 	var result *ec2.DescribeInstancesOutput
 
@@ -119,12 +120,12 @@ func (instance *Ec2Instance) getEc2Instance() (*ec2.Instance, error) {
 	defer ctx.Cancel()
 
 	input := &ec2.DescribeInstancesInput{
-		InstanceIds: []*string{
+		InstanceIds: []string{
 			instance.InstanceID,
 		},
 	}
 
-	if result, err = instance.client.DescribeInstancesWithContext(ctx, input); err != nil {
+	if result, err = instance.client.DescribeInstances(ctx, input); err != nil {
 		return nil, err
 	}
 
@@ -132,7 +133,7 @@ func (instance *Ec2Instance) getEc2Instance() (*ec2.Instance, error) {
 		return nil, fmt.Errorf(constantes.ErrVMNotFound, instance.InstanceName)
 	}
 
-	return result.Reservations[0].Instances[0], nil
+	return &result.Reservations[0].Instances[0], nil
 }
 
 // NewContext create instance context
@@ -148,9 +149,9 @@ func (instance *Ec2Instance) NewContextWithTimeout(timeout time.Duration) *conte
 func (instance *Ec2Instance) WaitForIP(callback providers.CallbackWaitSSHReady) (string, error) {
 	glog.Debugf("WaitForIP: instance %s id (%s)", instance.InstanceName, instance.getInstanceID())
 
-	if err := context.PollImmediate(time.Second, instance.Timeout*time.Second, func() (bool, error) {
+	if err := context.PollImmediate(time.Second, instance.getTimeout(), func() (bool, error) {
 		var err error
-		var ec2Instance *ec2.Instance
+		var ec2Instance *types.Instance
 
 		if ec2Instance, err = instance.getEc2Instance(); err != nil {
 			return false, err
@@ -174,7 +175,7 @@ func (instance *Ec2Instance) WaitForIP(callback providers.CallbackWaitSSHReady) 
 
 			return true, nil
 		} else if code != 0 {
-			return false, fmt.Errorf(constantes.ErrWrongStateMachine, *ec2Instance.State.Name, instance.InstanceName, "pending")
+			return false, fmt.Errorf(constantes.ErrWrongStateMachine, ec2Instance.State.Name, instance.InstanceName, "pending")
 		}
 
 		return false, nil
@@ -187,64 +188,42 @@ func (instance *Ec2Instance) WaitForIP(callback providers.CallbackWaitSSHReady) 
 
 // WaitForPowered wait ip a VM by name
 func (instance *Ec2Instance) WaitForPowered() error {
-
 	glog.Debugf("WaitForPowered: instance %s id (%s)", instance.InstanceName, instance.getInstanceID())
 
-	return context.PollImmediate(time.Second, instance.Timeout*time.Second, func() (bool, error) {
-		var err error
-		var ec2Instance *ec2.Instance
-
-		if ec2Instance, err = instance.getEc2Instance(); err != nil {
-			glog.Debugf("WaitForPowered: instance %s id (%s), got an error %v", instance.InstanceName, instance.getInstanceID(), err)
-
-			return false, err
-		}
-
-		var code int64 = *ec2Instance.State.Code
-
-		if code != 16 {
-			if code == 0 {
-				return false, nil
-			}
-
-			glog.Debugf("WaitForPowered: instance %s id (%s), unexpected state: %d", instance.InstanceName, instance.getInstanceID(), code)
-
-			return false, fmt.Errorf(constantes.ErrWrongStateMachine, *ec2Instance.State.Name, instance.InstanceName, "running")
-		}
-
-		glog.Debugf("WaitForPowered: ready instance %s id (%s)", instance.InstanceName, instance.getInstanceID())
-
-		return true, nil
-	})
+	return ec2.NewInstanceRunningWaiter(instance.client).Wait(context.Background(), &ec2.DescribeInstancesInput{
+		InstanceIds: []string{
+			instance.InstanceID,
+		},
+	},
+		instance.getTimeout(),
+	)
 }
 
-func (instance *Ec2Instance) buildNetworkInterfaces(desiredENI *UserDefinedNetworkInterface) ([]*ec2.InstanceNetworkInterfaceSpecification, error) {
-	var err error
-
+func (instance *Ec2Instance) buildNetworkInterfaces(desiredENI *UserDefinedNetworkInterface) (interfaces []types.InstanceNetworkInterfaceSpecification, err error) {
 	if desiredENI != nil {
 		var privateIPAddress *string
 		var subnetID *string
-		var securityGroup *string
+		var securityGroup []string
 		var deleteOnTermination bool
 		var networkInterfaceId *string
 
 		if len(desiredENI.PrivateAddress) > 0 {
-			privateIPAddress = aws.String(desiredENI.PrivateAddress)
+			privateIPAddress = &desiredENI.PrivateAddress
 
 			var output *ec2.DescribeNetworkInterfacesOutput
 			var input = ec2.DescribeNetworkInterfacesInput{
-				Filters: []*ec2.Filter{
+				Filters: []types.Filter{
 					{
 						Name: aws.String("addresses.private-ip-address"),
-						Values: []*string{
-							privateIPAddress,
+						Values: []string{
+							desiredENI.PrivateAddress,
 						},
 					},
 				},
 			}
 
 			// Check if associated with ENI
-			if output, err = instance.client.DescribeNetworkInterfaces(&input); err != nil {
+			if output, err = instance.client.DescribeNetworkInterfaces(context.TODO(), &input); err != nil {
 				if len(output.NetworkInterfaces) > 0 {
 					privateIPAddress = nil
 					desiredENI.NetworkInterfaceID = *output.NetworkInterfaces[0].NetworkInterfaceId
@@ -265,51 +244,58 @@ func (instance *Ec2Instance) buildNetworkInterfaces(desiredENI *UserDefinedNetwo
 			}
 
 			if len(desiredENI.SecurityGroupID) > 0 {
-				securityGroup = aws.String(desiredENI.SecurityGroupID)
-			} else {
-				securityGroup = aws.String(instance.Network.ENI[0].SecurityGroupID)
+				securityGroup = []string{
+					desiredENI.SecurityGroupID,
+				}
+			} else if len(instance.Network.ENI[0].SecurityGroupID) > 0 {
+				securityGroup = []string{
+					instance.Network.ENI[0].SecurityGroupID,
+				}
 			}
 		}
 
-		return []*ec2.InstanceNetworkInterfaceSpecification{
+		interfaces = []types.InstanceNetworkInterfaceSpecification{
 			{
 				AssociatePublicIpAddress: aws.Bool(desiredENI.PublicIP),
 				DeleteOnTermination:      aws.Bool(deleteOnTermination),
 				Description:              aws.String(instance.InstanceName),
-				DeviceIndex:              aws.Int64(0),
+				DeviceIndex:              aws.Int32(0),
 				SubnetId:                 subnetID,
 				NetworkInterfaceId:       networkInterfaceId,
 				PrivateIpAddress:         privateIPAddress,
-				Groups: []*string{
-					securityGroup,
-				},
+				Groups:                   securityGroup,
 			},
-		}, nil
+		}
 
 	} else if len(instance.Network.ENI) > 0 {
-		interfaces := make([]*ec2.InstanceNetworkInterfaceSpecification, len(instance.Network.ENI))
+		interfaces = make([]types.InstanceNetworkInterfaceSpecification, len(instance.Network.ENI))
 
 		for index, eni := range instance.Network.ENI {
-			inf := &ec2.InstanceNetworkInterfaceSpecification{
+			var securityGroup []string
+
+			if len(eni.SecurityGroupID) > 0 {
+				securityGroup = []string{
+					eni.SecurityGroupID,
+				}
+			}
+
+			interfaces[index] = types.InstanceNetworkInterfaceSpecification{
 				AssociatePublicIpAddress: aws.Bool(eni.PublicIP),
 				DeleteOnTermination:      aws.Bool(true),
 				Description:              aws.String(instance.InstanceName),
-				DeviceIndex:              aws.Int64(int64(index)),
+				DeviceIndex:              aws.Int32(int32(index)),
 				SubnetId:                 aws.String(eni.GetNextSubnetsID(instance.NodeIndex)),
-				Groups: []*string{
-					aws.String(eni.SecurityGroupID),
-				},
+				Groups:                   securityGroup,
 			}
-			interfaces[index] = inf
 		}
-
-		return interfaces, nil
 	} else {
-		return nil, fmt.Errorf("unable create worker node, any network interface defined")
+		err = fmt.Errorf("unable create worker node, any network interface defined")
 	}
+
+	return
 }
 
-func (instance *Ec2Instance) buildBlockDeviceMappings(diskType string, diskSize int) ([]*ec2.BlockDeviceMapping, error) {
+func (instance *Ec2Instance) buildBlockDeviceMappings(diskType types.VolumeType, diskSize int) (devices []types.BlockDeviceMapping) {
 	if diskSize > 0 || len(diskType) > 0 {
 		if diskSize == 0 {
 			diskSize = 10
@@ -321,37 +307,35 @@ func (instance *Ec2Instance) buildBlockDeviceMappings(diskType string, diskSize 
 			diskType = "gp3"
 		}
 
-		ebs := &ec2.BlockDeviceMapping{
-			DeviceName: aws.String("/dev/sda1"),
-			Ebs: &ec2.EbsBlockDevice{
-				DeleteOnTermination: aws.Bool(true),
-				VolumeType:          aws.String(diskType),
-				VolumeSize:          aws.Int64(int64(diskSize)),
+		devices = []types.BlockDeviceMapping{
+			{
+				DeviceName: aws.String("/dev/sda1"),
+				Ebs: &types.EbsBlockDevice{
+					DeleteOnTermination: aws.Bool(true),
+					VolumeType:          diskType,
+					VolumeSize:          aws.Int32(int32(diskSize)),
+				},
 			},
 		}
-
-		return []*ec2.BlockDeviceMapping{
-			ebs,
-		}, nil
 	}
 
-	return nil, nil
+	return
 }
 
-func (instance *Ec2Instance) buildTagSpecifications(nodeGroup string) ([]*ec2.TagSpecification, error) {
-	instanceTags := make([]*ec2.Tag, 0, len(instance.Tags)+3)
+func (instance *Ec2Instance) buildTagSpecifications(nodeGroup string) []types.TagSpecification {
+	instanceTags := make([]types.Tag, 0, len(instance.Tags)+3)
 
-	instanceTags = append(instanceTags, &ec2.Tag{
+	instanceTags = append(instanceTags, types.Tag{
 		Key:   aws.String("Name"),
 		Value: aws.String(instance.InstanceName),
 	})
 
-	instanceTags = append(instanceTags, &ec2.Tag{
+	instanceTags = append(instanceTags, types.Tag{
 		Key:   aws.String("NodeGroup"),
 		Value: aws.String(nodeGroup),
 	})
 
-	instanceTags = append(instanceTags, &ec2.Tag{
+	instanceTags = append(instanceTags, types.Tag{
 		Key:   aws.String("NodeIndex"),
 		Value: aws.String(strconv.Itoa(instance.NodeIndex)),
 	})
@@ -359,27 +343,31 @@ func (instance *Ec2Instance) buildTagSpecifications(nodeGroup string) ([]*ec2.Ta
 	// Add tags
 	if instance.Tags != nil && len(instance.Tags) > 0 {
 		for _, tag := range instance.Tags {
-			instanceTags = append(instanceTags, &ec2.Tag{
+			instanceTags = append(instanceTags, types.Tag{
 				Key:   aws.String(tag.Key),
 				Value: aws.String(tag.Value),
 			})
 		}
 	}
 
-	return []*ec2.TagSpecification{
+	return []types.TagSpecification{
 		{
-			ResourceType: aws.String(ec2.ResourceTypeInstance),
+			ResourceType: types.ResourceTypeInstance,
 			Tags:         instanceTags,
 		},
-	}, nil
+	}
 
 }
 
 // Create will create a named VM not powered
 // memory and disk are in megabytes
-func (instance *Ec2Instance) Create(nodeGroup, instanceType string, userData *string, diskType string, diskSize int, desiredENI *UserDefinedNetworkInterface) error {
-	var err error
-	var result *ec2.Reservation
+func (instance *Ec2Instance) Create(nodeGroup string, instanceType types.InstanceType, userData string, diskType types.VolumeType, diskSize int, desiredENI *UserDefinedNetworkInterface) (err error) {
+	var result *ec2.RunInstancesOutput
+	var pUserData *string
+
+	if userData != "" {
+		pUserData = &userData
+	}
 
 	glog.Debugf("Create: instance name %s in node group %s", instance.InstanceName, nodeGroup)
 
@@ -387,88 +375,73 @@ func (instance *Ec2Instance) Create(nodeGroup, instanceType string, userData *st
 	if instance.Exists(instance.InstanceName) {
 		glog.Debugf("Create: instance name %s already exists", instance.InstanceName)
 
-		return fmt.Errorf(constantes.ErrCantCreateVMAlreadyExist, instance.InstanceName)
+		err = fmt.Errorf(constantes.ErrCantCreateVMAlreadyExist, instance.InstanceName)
+	} else {
+		ctx := instance.NewContext()
+		defer ctx.Cancel()
+
+		metadataOptions := &types.InstanceMetadataOptionsRequest{
+			HttpEndpoint:            instance.MetadataOptions.HttpEndpoint,
+			HttpTokens:              instance.MetadataOptions.HttpTokens,
+			HttpPutResponseHopLimit: &instance.MetadataOptions.HttpPutResponseHopLimit,
+			InstanceMetadataTags:    instance.MetadataOptions.InstanceMetadataTags,
+		}
+
+		iamInstanceProfile := &types.IamInstanceProfileSpecification{
+			Arn: &instance.IamRole,
+		}
+
+		input := &ec2.RunInstancesInput{
+			InstanceType:                      instanceType,
+			ImageId:                           aws.String(instance.ImageID),
+			KeyName:                           aws.String(instance.KeyName),
+			InstanceInitiatedShutdownBehavior: types.ShutdownBehaviorStop,
+			MaxCount:                          aws.Int32(1),
+			MinCount:                          aws.Int32(1),
+			UserData:                          pUserData,
+			MetadataOptions:                   metadataOptions,
+			IamInstanceProfile:                iamInstanceProfile,
+			TagSpecifications:                 instance.buildTagSpecifications(nodeGroup),
+			BlockDeviceMappings:               instance.buildBlockDeviceMappings(diskType, diskSize),
+		}
+
+		// Add ENI
+		if input.NetworkInterfaces, err = instance.buildNetworkInterfaces(desiredENI); err == nil {
+
+			if result, err = instance.client.RunInstances(ctx, input); err == nil {
+				instance.Region = instance.awsWrapper.Region
+				instance.Zone = *result.Instances[0].Placement.AvailabilityZone
+				instance.InstanceID = *result.Instances[0].InstanceId
+				instance.PrivateDNSName = *result.Instances[0].PrivateDnsName
+			}
+		}
 	}
 
-	ctx := instance.NewContext()
-	defer ctx.Cancel()
-
-	metadataOptions := &ec2.InstanceMetadataOptionsRequest{
-		HttpEndpoint:            instance.MetadataOptions.HttpEndpoint,
-		HttpTokens:              instance.MetadataOptions.HttpTokens,
-		HttpPutResponseHopLimit: instance.MetadataOptions.HttpPutResponseHopLimit,
-		InstanceMetadataTags:    instance.MetadataOptions.InstanceMetadataTags,
-	}
-
-	iamInstanceProfile := &ec2.IamInstanceProfileSpecification{
-		Arn: &instance.IamRole,
-	}
-
-	input := &ec2.RunInstancesInput{
-		InstanceType:                      aws.String(instanceType),
-		ImageId:                           aws.String(instance.ImageID),
-		KeyName:                           aws.String(instance.KeyName),
-		InstanceInitiatedShutdownBehavior: aws.String(ec2.ShutdownBehaviorStop),
-		MaxCount:                          aws.Int64(1),
-		MinCount:                          aws.Int64(1),
-		UserData:                          userData,
-		MetadataOptions:                   metadataOptions,
-		IamInstanceProfile:                iamInstanceProfile,
-	}
-
-	// Add tags
-	if input.TagSpecifications, err = instance.buildTagSpecifications(nodeGroup); err != nil {
-		return err
-	}
-
-	// Add ENI
-	if input.NetworkInterfaces, err = instance.buildNetworkInterfaces(desiredENI); err != nil {
-		return err
-	}
-
-	// Add Block device
-	if input.BlockDeviceMappings, err = instance.buildBlockDeviceMappings(diskType, diskSize); err != nil {
-		return err
-	}
-
-	if result, err = instance.client.RunInstancesWithContext(ctx, input); err != nil {
-		return err
-	}
-
-	instance.Region = aws.String(instance.awsWrapper.Region)
-	instance.Zone = result.Instances[0].Placement.AvailabilityZone
-	instance.InstanceID = result.Instances[0].InstanceId
-	instance.PrivateDNSName = *result.Instances[0].PrivateDnsName
-
-	return nil
+	return
 }
 
-func (instance *Ec2Instance) delete(wait bool) error {
-	ctx := instance.NewContext()
-	defer ctx.Cancel()
-
+func (instance *Ec2Instance) delete(wait bool) (err error) {
 	glog.Debugf("Delete: instance %s id (%s)", instance.InstanceName, instance.getInstanceID())
 
 	input := &ec2.TerminateInstancesInput{
-		InstanceIds: []*string{
+		InstanceIds: []string{
 			instance.InstanceID,
 		},
 	}
 
-	if _, err := instance.client.TerminateInstancesWithContext(ctx, input); err != nil {
-		return err
-	}
-
-	if wait {
-		return instance.client.WaitUntilInstanceTerminated(&ec2.DescribeInstancesInput{
-			InstanceIds: []*string{
-				instance.InstanceID,
+	if _, err = instance.client.TerminateInstances(context.Background(), input); err == nil {
+		if wait {
+			err = ec2.NewInstanceTerminatedWaiter(instance.client).Wait(context.Background(), &ec2.DescribeInstancesInput{
+				InstanceIds: []string{
+					instance.InstanceID,
+				},
 			},
-		})
-
+				instance.getTimeout(),
+			)
+		}
 	}
 
-	return nil
+	return
 }
 
 // Delete a VM by name and don't wait for terminated status
@@ -487,7 +460,7 @@ func (instance *Ec2Instance) PowerOn() error {
 
 	ctx := instance.NewContext()
 	input := &ec2.StartInstancesInput{
-		InstanceIds: []*string{
+		InstanceIds: []string{
 			instance.InstanceID,
 		},
 	}
@@ -496,15 +469,15 @@ func (instance *Ec2Instance) PowerOn() error {
 
 	glog.Debugf("PowerOn: instance %s id (%s)", instance.InstanceName, instance.getInstanceID())
 
-	if _, err = instance.client.StartInstancesWithContext(ctx, input); err == nil {
+	if _, err = instance.client.StartInstances(ctx, input); err == nil {
 		// Wait start is effective
 		input := &ec2.DescribeInstancesInput{
-			InstanceIds: []*string{
+			InstanceIds: []string{
 				instance.InstanceID,
 			},
 		}
 
-		if err = instance.client.WaitUntilInstanceRunning(input); err == nil {
+		if err = ec2.NewInstanceRunningWaiter(instance.client).Wait(context.Background(), input, instance.getTimeout()); err == nil {
 			if ec2Instance, err := instance.getEc2Instance(); err == nil {
 				if ec2Instance.PublicIpAddress != nil {
 					instance.AddressIP = ec2Instance.PublicIpAddress
@@ -521,34 +494,29 @@ func (instance *Ec2Instance) PowerOn() error {
 	return err
 }
 
-func (instance *Ec2Instance) powerOff(force bool) error {
-	var err error
-
-	ctx := instance.NewContext()
+func (instance *Ec2Instance) powerOff(force bool) (err error) {
 	input := &ec2.StopInstancesInput{
 		Force: &force,
-		InstanceIds: []*string{
+		InstanceIds: []string{
 			instance.InstanceID,
 		},
 	}
 
-	defer ctx.Cancel()
-
 	glog.Debugf("powerOff: instance %s id (%s)", instance.InstanceName, instance.getInstanceID())
 
-	if _, err = instance.client.StopInstancesWithContext(ctx, input); err == nil {
+	if _, err = instance.client.StopInstances(context.Background(), input); err == nil {
 		input := &ec2.DescribeInstancesInput{
-			InstanceIds: []*string{
+			InstanceIds: []string{
 				instance.InstanceID,
 			},
 		}
 
-		err = instance.client.WaitUntilInstanceStopped(input)
+		err = ec2.NewInstanceStoppedWaiter(instance.client).Wait(context.Background(), input, instance.getTimeout())
 	} else {
 		glog.Debugf("powerOff: instance %s id (%s), got error %v", instance.InstanceName, instance.getInstanceID(), err)
 	}
 
-	return err
+	return
 }
 
 // PowerOff power off a VM by name
@@ -562,14 +530,12 @@ func (instance *Ec2Instance) ShutdownGuest() error {
 }
 
 // Status return the current status of VM by name
-func (instance *Ec2Instance) Status() (providers.InstanceStatus, error) {
+func (instance *Ec2Instance) Status() (status providers.InstanceStatus, err error) {
+	var ec2Instance *types.Instance
 
 	glog.Debugf("Status: instance %s id (%s)", instance.InstanceName, instance.getInstanceID())
 
-	if ec2Instance, err := instance.getEc2Instance(); err != nil {
-		return nil, err
-	} else {
-
+	if ec2Instance, err = instance.getEc2Instance(); err == nil {
 		var address *string
 
 		code := ec2Instance.State.Code
@@ -577,7 +543,7 @@ func (instance *Ec2Instance) Status() (providers.InstanceStatus, error) {
 		if code == nil || *code == 48 {
 			glog.Debugf("Status: instance %s id (%s) is terminated", instance.InstanceName, instance.getInstanceID())
 
-			return nil, fmt.Errorf("EC2 Instance %s is terminated", instance.InstanceName)
+			err = fmt.Errorf("EC2 Instance %s is terminated", instance.InstanceName)
 		} else if *code == 16 || *code == 0 {
 			if ec2Instance.PublicIpAddress != nil {
 				address = ec2Instance.PublicIpAddress
@@ -585,61 +551,76 @@ func (instance *Ec2Instance) Status() (providers.InstanceStatus, error) {
 				address = ec2Instance.PrivateIpAddress
 			}
 
-			return &instanceStatus{
+			status = &instanceStatus{
 				address: *address,
 				powered: *code == 16 || *code == 0,
-			}, nil
-		} else {
-			return &instanceStatus{}, nil
-		}
-	}
-}
-
-func (instance *Ec2Instance) getRegisteredRecordSetAddress(name string) (*string, error) {
-	if session, e := newSessionWithOptions(instance.GetRoute53AccessKey(), instance.GetRoute53SecretKey(), instance.GetRoute53AccessToken(), instance.GetFileName(), instance.GetRoute53Profile(), instance.GetRoute53Region()); e == nil {
-		svc := route53.New(session)
-
-		input := &route53.ListResourceRecordSetsInput{
-			HostedZoneId:    aws.String(instance.Network.Route53.ZoneID),
-			MaxItems:        aws.String("1"),
-			StartRecordName: aws.String(name),
-			StartRecordType: aws.String("A"),
-		}
-
-		if output, err := svc.ListResourceRecordSets(input); err == nil {
-			if len(output.ResourceRecordSets) > 0 && len(output.ResourceRecordSets[0].ResourceRecords) > 0 {
-				return output.ResourceRecordSets[0].ResourceRecords[0].Value, nil
-			} else {
-				return nil, fmt.Errorf("route53 entry: %s not found", name)
 			}
 		} else {
-			return nil, err
+			status = &instanceStatus{
+				powered: false,
+			}
 		}
-	} else {
-		return nil, e
 	}
+
+	return
 }
 
-func (instance *Ec2Instance) changeResourceRecordSetsInput(cmd, name, address string, wait bool) error {
-	var svc *route53.Route53
+func (instance *Ec2Instance) route53Client() (client *route53.Client, err error) {
+	var cfg aws.Config
 
-	if session, e := newSessionWithOptions(instance.GetRoute53AccessKey(), instance.GetRoute53SecretKey(), instance.GetRoute53AccessToken(), instance.GetFileName(), instance.GetRoute53Profile(), instance.GetRoute53Region()); e != nil {
-		return e
-	} else {
-		svc = route53.New(session)
+	if cfg, err = newSessionWithOptions(instance.GetRoute53AccessKey(), instance.GetRoute53SecretKey(), instance.GetRoute53AccessToken(), instance.GetFileName(), instance.GetRoute53Profile(), instance.GetRoute53Region()); err == nil {
+		client = route53.NewFromConfig(cfg, func(o *route53.Options) {
+			if glog.GetLevel() >= glog.TraceLevel {
+				o.Logger = instance
+				o.ClientLogMode = aws.LogSigning | aws.LogRequest | aws.LogResponse
+			}
+		})
+	}
+
+	return
+}
+
+func (instance *Ec2Instance) getRegisteredRecordSetAddress(name string) (address *string, err error) {
+	var client *route53.Client
+
+	if client, err = instance.route53Client(); err == nil {
+		input := &route53.ListResourceRecordSetsInput{
+			HostedZoneId:    aws.String(instance.Network.Route53.ZoneID),
+			MaxItems:        aws.Int32(1),
+			StartRecordName: aws.String(name),
+			StartRecordType: route53types.RRTypeA,
+		}
+
+		if output, err := client.ListResourceRecordSets(context.TODO(), input); err == nil {
+			if len(output.ResourceRecordSets) > 0 && len(output.ResourceRecordSets[0].ResourceRecords) > 0 {
+				address = output.ResourceRecordSets[0].ResourceRecords[0].Value
+			} else {
+				err = fmt.Errorf("route53 entry: %s not found", name)
+			}
+		}
+	}
+
+	return
+}
+
+func (instance *Ec2Instance) changeResourceRecordSetsInput(cmd route53types.ChangeAction, name, address string, wait bool) (err error) {
+	var client *route53.Client
+
+	if client, err = instance.route53Client(); err == nil {
+		var result *route53.ChangeResourceRecordSetsOutput
 
 		input := &route53.ChangeResourceRecordSetsInput{
 			HostedZoneId: aws.String(instance.Network.Route53.ZoneID),
-			ChangeBatch: &route53.ChangeBatch{
+			ChangeBatch: &route53types.ChangeBatch{
 				Comment: aws.String("Kubernetes worker node"),
-				Changes: []*route53.Change{
+				Changes: []route53types.Change{
 					{
-						Action: aws.String(cmd),
-						ResourceRecordSet: &route53.ResourceRecordSet{
+						Action: cmd,
+						ResourceRecordSet: &route53types.ResourceRecordSet{
 							Name: aws.String(name),
 							TTL:  aws.Int64(60),
-							Type: aws.String("A"),
-							ResourceRecords: []*route53.ResourceRecord{
+							Type: route53types.RRTypeA,
+							ResourceRecords: []route53types.ResourceRecord{
 								{
 									Value: aws.String(address),
 								},
@@ -650,41 +631,18 @@ func (instance *Ec2Instance) changeResourceRecordSetsInput(cmd, name, address st
 			},
 		}
 
-		result, err := svc.ChangeResourceRecordSets(input)
-
-		if err != nil {
-			const format = "%s, %v"
-
-			if aerr, ok := err.(awserr.Error); ok {
-				switch aerr.Code() {
-				case route53.ErrCodeNoSuchHostedZone:
-					return fmt.Errorf(format, route53.ErrCodeNoSuchHostedZone, aerr.Error())
-				case route53.ErrCodeNoSuchHealthCheck:
-					return fmt.Errorf(format, route53.ErrCodeNoSuchHealthCheck, aerr.Error())
-				case route53.ErrCodeInvalidChangeBatch:
-					return fmt.Errorf(format, route53.ErrCodeInvalidChangeBatch, aerr.Error())
-				case route53.ErrCodeInvalidInput:
-					return fmt.Errorf(format, route53.ErrCodeInvalidInput, aerr.Error())
-				case route53.ErrCodePriorRequestNotComplete:
-					return fmt.Errorf(format, route53.ErrCodePriorRequestNotComplete, aerr.Error())
-				default:
-					return aerr
+		if result, err = client.ChangeResourceRecordSets(context.Background(), input); err == nil {
+			if wait {
+				input := &route53.GetChangeInput{
+					Id: result.ChangeInfo.Id,
 				}
-			} else {
-				return err
+
+				err = route53.NewResourceRecordSetsChangedWaiter(client).Wait(context.Background(), input, instance.getTimeout())
 			}
 		}
-
-		if wait {
-			input := &route53.GetChangeInput{
-				Id: result.ChangeInfo.Id,
-			}
-
-			return svc.WaitUntilResourceRecordSetsChanged(input)
-		}
-
-		return nil
 	}
+
+	return
 }
 
 // RegisterDNS register EC2 instance in Route53
