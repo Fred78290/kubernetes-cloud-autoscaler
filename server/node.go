@@ -302,7 +302,7 @@ func (vm *AutoScalerServerNode) WaitSSHReady(nodename, address string) error {
 	return context.PollImmediate(time.Second, time.Duration(config.SSH.WaitSshReadyInSeconds)*time.Second, func() (bool, error) {
 		// Set hostname
 		if _, err := utils.Sudo(config.SSH, address, time.Second, fmt.Sprintf("hostnamectl set-hostname %s", nodename)); err != nil {
-			if strings.HasSuffix(err.Error(), "connection refused") || strings.HasSuffix(err.Error(), "i/o timeout") {
+			if strings.HasSuffix(err.Error(), "connection refused") || strings.HasSuffix(err.Error(), "i/o timeout") || strings.Contains(err.Error(), "handshake failed") || strings.Contains(err.Error(), "connect: no route to host") {
 				return false, nil
 			}
 

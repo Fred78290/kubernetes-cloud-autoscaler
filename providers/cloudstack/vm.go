@@ -85,14 +85,6 @@ func (instance *ServerInstance) WaitForIP(callback providers.CallbackWaitSSHRead
 			if err = callback.WaitSSHReady(instance.InstanceName, instance.AddressIP); err == nil {
 				return true, nil
 			}
-
-			// Wait that VM router handle correctly the traffic
-			if strings.Contains(err.Error(), "handshake failed") || strings.Contains(err.Error(), "connect: no route to host") {
-				err = nil
-			}
-			if err != nil {
-				glog.Error(err)
-			}
 		}
 
 		return false, err
