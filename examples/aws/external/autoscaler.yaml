@@ -1746,7 +1746,7 @@ data:
         "http-endpoint": "enabled",
         "http-protocol-ipv6": "enabled",
         "http-put-responsehop-limit": 2,
-        "http-tokens": "optional",
+        "http-tokens": "required",
         "instance-metadata-tags": "enabled"
       },
       "network": {
