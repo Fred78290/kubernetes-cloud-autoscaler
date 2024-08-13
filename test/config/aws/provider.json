@@ -13,6 +13,13 @@
 			"value": "CustomValue"
 		}
 	],
+	"metadata-options": {
+		"http-endpoint": "enabled",
+		"http-protocol-ipv6": "enabled",
+		"http-put-responsehop-limit": 2,
+		"http-tokens": "required",
+		"instance-metadata-tags": "enabled"
+	},
 	"network": {
 		"route53": {
 			"zoneID": "${AWS_ROUTE53_ZONEID}",
