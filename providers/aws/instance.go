@@ -80,13 +80,19 @@ func isAwsProfileValid(filename, profile string) bool {
 
 func newSessionWithOptions(accessKey, secretKey, token, filename, profile, region string) (cfg aws.Config, err error) {
 	if isAwsProfileValid(filename, profile) {
+		glog.Debugf("aws credentials with profile: %s, credentials: %s", profile, filename)
+
 		cfg, err = config.LoadDefaultConfig(context.TODO(), config.WithSharedConfigProfile(profile), config.WithSharedConfigFiles([]string{filename}))
 	} else {
 		var cred aws.CredentialsProvider
 
 		if !isNullOrEmpty(accessKey) && !isNullOrEmpty(secretKey) {
+			glog.Debugf("aws credentials with accesskey: %s, secret: %s", accessKey, secretKey)
+
 			cred = credentials.NewStaticCredentialsProvider(accessKey, secretKey, token)
 		} else {
+			glog.Debugf("aws credentials with ec2rolecreds")
+
 			cred = ec2rolecreds.New()
 		}
 
