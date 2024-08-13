@@ -97,6 +97,8 @@ func newSessionWithOptions(accessKey, secretKey, token, filename, profile, regio
 
 		cfg, err = config.LoadDefaultConfig(context.TODO(), config.WithRegion(region), config.WithCredentialsProvider(aws.NewCredentialsCache(ec2rolecreds.New())))
 	}
+
+	return
 }
 
 func (status *instanceStatus) Address() string {
