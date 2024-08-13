@@ -14,8 +14,8 @@ env:
   IAM_ROLE_ARN: ${{ secrets.IAM_ROLE_ARN }}
   PRIVATE_DOMAIN_NAME: ${{ secrets.PRIVATE_DOMAIN_NAME }}
   ROUTE53_ZONEID: ${{ secrets.ROUTE53_ZONEID }}
-  SEED_IMAGE: ${{ secrets.SEED_IMAGE }}
-  SEED_USER: ${{ secrets.SEED_USER }}
+  SEED_IMAGE: ${{ vars.SEED_IMAGE }}
+  SEED_USER: ${{ vars.SEED_USER }}
   SSH_KEYNAME: ${{ secrets.SSH_KEYNAME }}
   SSH_PRIVATEKEY: ${{ secrets.SSH_PRIVATEKEY }}
   VPC_SECURITY_GROUPID: ${{ secrets.VPC_SECURITY_GROUPID }}
