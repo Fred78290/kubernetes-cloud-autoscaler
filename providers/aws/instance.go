@@ -79,27 +79,24 @@ func isAwsProfileValid(filename, profile string) bool {
 }
 
 func newSessionWithOptions(accessKey, secretKey, token, filename, profile, region string) (cfg aws.Config, err error) {
-	if isAwsProfileValid(filename, profile) {
+	// Unset this variables because LoadDefaultConfig use it when it's not necessary
+	os.Unsetenv("AWS_PROFILE")
+	os.Unsetenv("AWS_SHARED_CREDENTIALS_FILE")
+	os.Unsetenv("AWS_CONFIG_FILE")
+
+	if !isNullOrEmpty(accessKey) && !isNullOrEmpty(secretKey) {
+		glog.Debugf("aws credentials with accesskey: %s, secret: %s", accessKey, secretKey)
+
+		cfg, err = config.LoadDefaultConfig(context.TODO(), config.WithRegion(region), config.WithCredentialsProvider(aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(accessKey, secretKey, token))))
+	} else if isAwsProfileValid(filename, profile) {
 		glog.Debugf("aws credentials with profile: %s, credentials: %s", profile, filename)
 
 		cfg, err = config.LoadDefaultConfig(context.TODO(), config.WithSharedConfigProfile(profile), config.WithSharedConfigFiles([]string{filename}))
 	} else {
-		var cred aws.CredentialsProvider
+		glog.Debugf("aws credentials with ec2rolecreds")
 
-		if !isNullOrEmpty(accessKey) && !isNullOrEmpty(secretKey) {
-			glog.Debugf("aws credentials with accesskey: %s, secret: %s", accessKey, secretKey)
-
-			cred = credentials.NewStaticCredentialsProvider(accessKey, secretKey, token)
-		} else {
-			glog.Debugf("aws credentials with ec2rolecreds")
-
-			cred = ec2rolecreds.New()
-		}
-
-		cfg, err = config.LoadDefaultConfig(context.TODO(), config.WithRegion(region), config.WithCredentialsProvider(aws.NewCredentialsCache(cred)))
+		cfg, err = config.LoadDefaultConfig(context.TODO(), config.WithRegion(region), config.WithCredentialsProvider(aws.NewCredentialsCache(ec2rolecreds.New())))
 	}
-
-	return
 }
 
 func (status *instanceStatus) Address() string {
