@@ -20,7 +20,7 @@ env:
  # SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
   AWS_ACCESSKEY: ${{ secrets.AWS_ACCESSKEY }}
   AWS_PROFILE: ${{ secrets.AWS_PROFILE }}
-  AWS_REGION: ${{ secrets.AWS_REGION }}
+  AWS_REGION: ${{ vars.AWS_REGION }}
   AWS_SECRETKEY: ${{ secrets.AWS_SECRETKEY }}
   IAM_ROLE_ARN: ${{ secrets.IAM_ROLE_ARN }}
   PRIVATE_DOMAIN_NAME: ${{ secrets.PRIVATE_DOMAIN_NAME }}
