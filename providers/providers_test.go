@@ -128,7 +128,9 @@ func (config *configurationTest) WaitSSHReady(nodename, address string) error {
 	return context.PollImmediate(time.Second, time.Duration(config.appConfig.SSH.WaitSshReadyInSeconds)*time.Second, func() (done bool, err error) {
 		// Set hostname
 		if _, err := utils.Sudo(&config.appConfig.SSH, address, time.Second, fmt.Sprintf("hostnamectl set-hostname %s", nodename)); err != nil {
-			if strings.HasSuffix(err.Error(), "connection refused") || strings.HasSuffix(err.Error(), "i/o timeout") {
+			errMessage := err.Error()
+
+			if strings.HasSuffix(errMessage, "connection refused") || strings.HasSuffix(errMessage, "i/o timeout") || strings.Contains(errMessage, "handshake failed: EOF") || strings.Contains(errMessage, "connect: no route to host") {
 				return false, nil
 			}
 
