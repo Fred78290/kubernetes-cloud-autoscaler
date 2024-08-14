@@ -17,7 +17,7 @@ on:
 env:
   REGISTRY: ${{ secrets.REGISTRY }}
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
- # SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
   AWS_ACCESSKEY: ${{ secrets.AWS_ACCESSKEY }}
   AWS_PROFILE: ${{ secrets.AWS_PROFILE }}
   AWS_REGION: ${{ vars.AWS_REGION }}
@@ -85,19 +85,18 @@ jobs:
         run: |
           ./test/bin/test.sh
 
-#  sonarcloud:
-#    name: SonarCloud
-#    runs-on: ubuntu-latest
-#    needs: build
-#    steps:
-#      - name: Checkout
-#        uses: actions/checkout@v4
-#        with:
-#          fetch-depth: 0
-
-#      - name: SonarCloud Scan
-#        uses: SonarSource/sonarcloud-github-action@v2.1.0
+  sonarcloud:
+    name: SonarCloud
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@v2.3.0
     
-#      - name: Prepare SonarCloud
-#        shell: bash
-#        run: sudo chown -R $USER .scannerwork
+      - name: Prepare SonarCloud
+        shell: bash
+        run: sudo chown -R $USER .scannerwork
