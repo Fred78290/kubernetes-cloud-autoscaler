@@ -1,10 +1,10 @@
-[![Build Status](https://github.com/Fred78290/kubernetes-cloud-autoscaler/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/Fred78290/Fred78290_kubernetes-cloud-autoscaler/actions)
+[![Build Status](https://github.com/Fred78290/kubernetes-cloud-autoscaler/actions/workflows/build.yml/badge.svg)](https://github.com/Fred78290/kubernetes-cloud-autoscaler/actions/workflows/build.yml)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=Fred78290_kubernetes-cloud-autoscaler&metric=alert_status)](https://sonarcloud.io/dashboard?id=Fred78290_kubernetes-cloud-autoscaler)
 [![Licence](https://img.shields.io/hexpm/l/plug.svg)](https://github.com/Fred78290/kubernetes-cloud-autoscaler/blob/master/LICENSE)
 
 # kubernetes-cloud-autoscaler
 
-Kubernetes cloud autoscaler for **vsphere,aws,multipass,openstack and vmware workstation and vmware fusion** provider including a custom resource controller to create managed node without code
+Kubernetes cloud autoscaler for **vsphere,aws,multipass,openstack,cloudstack and vmware workstation and vmware fusion** provider including a custom resource controller to create managed node without code
 
 ### This project replace [kubernetes-vmware-autoscaler](https://github.com/Fred78290/kubernetes-vmware-autoscaler), [kubernetes-aws-autoscaler](https://github.com/Fred78290/kubernetes-aws-autoscaler), [kubernetes-multipass-autoscaler](https://github.com/Fred78290/kubernetes-multipass-autoscaler), [kubernetes-desktop-autoscaler](https://github.com/Fred78290/kubernetes-desktop-autoscaler).
 
