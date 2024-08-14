@@ -6,9 +6,9 @@
 
 Kubernetes cloud autoscaler for **vsphere,aws,multipass,openstack and vmware workstation and vmware fusion** provider including a custom resource controller to create managed node without code
 
-This autoscaler replace [kubernetes-vmware-autoscaler](https://github.com/Fred78290/kubernetes-vmware-autoscaler), [kubernetes-aws-autoscaler](https://github.com/Fred78290/kubernetes-aws-autoscaler), [kubernetes-multipass-autoscaler](https://github.com/Fred78290/kubernetes-multipass-autoscaler), [kubernetes-desktop-autoscaler](https://github.com/Fred78290/kubernetes-desktop-autoscaler).
+### This project replace [kubernetes-vmware-autoscaler](https://github.com/Fred78290/kubernetes-vmware-autoscaler), [kubernetes-aws-autoscaler](https://github.com/Fred78290/kubernetes-aws-autoscaler), [kubernetes-multipass-autoscaler](https://github.com/Fred78290/kubernetes-multipass-autoscaler), [kubernetes-desktop-autoscaler](https://github.com/Fred78290/kubernetes-desktop-autoscaler).
 
-The autoscaler allow to use different running plateform with different kubernetes distribution 
+The autoscaler allow to use different running plateform with different kubernetes distribution
 
 ## Supported plateform with cloud provider
 
@@ -18,6 +18,7 @@ The autoscaler allow to use different running plateform with different kubernete
 * VMWare Fusion
 * Multipass
 * OpenStack
+* CloudStack
 
 ## Supported kube engine with kubernetes distribution
 
@@ -38,9 +39,9 @@ This tool will drive a cloud provider to deploy VM at the demand. The cluster au
 
 This version use grpc to communicate with the cloud provider hosted outside the pod. A docker image is available here [cluster-autoscaler](https://hub.docker.com/r/fred78290/cluster-autoscaler)
 
-Some samples of the cluster-autoscaler deployment are available at `examples/<plateform>/<kube engine>/cluster-autoscaler.yaml`. You must fill value between <>
+Some samples of the cluster-autoscaler deployment are available at `examples/<plateform>/<kube engine>/autoscaler.yaml`. You must fill value between <>
 
-Example of vsphere deployment with k3s: [examples/vsphere/k3s/cluster-autoscaler.yaml](./examples/vsphere/k3s/cluster-autoscaler.yaml)
+Example of vsphere deployment with k3s: [examples/vsphere/k3s/autoscaler.yaml](./examples/vsphere/k3s/autoscaler.yaml)
 
 ### Before you must create a kubernetes cluster on your plateform
 
@@ -85,31 +86,33 @@ You can do it from scrash or you can use script from project [autoscaled-masterk
 
 The build process use make file. The simplest way to build is `make container`
 
-# New features
+# Supported kube engine
 
-## Use k3s, k3s or external as kubernetes distribution method
+## Use k3s, rke2, microk8s or external as kubernetes distribution method
 
-Instead using **kubeadm** as kubernetes distribution method, it is possible to use **k3s**, **k3s** or **external**
+Instead using **kubeadm** as kubernetes distribution method, it is possible to use **k3s**, **rke2**, **microk8s** or **external**
 
 **external** allow to use custom shell script to join cluster
 
 Samples provided here
 
-* [kubeadm](./examples/vsphere/kubeadm/cluster-autoscaler.yaml)
-* [k3s](./examples/vsphere/k3s/cluster-autoscaler.yaml)
-* [k3s](./examples/vsphere/k3s/cluster-autoscaler.yaml)
-* [external](./examples/vsphere/external/cluster-autoscaler.yaml)
+* [external](./examples/multipass/external/autoscaler-custom.yaml)
+* [k3s](./examples/multipass/k3s/autoscaler-custom.yaml)
+* [kubeadm](./examples/multipass/kubeadm/autoscaler-custom.yaml)
+* [microk8s](./examples/multipass/kubeadm/autoscaler-custom.yaml)
+* [rke2](./examples/multipass/k3s/autoscaler-custom.yaml)
 
 ## Use the vanilla autoscaler with extern gRPC cloud provider
 
 You can also use the vanilla autoscaler with the [externalgrpc cloud provider](https://github.com/kubernetes/autoscaler/tree/master/cluster-autoscaler/cloudprovider/externalgrpc)
 
-Samples of the cluster-autoscaler deployment with vanilla autoscaler. You must fill value between <>
+#### Samples of the cluster-autoscaler deployment with vanilla autoscaler. You must fill value between <>
 
-* [kubeadm](./examples/vsphere/kubeadm/cluster-autoscaler-vanilla.yaml)
-* [k3s](./examples/vsphere/k3s/cluster-autoscaler-vanilla.yaml)
-* [k3s](./examples/vsphere/k3s/cluster-autoscaler-vanilla.yaml)
-* [external](./examples/vsphere/external/cluster-autoscaler-vanilla.yaml)
+* [external](./examples/multipass/external/autoscaler.yaml)
+* [k3s](./examples/multipass/k3s/autoscaler.yaml)
+* [kubeadm](./examples/multipass/kubeadm/autoscaler.yaml)
+* [microk8s](./examples/multipass/kubeadm/autoscaler.yaml)
+* [rke2](./examples/multipass/k3s/autoscaler.yaml)
 
 ## Use external kubernetes distribution
 
@@ -220,28 +223,247 @@ These labels will be added
 
 ## Cloud controller provider compliant
 
-autoscaler will set correctly the node provider id when you use vsphere cpi or aws cloud controller.
+autoscaler will set correctly the node provider id when you use platform cloud controller.
 
 ## CRD controller
 
-This new release include a CRD controller allowing to create kubernetes node without use of govc or code. Just by apply a configuration file, you have the ability to create nodes on the fly.
+This release include a CRD controller allowing to create kubernetes node without use of cli or code. Just by apply a configuration file, you have the ability to create nodes on the fly.
 
-As exemple you can take a look on [artifacts/examples/example.yaml](artifacts/examples/example.yaml) on execute the following command to create a new node
+As example you can take a look on [artifacts/examples](artifacts/examples) on execute the following command to create a new node
+
+|File|Description|
+| --- | --- |
+|`managed-addr.yaml`|Create a managed node with a fixed IP address|
+|`managed-control-plane.yaml`|Create a control-plane node with a fixed IP address |
+|`managed-dhcp.yaml`|Create a managed node with a DHCP address|
+|`managed-nodes.yaml`|Create two managed nodes with a fixed IP address|
+
+#### Create managed node on aws with k3s engine
 
 ```bash
-kubectl apply -f artifacts/examples/example.yaml
+kubectl apply -f artifacts/examples/aws/k3s/managed-addr.yaml
+kubectl apply -f artifacts/examples/aws/k3s/managed-control-plane.yaml
+kubectl apply -f artifacts/examples/aws/k3s/managed-dhcp.yaml
+kubectl apply -f artifacts/examples/aws/k3s/managed-nodes.yaml
+````
+
+#### Create managed node on aws with kubeadm engine
+
+```bash
+kubectl apply -f artifacts/examples/aws/kubeadm/managed-addr.yaml
+kubectl apply -f artifacts/examples/aws/kubeadm/managed-control-plane.yaml
+kubectl apply -f artifacts/examples/aws/kubeadm/managed-dhcp.yaml
+kubectl apply -f artifacts/examples/aws/kubeadm/managed-nodes.yaml
+```
+
+#### Create managed node on aws with microk8s engine
+
+```bash
+kubectl apply -f artifacts/examples/aws/microk8s/managed-addr.yaml
+kubectl apply -f artifacts/examples/aws/microk8s/managed-control-plane.yaml
+kubectl apply -f artifacts/examples/aws/microk8s/managed-dhcp.yaml
+kubectl apply -f artifacts/examples/aws/microk8s/managed-nodes.yaml
+```
+
+#### Create managed node on aws with rke2 engine
+
+```bash
+kubectl apply -f artifacts/examples/aws/rke2/managed-addr.yaml
+kubectl apply -f artifacts/examples/aws/rke2/managed-control-plane.yaml
+kubectl apply -f artifacts/examples/aws/rke2/managed-dhcp.yaml
+kubectl apply -f artifacts/examples/aws/rke2/managed-nodes.yaml
+```
+
+#### Create managed node on cloudstack with k3s engine
+
+```bash
+kubectl apply -f artifacts/examples/cloudstack/k3s/managed-addr.yaml
+kubectl apply -f artifacts/examples/cloudstack/k3s/managed-control-plane.yaml
+kubectl apply -f artifacts/examples/cloudstack/k3s/managed-dhcp.yaml
+kubectl apply -f artifacts/examples/cloudstack/k3s/managed-nodes.yaml
+```
+
+#### Create managed node on cloudstack with kubeadm engine
+
+```bash
+kubectl apply -f artifacts/examples/cloudstack/kubeadm/managed-addr.yaml
+kubectl apply -f artifacts/examples/cloudstack/kubeadm/managed-control-plane.yaml
+kubectl apply -f artifacts/examples/cloudstack/kubeadm/managed-dhcp.yaml
+kubectl apply -f artifacts/examples/cloudstack/kubeadm/managed-nodes.yaml
+```
+
+#### Create managed node on cloudstack with microks8 engine
+
+```bash
+kubectl apply -f artifacts/examples/cloudstack/microk8s/managed-addr.yaml
+kubectl apply -f artifacts/examples/cloudstack/microk8s/managed-control-plane.yaml
+kubectl apply -f artifacts/examples/cloudstack/microk8s/managed-dhcp.yaml
+kubectl apply -f artifacts/examples/cloudstack/microk8s/managed-nodes.yaml
+```
+
+#### Create managed node on cloudstack with rke2 engine
+
+```bash
+kubectl apply -f artifacts/examples/cloudstack/rke2/managed-addr.yaml
+kubectl apply -f artifacts/examples/cloudstack/rke2/managed-control-plane.yaml
+kubectl apply -f artifacts/examples/cloudstack/rke2/managed-dhcp.yaml
+kubectl apply -f artifacts/examples/cloudstack/rke2/managed-nodes.yaml
+```
+
+#### Create managed node on vmware desktop with k3s engine
+
+```bash
+kubectl apply -f artifacts/examples/desktop/k3s/managed-addr.yaml
+kubectl apply -f artifacts/examples/desktop/k3s/managed-control-plane.yaml
+kubectl apply -f artifacts/examples/desktop/k3s/managed-dhcp.yaml
+kubectl apply -f artifacts/examples/desktop/k3s/managed-nodes.yaml
+```
+
+#### Create managed node on vmware desktop with kubeadm engine
+
+```bash
+kubectl apply -f artifacts/examples/desktop/kubeadm/managed-addr.yaml
+kubectl apply -f artifacts/examples/desktop/kubeadm/managed-control-plane.yaml
+kubectl apply -f artifacts/examples/desktop/kubeadm/managed-dhcp.yaml
+kubectl apply -f artifacts/examples/desktop/kubeadm/managed-nodes.yaml
+```
+
+#### Create managed node on vmware desktop with microk8s engine
+
+```bash
+kubectl apply -f artifacts/examples/desktop/microk8s/managed-addr.yaml
+kubectl apply -f artifacts/examples/desktop/microk8s/managed-control-plane.yaml
+kubectl apply -f artifacts/examples/desktop/microk8s/managed-dhcp.yaml
+kubectl apply -f artifacts/examples/desktop/microk8s/managed-nodes.yaml
+```
+
+#### Create managed node on vmware desktop with rke2 engine
+
+```bash
+kubectl apply -f artifacts/examples/desktop/rke2/managed-addr.yaml
+kubectl apply -f artifacts/examples/desktop/rke2/managed-control-plane.yaml
+kubectl apply -f artifacts/examples/desktop/rke2/managed-dhcp.yaml
+kubectl apply -f artifacts/examples/desktop/rke2/managed-nodes.yaml
+```
+
+#### Create managed node on multipass with k3s engine
+
+```bash
+kubectl apply -f artifacts/examples/multipass/k3s/managed-addr.yaml
+kubectl apply -f artifacts/examples/multipass/k3s/managed-control-plane.yaml
+kubectl apply -f artifacts/examples/multipass/k3s/managed-dhcp.yaml
+kubectl apply -f artifacts/examples/multipass/k3s/managed-nodes.yaml
+```
+
+#### Create managed node on multipass with kubeadm engine
+
+```bash
+kubectl apply -f artifacts/examples/multipass/kubeadm/managed-addr.yaml
+kubectl apply -f artifacts/examples/multipass/kubeadm/managed-control-plane.yaml
+kubectl apply -f artifacts/examples/multipass/kubeadm/managed-dhcp.yaml
+kubectl apply -f artifacts/examples/multipass/kubeadm/managed-nodes.yaml
+```
+
+#### Create managed node on multipass with microk8s engine
+
+```bash
+kubectl apply -f artifacts/examples/multipass/microk8s/managed-addr.yaml
+kubectl apply -f artifacts/examples/multipass/microk8s/managed-control-plane.yaml
+kubectl apply -f artifacts/examples/multipass/microk8s/managed-dhcp.yaml
+kubectl apply -f artifacts/examples/multipass/microk8s/managed-nodes.yaml
+```
+
+#### Create managed node on multipass with rke2 engine
+
+```bash
+kubectl apply -f artifacts/examples/multipass/rke2/managed-addr.yaml
+kubectl apply -f artifacts/examples/multipass/rke2/managed-control-plane.yaml
+kubectl apply -f artifacts/examples/multipass/rke2/managed-dhcp.yaml
+kubectl apply -f artifacts/examples/multipass/rke2/managed-nodes.yaml
+```
+
+#### Create managed node on openstack with k3s engine
+
+```bash
+kubectl apply -f artifacts/examples/openstack/k3s/managed-addr.yaml
+kubectl apply -f artifacts/examples/openstack/k3s/managed-control-plane.yaml
+kubectl apply -f artifacts/examples/openstack/k3s/managed-dhcp.yaml
+kubectl apply -f artifacts/examples/openstack/k3s/managed-nodes.yaml
+```
+
+#### Create managed node on openstack with kubeadm engine
+
+```bash
+kubectl apply -f artifacts/examples/openstack/kubeadm/managed-addr.yaml
+kubectl apply -f artifacts/examples/openstack/kubeadm/managed-control-plane.yaml
+kubectl apply -f artifacts/examples/openstack/kubeadm/managed-dhcp.yaml
+kubectl apply -f artifacts/examples/openstack/kubeadm/managed-nodes.yaml
+```
+
+#### Create managed node on openstack with microk8s engine
+
+```bash
+kubectl apply -f artifacts/examples/openstack/microk8s/managed-addr.yaml
+kubectl apply -f artifacts/examples/openstack/microk8s/managed-control-plane.yaml
+kubectl apply -f artifacts/examples/openstack/microk8s/managed-dhcp.yaml
+kubectl apply -f artifacts/examples/openstack/microk8s/managed-nodes.yaml
+```
+
+#### Create managed node on openstack with rke2 engine
+
+```bash
+kubectl apply -f artifacts/examples/openstack/rke2/managed-addr.yaml
+kubectl apply -f artifacts/examples/openstack/rke2/managed-control-plane.yaml
+kubectl apply -f artifacts/examples/openstack/rke2/managed-dhcp.yaml
+kubectl apply -f artifacts/examples/openstack/rke2/managed-nodes.yaml
+```
+
+#### Create managed node on vsphere with k3s engine
+
+```bash
+kubectl apply -f artifacts/examples/vsphere/k3s/managed-addr.yaml
+kubectl apply -f artifacts/examples/vsphere/k3s/managed-control-plane.yaml
+kubectl apply -f artifacts/examples/vsphere/k3s/managed-dhcp.yaml
+kubectl apply -f artifacts/examples/vsphere/k3s/managed-nodes.yaml
+```
+
+#### Create managed node on vsphere with kubeadm engine
+
+```bash
+kubectl apply -f artifacts/examples/vsphere/kubeadm/managed-addr.yaml
+kubectl apply -f artifacts/examples/vsphere/kubeadm/managed-control-plane.yaml
+kubectl apply -f artifacts/examples/vsphere/kubeadm/managed-dhcp.yaml
+kubectl apply -f artifacts/examples/vsphere/kubeadm/managed-nodes.yaml
+```
+
+#### Create managed node on vsphere with microk8s engine
+
+```bash
+kubectl apply -f artifacts/examples/vsphere/microk8s/managed-addr.yaml
+kubectl apply -f artifacts/examples/vsphere/microk8s/managed-control-plane.yaml
+kubectl apply -f artifacts/examples/vsphere/microk8s/managed-dhcp.yaml
+kubectl apply -f artifacts/examples/vsphere/microk8s/managed-nodes.yaml
+```
+
+#### Create managed node on vsphere with rke2 engine
+
+```bash
+kubectl apply -f artifacts/examples/vsphere/rke2/managed-addr.yaml
+kubectl apply -f artifacts/examples/vsphere/rke2/managed-control-plane.yaml
+kubectl apply -f artifacts/examples/vsphere/rke2/managed-dhcp.yaml
+kubectl apply -f artifacts/examples/vsphere/rke2/managed-nodes.yaml
 ```
 
 If you want delete the node just delete the CRD with the call
 
 ```bash
-kubectl delete -f artifacts/examples/example.yaml
+kubectl delete -f artifacts/examples/vsphere/rke2/managed-dhcp.yaml
 ```
 
 You have the ability also to create a control plane as instead a worker
 
 ```bash
-kubectl apply -f artifacts/examples/controlplane.yaml
+kubectl apply -f artifacts/examples/vsphere/rke2/managed-control-plane.yaml
 ```
 
 The resource is cluster scope so you don't need a namespace. The name of the resource is not the name of the managed node.
@@ -485,6 +707,3 @@ As example of use generated by autoscaled-masterkube-cluster scripts
 }
 ````
 
-# Unmaintened releases
-
-All release before 1.26.11 are not maintened
