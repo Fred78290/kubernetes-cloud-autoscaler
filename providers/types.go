@@ -14,6 +14,7 @@ const (
 	MultipassProviderName         = "multipass"
 	OpenStackProviderName         = "openstack"
 	CloudStackProviderName        = "cloudstack"
+	LxdProviderName               = "lxd"
 )
 
 var SupportedCloudProviders = []string{
@@ -23,6 +24,7 @@ var SupportedCloudProviders = []string{
 	MultipassProviderName,
 	OpenStackProviderName,
 	CloudStackProviderName,
+	LxdProviderName,
 }
 
 // CallbackWaitSSHReady callback to test if ssh become ready or return timeout error

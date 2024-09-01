@@ -504,6 +504,59 @@ func (c *Controller) CreateCRD() error {
 														},
 													},
 												},
+												"lxd": {
+													Type: "array",
+													Items: &apiextensionv1.JSONSchemaPropsOrArray{
+														Schema: &apiextensionv1.JSONSchemaProps{
+															Type: "object",
+															Properties: map[string]apiextensionv1.JSONSchemaProps{
+																"network": {
+																	Type:        "string",
+																	Description: "Network name for lxd",
+																},
+																"nic": {
+																	Type:        "string",
+																	Description: "Interface name in container",
+																},
+																"dhcp": {
+																	Type:        "boolean",
+																	Description: "Tell if interface use dhcp to obtain address",
+																	Default: &apiextensionv1.JSON{
+																		Raw: []byte("true"),
+																	},
+																},
+																"address": {
+																	Type:        "string",
+																	Description: "Valid ip v4 address or DHCP or NONE",
+																},
+																"netmask": {
+																	Type:        "string",
+																	Description: "Netmask in format xxx.xxx.xxx.xxx",
+																},
+																"routes": {
+																	Type:        "array",
+																	Description: "Override network routes",
+																	Items: &apiextensionv1.JSONSchemaPropsOrArray{
+																		Schema: &apiextensionv1.JSONSchemaProps{
+																			Type: "object",
+																			Properties: map[string]apiextensionv1.JSONSchemaProps{
+																				"to": {
+																					Type: "string",
+																				},
+																				"via": {
+																					Type: "string",
+																				},
+																				"metric": {
+																					Type: "integer",
+																				},
+																			},
+																		},
+																	},
+																},
+															},
+														},
+													},
+												},
 												"eni": {
 													Type:        "object",
 													Description: "Create or use existing ENI",

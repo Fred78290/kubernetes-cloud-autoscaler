@@ -58,7 +58,7 @@ func newMacAddress() *MacAddress {
 	}
 }
 
-func stringBefore(str string, char string) string {
+func StringBefore(str string, char string) string {
 	if index := strings.Index(str, char); index >= 0 {
 		return str[:index]
 	} else {
@@ -66,7 +66,7 @@ func stringBefore(str string, char string) string {
 	}
 }
 
-func stringAfter(str string, char string) string {
+func StringAfter(str string, char string) string {
 	if index := strings.LastIndex(str, char); index >= 0 {
 		return str[index+1:]
 	} else {
@@ -183,8 +183,8 @@ func (vnet *Network) GetCloudInitNetwork(useMacAddress bool) *cloudinit.NetworkD
 
 	for _, n := range vnet.Interfaces {
 		if n.IsEnabled() {
-			nicName := stringBefore(n.NicName, ":")
-			label := stringAfter(n.NicName, ":")
+			nicName := StringBefore(n.NicName, ":")
+			label := StringAfter(n.NicName, ":")
 
 			if len(nicName) > 0 {
 				var ethernet *cloudinit.NetworkAdapter
@@ -401,6 +401,41 @@ func (vnet *Network) ConfigureMultipassNetwork(multipass []v1alpha2.MultipassMan
 
 				if len(network.MacAddress) > 0 {
 					inet.MacAddress = network.MacAddress
+				}
+			} else {
+				glog.Warnf(constantes.WarnNetworkInterfaceIsDisabled, network.NetworkName)
+			}
+		} else {
+			glog.Errorf(constantes.ErrNetworkInterfaceNotFoundToConfigure, network.NetworkName)
+		}
+	}
+}
+
+func (vnet *Network) ConfigureLxdNetwork(network []v1alpha2.LxdManagedNodeNetwork) {
+	for _, network := range network {
+		if inet := vnet.InterfaceByName(network.NetworkName); inet != nil {
+			if inet.IsEnabled() {
+				inet.DHCP = network.DHCP
+				inet.NicName = network.NicName
+
+				if len(network.Routes) > 0 {
+					inet.Routes = network.Routes
+				}
+
+				if inet.DHCP {
+					inet.IPAddress = ""
+				} else if strings.ToLower(network.IPV4Address) == "none" {
+					inet.Enabled = &FALSE
+					inet.IPAddress = ""
+				} else if strings.ToLower(network.IPV4Address) == "dhcp" {
+					inet.DHCP = true
+					inet.IPAddress = ""
+				} else if len(network.IPV4Address) > 0 {
+					inet.IPAddress = network.IPV4Address
+				}
+
+				if len(network.Netmask) > 0 {
+					inet.Netmask = network.Netmask
 				}
 			} else {
 				glog.Warnf(constantes.WarnNetworkInterfaceIsDisabled, network.NetworkName)

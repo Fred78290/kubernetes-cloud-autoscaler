@@ -60,6 +60,12 @@ type OpenStackManagedNodeNetwork struct {
 	CommonManagedNodeNetwork
 }
 
+type LxdManagedNodeNetwork struct {
+	CommonManagedNodeNetwork
+	NicName string          `json:"nic,omitempty" yaml:"nic,omitempty"`
+	Routes  []NetworkRoutes `json:"routes,omitempty" yaml:"routes,omitempty"`
+}
+
 type CloudStackManagedNodeNetwork struct {
 	CommonManagedNodeNetwork
 }
@@ -69,6 +75,7 @@ type ManagedNetworkConfig struct {
 	CloudStack []CloudStackManagedNodeNetwork `json:"cloudstack,omitempty"`
 	VMWare     []VMWareManagedNodeNetwork     `json:"vmware,omitempty"`
 	Multipass  []MultipassManagedNodeNetwork  `json:"multipass,omitempty"`
+	Lxd        []LxdManagedNodeNetwork        `json:"lxd,omitempty"`
 	ENI        *AwsManagedNodeNetwork         `json:"eni,omitempty"`
 }
 

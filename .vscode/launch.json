@@ -114,7 +114,30 @@
         "--kubeconfig=${workspaceFolder}/.config/cloudstack/cloudstack-dev-k3s/config",
         "--log-level=debug"
       ]
-    },    {
+    },
+    {
+      "preLaunchTask": "k3s lxd",
+      "name": "k3s lxd",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}",
+      "cwd": "${env:HOME}/go/src/github.com/Fred78290/kubernetes-cloud-autoscaler",
+      "args": [
+        "--listen=unix:/tmp/autoscaler.sock",
+        "--request-timeout=120s",
+        "--grpc-provider=externalgrpc",
+        "--distribution=k3s",
+        "--plateform=lxd",
+        "--plateform-config=${workspaceFolder}/.config/lxd/lxd-dev-k3s/provider.json",
+        "--machines=${workspaceFolder}/.config/lxd/lxd-dev-k3s/machines.json",
+        "--config=${workspaceFolder}/.config/lxd/lxd-dev-k3s/autoscaler.json",
+        "--save=${workspaceFolder}/.config/lxd/lxd-dev-k3s/state.json",
+        "--kubeconfig=${workspaceFolder}/.config/lxd/lxd-dev-k3s/config",
+        "--log-level=debug"
+      ]
+    },
+    {
       "preLaunchTask": "k3s vsphere",
       "name": "k3s vsphere",
       "type": "go",
@@ -256,7 +279,31 @@
         "--kubeconfig=${workspaceFolder}/.config/cloudstack/cloudstack-dev-kubeadm/config",
         "--log-level=info"
       ]
-    },    {
+    },
+    {
+      "preLaunchTask": "kubeadm lxd",
+      "name": "kubeadm lxd",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}",
+      "cwd": "${env:HOME}/go/src/github.com/Fred78290/kubernetes-cloud-autoscaler",
+      "args": [
+        "--listen=unix:/tmp/autoscaler.sock",
+        "--request-timeout=120s",
+        "--grpc-provider=externalgrpc",
+        "--distribution=kubeadm",
+        "--plateform=lxd",
+        "--plateform-config=${workspaceFolder}/.config/lxd/lxd-dev-kubeadm/provider.json",
+        "--cloud-provider=external",
+        "--machines=${workspaceFolder}/.config/lxd/lxd-dev-kubeadm/machines.json",
+        "--config=${workspaceFolder}/.config/lxd/lxd-dev-kubeadm/autoscaler.json",
+        "--save=${workspaceFolder}/.config/lxd/lxd-dev-kubeadm/state.json",
+        "--kubeconfig=${workspaceFolder}/.config/lxd/lxd-dev-kubeadm/config",
+        "--log-level=info"
+      ]
+    },
+    {
       "preLaunchTask": "kubeadm vsphere",
       "name": "kubeadm vsphere",
       "type": "go",
@@ -398,7 +445,31 @@
         "--kubeconfig=${workspaceFolder}/.config/cloudstack/cloudstack-dev-rke2/config",
         "--log-level=debug"
       ]
-    },    {
+    },
+    {
+      "preLaunchTask": "rke2 lxd",
+      "name": "rke2 lxd",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}",
+      "cwd": "${env:HOME}/go/src/github.com/Fred78290/kubernetes-cloud-autoscaler",
+      "args": [
+        "--listen=unix:/tmp/autoscaler.sock",
+        "--request-timeout=120s",
+        "--grpc-provider=externalgrpc",
+        "--distribution=rke2",
+        "--plateform=lxd",
+        "--plateform-config=${workspaceFolder}/.config/lxd/lxd-dev-rke2/provider.json",
+        "--cloud-provider=external",
+        "--machines=${workspaceFolder}/.config/lxd/lxd-dev-rke2/machines.json",
+        "--config=${workspaceFolder}/.config/lxd/lxd-dev-rke2/autoscaler.json",
+        "--save=${workspaceFolder}/.config/lxd/lxd-dev-rke2/state.json",
+        "--kubeconfig=${workspaceFolder}/.config/lxd/lxd-dev-rke2/config",
+        "--log-level=debug"
+      ]
+    },
+    {
       "preLaunchTask": "rke2 vsphere",
       "name": "rke2 vsphere",
       "type": "go",
@@ -540,7 +611,31 @@
         "--kubeconfig=${workspaceFolder}/.config/cloudstack/cloudstack-dev-microk8s/config",
         "--log-level=debug"
       ]
-    },    {
+    },
+    {
+      "preLaunchTask": "microk8s lxd",
+      "name": "microk8s lxd",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}",
+      "cwd": "${env:HOME}/go/src/github.com/Fred78290/kubernetes-cloud-autoscaler",
+      "args": [
+        "--listen=unix:/tmp/autoscaler.sock",
+        "--request-timeout=120s",
+        "--grpc-provider=externalgrpc",
+        "--distribution=microk8s",
+        "--plateform=lxd",
+        "--plateform-config=${workspaceFolder}/.config/lxd/lxd-dev-microk8s/provider.json",
+        "--cloud-provider=external",
+        "--machines=${workspaceFolder}/.config/lxd/lxd-dev-microk8s/machines.json",
+        "--config=${workspaceFolder}/.config/lxd/lxd-dev-microk8s/autoscaler.json",
+        "--save=${workspaceFolder}/.config/lxd/lxd-dev-microk8s/state.json",
+        "--kubeconfig=${workspaceFolder}/.config/lxd/lxd-dev-microk8s/config",
+        "--log-level=debug"
+      ]
+    },
+    {
       "preLaunchTask": "microk8s vsphere",
       "name": "microk8s vsphere",
       "type": "go",

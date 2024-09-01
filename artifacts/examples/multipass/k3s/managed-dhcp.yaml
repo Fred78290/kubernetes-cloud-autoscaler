@@ -16,7 +16,7 @@ spec:
   - sample-annotation.acme.com=sample
   network:
     multipass:
-      - network: "lxdbr0"
+      - network: "cloudbr0"
         dhcp: true
       - network: "mpbr0"
         dhcp: true
