@@ -176,7 +176,8 @@ func (wrapper *lxdWrapper) ConfigurationDidLoad() (err error) {
 		return errors.New("no cloud provider config given")
 	}
 
-	wrapper.client.UseProject(wrapper.Project)
+	wrapper.client = wrapper.client.UseProject(wrapper.Project)
+
 
 	var images []api.Image
 
