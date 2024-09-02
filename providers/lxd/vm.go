@@ -270,6 +270,7 @@ func (instance *ServerInstance) Create(controlPlane bool, nodeGroup, userData st
 			Description: instance.InstanceName,
 		},
 		Source: api.InstanceSource{
+			Type:        "image",
 			Fingerprint: instance.imageFingerPrint,
 		},
 		Name:  instance.InstanceName,
