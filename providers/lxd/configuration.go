@@ -265,7 +265,6 @@ func (wrapper *lxdWrapper) getServerInstance(name string) (vm *ServerInstance, e
 	var instance *api.InstanceFull
 	var addressIP string
 
-	wrapper.client.GetInstanceFull(name)
 	if instance, _, err = wrapper.client.GetInstanceFull(name); err != nil {
 		return
 	}
