@@ -325,7 +325,7 @@ func (handler *lxdHandler) RetrieveNetworkInfos() error {
 	ctx := context.NewContext(handler.Timeout)
 	defer ctx.Cancel()
 
-	return handler.lxdWrapper.RetrieveNetworkInfos(handler.instanceID, handler.network.Network)
+	return handler.lxdWrapper.RetrieveNetworkInfos(handler.instanceID, handler.attachedNetwork.Network)
 }
 
 func (handler *lxdHandler) UpdateMacAddressTable() error {
@@ -333,7 +333,7 @@ func (handler *lxdHandler) UpdateMacAddressTable() error {
 		return fmt.Errorf(constantes.ErrInstanceIsNotAttachedToCloudProvider)
 	}
 
-	return handler.network.UpdateMacAddressTable()
+	return handler.attachedNetwork.UpdateMacAddressTable()
 }
 
 func (handler *lxdHandler) GenerateProviderID() string {
@@ -380,7 +380,7 @@ func (handler *lxdHandler) InstanceWaitReady(callback providers.CallbackWaitSSHR
 }
 
 func (handler *lxdHandler) InstancePrimaryAddressIP() (address string) {
-	return handler.network.PrimaryAddressIP()
+	return handler.attachedNetwork.PrimaryAddressIP()
 }
 
 func (handler *lxdHandler) InstanceID() (vmuuid string, err error) {

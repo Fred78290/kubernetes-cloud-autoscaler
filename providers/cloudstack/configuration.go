@@ -409,7 +409,7 @@ func (handler *cloudstackHandler) RetrieveNetworkInfos() error {
 	ctx := context.NewContext(handler.Timeout)
 	defer ctx.Cancel()
 
-	return handler.cloudstackWrapper.RetrieveNetworkInfos(handler.instanceID, handler.network.Network)
+	return handler.cloudstackWrapper.RetrieveNetworkInfos(handler.instanceID, handler.attachedNetwork.Network)
 }
 
 func (handler *cloudstackHandler) UpdateMacAddressTable() error {
@@ -417,7 +417,7 @@ func (handler *cloudstackHandler) UpdateMacAddressTable() error {
 		return fmt.Errorf(constantes.ErrInstanceIsNotAttachedToCloudProvider)
 	}
 
-	return handler.network.UpdateMacAddressTable()
+	return handler.attachedNetwork.UpdateMacAddressTable()
 }
 
 func (handler *cloudstackHandler) GenerateProviderID() string {
@@ -464,7 +464,7 @@ func (handler *cloudstackHandler) InstanceWaitReady(callback providers.CallbackW
 }
 
 func (handler *cloudstackHandler) InstancePrimaryAddressIP() (address string) {
-	return handler.network.PrimaryAddressIP()
+	return handler.attachedNetwork.PrimaryAddressIP()
 }
 
 func (handler *cloudstackHandler) InstanceID() (vmuuid string, err error) {

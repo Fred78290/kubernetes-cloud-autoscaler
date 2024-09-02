@@ -455,7 +455,7 @@ func (handler *openstackHandler) RetrieveNetworkInfos() error {
 
 	handler.attachedNetwork.retrieveNetworkInfos(ctx, handler.dnsClient, handler.instanceName)
 
-	return handler.openstackWrapper.RetrieveNetworkInfos(handler.instanceID, handler.network.Network)
+	return handler.openstackWrapper.RetrieveNetworkInfos(handler.instanceID, handler.attachedNetwork.Network)
 }
 
 func (handler *openstackHandler) UpdateMacAddressTable() error {
@@ -463,7 +463,7 @@ func (handler *openstackHandler) UpdateMacAddressTable() error {
 		return fmt.Errorf(constantes.ErrInstanceIsNotAttachedToCloudProvider)
 	}
 
-	return handler.network.UpdateMacAddressTable()
+	return handler.attachedNetwork.UpdateMacAddressTable()
 }
 
 func (handler *openstackHandler) GenerateProviderID() string {
@@ -510,7 +510,7 @@ func (handler *openstackHandler) InstanceWaitReady(callback providers.CallbackWa
 }
 
 func (handler *openstackHandler) InstancePrimaryAddressIP() (address string) {
-	return handler.network.PrimaryAddressIP()
+	return handler.attachedNetwork.PrimaryAddressIP()
 }
 
 func (handler *openstackHandler) InstanceID() (vmuuid string, err error) {
@@ -610,7 +610,7 @@ func (handler *openstackHandler) RegisterDNS(address string) (err error) {
 		ctx := context.NewContext(handler.Timeout)
 		defer ctx.Cancel()
 
-		err = handler.network.registerDNS(ctx, handler.dnsClient, handler.instanceName, address)
+		err = handler.attachedNetwork.registerDNS(ctx, handler.dnsClient, handler.instanceName, address)
 	}
 
 	return
@@ -623,7 +623,7 @@ func (handler *openstackHandler) UnregisterDNS(address string) (err error) {
 		ctx := context.NewContext(handler.Timeout)
 		defer ctx.Cancel()
 
-		err = handler.network.unregisterDNS(ctx, handler.dnsClient, handler.instanceName, address)
+		err = handler.attachedNetwork.unregisterDNS(ctx, handler.dnsClient, handler.instanceName, address)
 	}
 
 	return
