@@ -178,16 +178,28 @@ func (wrapper *lxdWrapper) ConfigurationDidLoad() (err error) {
 
 	wrapper.client = wrapper.client.UseProject(wrapper.Project)
 
+	var alias *api.ImageAliasesEntry
 
-	var images []api.Image
+	if alias, _, err = wrapper.client.GetImageAlias(wrapper.TemplateName); err != nil || alias == nil {
+		var images []api.Image
 
-	if images, err = wrapper.client.GetImagesWithFilter([]string{fmt.Sprintf("name=%s", wrapper.TemplateName)}); err != nil {
-		return
-	} else if len(images) == 0 {
-		return fmt.Errorf("image: %s not found", wrapper.TemplateName)
+		if images, err = wrapper.client.GetImages(); err != nil {
+			return fmt.Errorf("image: %s not found, reason: %v", wrapper.TemplateName, err)
+		} else {
+			for _, image := range images {
+				if image.Properties["name"] == wrapper.TemplateName {
+					wrapper.imageFingerPrint = images[0].Fingerprint
+					break
+				}
+			}
+		}
+	} else {
+		wrapper.imageFingerPrint = alias.Target
 	}
 
-	wrapper.imageFingerPrint = images[0].Fingerprint
+	if len(wrapper.imageFingerPrint) == 0 {
+		return fmt.Errorf("image: %s not found", wrapper.TemplateName)
+	}
 
 	network := wrapper.Configuration.Network
 	wrapper.network = &lxdNetwork{
