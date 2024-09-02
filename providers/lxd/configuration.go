@@ -46,6 +46,8 @@ type Configuration struct {
 	StoragePool       string            `default:"default" json:"storage-pool,omitempty"`
 	Profiles          []string          `json:"profiles,omitempty"`
 	Project           string            `json:"project,omitempty"`
+	LxdRegion         string            `default:"home" json:"region"`
+	LxdZone           string            `default:"office" json:"zone"`
 	TemplateName      string            `json:"template-name,omitempty"`
 	Timeout           time.Duration     `json:"timeout"`
 	AvailableGPUTypes map[string]string `json:"gpu-types"`
@@ -346,10 +348,10 @@ func (handler *lxdHandler) GenerateProviderID() string {
 
 func (handler *lxdHandler) GetTopologyLabels() map[string]string {
 	return map[string]string{
-		constantes.NodeLabelTopologyRegion:  "lxd-server",
-		constantes.NodeLabelTopologyZone:    handler.runningInstance.Location,
-		constantes.NodeLabelVMWareCSIRegion: "lxd-server",
-		constantes.NodeLabelVMWareCSIZone:   handler.runningInstance.Location,
+		constantes.NodeLabelTopologyRegion:  handler.LxdRegion,
+		constantes.NodeLabelTopologyZone:    handler.LxdZone,
+		constantes.NodeLabelVMWareCSIRegion: handler.LxdRegion,
+		constantes.NodeLabelVMWareCSIZone:   handler.LxdZone,
 	}
 }
 
