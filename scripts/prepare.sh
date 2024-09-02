@@ -33,7 +33,7 @@ if [ -n "${NODEGROUP}" ]; then
 
 	cat ${AUTOSCALER_HOME}/config/${NODEGROUP}/config/provider.json \
 		| sed -e "s/\/etc\/ssl\/certs\/autoscaler-utility/${AUTOSCALER_DESKTOP_UTILITY_TLS}/g" \
-		| jq --arg BIND9_RNDCKEY "${BIND9_RNDCKEY}" '.|."rndc-key-file" = $BIND9_RNDCKEY | ."lxd-server-url" = "unix:/"' > ${CONFIG_DIR}/provider.json
+		| jq --arg BIND9_RNDCKEY "${BIND9_RNDCKEY}" '.|."rndc-key-file" = $BIND9_RNDCKEY | ."lxd-server-url" = "unix:"' > ${CONFIG_DIR}/provider.json
 
 	cat ${AUTOSCALER_HOME}/config/${NODEGROUP}/config/autoscaler.json | jq \
 		--arg ETCD_SSL_DIR "${AUTOSCALER_HOME}/config/${NODEGROUP}/cluster/etcd" \

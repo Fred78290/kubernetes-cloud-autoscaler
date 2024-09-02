@@ -1,0 +1,45 @@
+apiVersion: "nodemanager.aldunelabs.com/v1alpha2"
+kind: "ManagedNode"
+metadata:
+  name: "lxd-dev-kubeadm-managed-01"
+spec:
+  nodegroup: lxd-dev-kubeadm
+  controlPlane: false
+  allowDeployment: true
+  instanceType: small
+  diskSizeInMB: 10240
+  labels:
+  - demo-label.acme.com=demo
+  - sample-label.acme.com=sample
+  annotations:
+  - demo-annotation.acme.com=demo
+  - sample-annotation.acme.com=sample
+  network:
+    lxd:
+      - network: "lxdbr0"
+        dhcp: true
+      - network: "lxdbr1"
+        dhcp: true
+---
+apiVersion: "nodemanager.aldunelabs.com/v1alpha2"
+kind: "ManagedNode"
+metadata:
+  name: "lxd-dev-kubeadm-managed-02"
+spec:
+  nodegroup: lxd-dev-kubeadm
+  controlPlane: false
+  allowDeployment: true
+  instanceType: small
+  diskSizeInMB: 10240
+  labels:
+  - demo-label.acme.com=demo
+  - sample-label.acme.com=sample
+  annotations:
+  - demo-annotation.acme.com=demo
+  - sample-annotation.acme.com=sample
+  network:
+    lxd:
+      - network: "lxdbr0"
+        dhcp: true
+      - network: "lxdbr1"
+        dhcp: true
