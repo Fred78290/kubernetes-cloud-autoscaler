@@ -149,8 +149,8 @@ func (wrapper *lxdWrapper) ConfigurationDidLoad() (err error) {
 		}
 	}
 
-	if strings.HasPrefix(wrapper.LxdServerURL, "unix:/") {
-		if wrapper.client, err = golxd.ConnectLXDUnix(wrapper.LxdServerURL[6:], nil); err != nil {
+	if strings.HasPrefix(wrapper.LxdServerURL, "unix:") {
+		if wrapper.client, err = golxd.ConnectLXDUnix(wrapper.LxdServerURL[5:], nil); err != nil {
 			return err
 		}
 	} else {
