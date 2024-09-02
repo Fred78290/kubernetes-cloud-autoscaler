@@ -442,7 +442,7 @@ func (handler *openstackHandler) GetTimeout() time.Duration {
 }
 
 func (handler *openstackHandler) ConfigureNetwork(network v1alpha2.ManagedNetworkConfig) {
-	handler.network.ConfigureOpenStackNetwork(network.OpenStack)
+	handler.attachedNetwork.ConfigureManagedNetwork(network.OpenStack.Managed())
 }
 
 func (handler *openstackHandler) RetrieveNetworkInfos() error {

@@ -105,7 +105,7 @@ func (handler *desktopHandler) GetTimeout() time.Duration {
 }
 
 func (handler *desktopHandler) ConfigureNetwork(network v1alpha2.ManagedNetworkConfig) {
-	handler.attachedNetwork.ConfigureVMWareNetwork(network.VMWare)
+	handler.attachedNetwork.ConfigureManagedNetwork(network.VMWare.Managed())
 }
 
 func (handler *desktopHandler) RetrieveNetworkInfos() error {

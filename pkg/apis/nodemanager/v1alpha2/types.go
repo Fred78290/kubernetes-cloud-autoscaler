@@ -1,6 +1,7 @@
 package v1alpha2
 
 import (
+	"github.com/aws/aws-sdk-go-v2/aws"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -62,21 +63,81 @@ type OpenStackManagedNodeNetwork struct {
 
 type LxdManagedNodeNetwork struct {
 	CommonManagedNodeNetwork
-	NicName string          `json:"nic,omitempty" yaml:"nic,omitempty"`
-	Routes  []NetworkRoutes `json:"routes,omitempty" yaml:"routes,omitempty"`
+	Routes []NetworkRoutes `json:"routes,omitempty" yaml:"routes,omitempty"`
 }
 
 type CloudStackManagedNodeNetwork struct {
 	CommonManagedNodeNetwork
 }
 
+type OpenStackManagedNodeNetworks []OpenStackManagedNodeNetwork
+
+func (m OpenStackManagedNodeNetworks) Managed() (managed []ManagedNetworkInterface) {
+	for _, net := range m {
+		managed = append(managed, &net)
+	}
+
+	return
+}
+
+type CloudStackManagedNodeNetworks []CloudStackManagedNodeNetwork
+
+func (m CloudStackManagedNodeNetworks) Managed() (managed []ManagedNetworkInterface) {
+	for _, net := range m {
+		managed = append(managed, &net)
+	}
+
+	return
+}
+
+type VMWareManagedNodeNetworks []VMWareManagedNodeNetwork
+
+func (m VMWareManagedNodeNetworks) Managed() (managed []ManagedNetworkInterface) {
+	for _, net := range m {
+		managed = append(managed, &net)
+	}
+
+	return
+}
+
+type MultipassManagedNodeNetworks []MultipassManagedNodeNetwork
+
+func (m MultipassManagedNodeNetworks) Managed() (managed []ManagedNetworkInterface) {
+	for _, net := range m {
+		managed = append(managed, &net)
+	}
+
+	return
+}
+
+type LxdManagedNodeNetworks []LxdManagedNodeNetwork
+
+func (m LxdManagedNodeNetworks) Managed() (managed []ManagedNetworkInterface) {
+	for _, net := range m {
+		managed = append(managed, &net)
+	}
+
+	return
+}
+
 type ManagedNetworkConfig struct {
-	OpenStack  []OpenStackManagedNodeNetwork  `json:"openstack,omitempty"`
-	CloudStack []CloudStackManagedNodeNetwork `json:"cloudstack,omitempty"`
-	VMWare     []VMWareManagedNodeNetwork     `json:"vmware,omitempty"`
-	Multipass  []MultipassManagedNodeNetwork  `json:"multipass,omitempty"`
-	Lxd        []LxdManagedNodeNetwork        `json:"lxd,omitempty"`
-	ENI        *AwsManagedNodeNetwork         `json:"eni,omitempty"`
+	OpenStack  OpenStackManagedNodeNetworks  `json:"openstack,omitempty"`
+	CloudStack CloudStackManagedNodeNetworks `json:"cloudstack,omitempty"`
+	VMWare     VMWareManagedNodeNetworks     `json:"vmware,omitempty"`
+	Multipass  MultipassManagedNodeNetworks  `json:"multipass,omitempty"`
+	Lxd        LxdManagedNodeNetworks        `json:"lxd,omitempty"`
+	ENI        *AwsManagedNodeNetwork        `json:"eni,omitempty"`
+}
+
+type ManagedNetworkInterface interface {
+	IsDHCP() bool
+	GetAdapter() string
+	GetNetworkName() string
+	GetIPV4Address() string
+	GetNetmask() string
+	GetUseDhcpRoutes() *bool
+	GetRoutes() []NetworkRoutes
+	GetMacAddress() string
 }
 
 // ManagedNodeSpec is the spec for a ManagedNode resource
@@ -127,4 +188,72 @@ type ManagedNodeList struct {
 
 func (mn *ManagedNode) GetNodegroup() string {
 	return mn.Spec.Nodegroup
+}
+
+// ** CommonManagedNodeNetwork
+func (m *CommonManagedNodeNetwork) IsDHCP() bool {
+	return m.DHCP
+}
+
+func (m *CommonManagedNodeNetwork) GetAdapter() string {
+	return ""
+}
+
+func (m *CommonManagedNodeNetwork) GetNetworkName() string {
+	return m.NetworkName
+}
+
+func (m *CommonManagedNodeNetwork) GetIPV4Address() string {
+	return m.IPV4Address
+}
+
+func (m *CommonManagedNodeNetwork) GetNetmask() string {
+	return m.IPV4Address
+}
+
+func (m *CommonManagedNodeNetwork) GetUseDhcpRoutes() *bool {
+	return aws.Bool(true)
+}
+
+func (m *CommonManagedNodeNetwork) GetRoutes() []NetworkRoutes {
+	return nil
+}
+
+func (m *CommonManagedNodeNetwork) GetMacAddress() string {
+	return ""
+}
+
+// ** VMWareManagedNodeNetwork
+func (m *VMWareManagedNodeNetwork) GetAdapter() string {
+	return m.Adapter
+}
+
+func (m *VMWareManagedNodeNetwork) GetUseDhcpRoutes() *bool {
+	return m.UseRoutes
+}
+
+func (m *VMWareManagedNodeNetwork) GetRoutes() []NetworkRoutes {
+	return m.Routes
+}
+
+func (m *VMWareManagedNodeNetwork) GetMacAddress() string {
+	return m.MacAddress
+}
+
+// ** MultipassManagedNodeNetwork
+func (m *MultipassManagedNodeNetwork) GetUseDhcpRoutes() *bool {
+	return m.UseRoutes
+}
+
+func (m *MultipassManagedNodeNetwork) GetRoutes() []NetworkRoutes {
+	return m.Routes
+}
+
+func (m *MultipassManagedNodeNetwork) GetMacAddress() string {
+	return m.MacAddress
+}
+
+// ** LxdManagedNodeNetwork
+func (m *LxdManagedNodeNetwork) GetRoutes() []NetworkRoutes {
+	return m.Routes
 }

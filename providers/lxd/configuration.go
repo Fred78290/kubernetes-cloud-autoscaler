@@ -314,7 +314,7 @@ func (handler *lxdHandler) GetTimeout() time.Duration {
 }
 
 func (handler *lxdHandler) ConfigureNetwork(network v1alpha2.ManagedNetworkConfig) {
-	handler.network.ConfigureLxdNetwork(network.Lxd)
+	handler.attachedNetwork.ConfigureManagedNetwork(network.Lxd.Managed())
 }
 
 func (handler *lxdHandler) RetrieveNetworkInfos() error {

@@ -112,7 +112,7 @@ func (handler *vsphereHandler) GetTimeout() time.Duration {
 }
 
 func (handler *vsphereHandler) ConfigureNetwork(network v1alpha2.ManagedNetworkConfig) {
-	handler.attachedNetwork.ConfigureVMWareNetwork(network.VMWare)
+	handler.attachedNetwork.ConfigureManagedNetwork(network.VMWare.Managed())
 }
 
 func (handler *vsphereHandler) RetrieveNetworkInfos() error {

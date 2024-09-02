@@ -398,7 +398,7 @@ func (handler *cloudstackHandler) GetTimeout() time.Duration {
 }
 
 func (handler *cloudstackHandler) ConfigureNetwork(network v1alpha2.ManagedNetworkConfig) {
-	handler.network.ConfigureCloudStackNetwork(network.CloudStack)
+	handler.attachedNetwork.ConfigureManagedNetwork(network.CloudStack.Managed())
 }
 
 func (handler *cloudstackHandler) RetrieveNetworkInfos() error {
