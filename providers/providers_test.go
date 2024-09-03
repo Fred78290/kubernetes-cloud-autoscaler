@@ -270,6 +270,11 @@ func (config *configurationTest) deleteVM() {
 	}
 }
 
+type runningTest struct {
+	name string
+	call func(t *testing.T)
+}
+
 func Test_Providers(t *testing.T) {
 	if os.Getenv("TESTLOGLEVEL") == "DEBUG" {
 		glog.SetLevel(glog.DebugLevel)
@@ -277,60 +282,93 @@ func Test_Providers(t *testing.T) {
 		glog.SetLevel(glog.TraceLevel)
 	}
 
+	var runs []runningTest
 	config := loadFromJson(t)
 
 	if utils.ShouldTestFeature("Test_createVM") {
-		t.Run("Test_createVM", func(t *testing.T) {
-			config.Child(t).createVM()
+		runs = append(runs, runningTest{
+			"Test_createVM",
+			func(t *testing.T) {
+				config.Child(t).createVM()
+			},
 		})
 	}
 
 	if utils.ShouldTestFeature("Test_getVM") {
-		t.Run("Test_getVM", func(t *testing.T) {
-			config.Child(t).getVM()
+		runs = append(runs, runningTest{
+			"Test_getVM",
+			func(t *testing.T) {
+				config.Child(t).getVM()
+			},
 		})
 	}
 
 	if utils.ShouldTestFeature("Test_statusVM") {
-		t.Run("Test_statusVM", func(t *testing.T) {
-			config.Child(t).statusVM()
+		runs = append(runs, runningTest{
+			"Test_statusVM",
+			func(t *testing.T) {
+				config.Child(t).statusVM()
+			},
 		})
 	}
 
 	if utils.ShouldTestFeature("Test_powerOnVM") {
-		t.Run("Test_powerOnVM", func(t *testing.T) {
-			config.Child(t).powerOnVM()
+		runs = append(runs, runningTest{
+			"Test_powerOnVM",
+			func(t *testing.T) {
+				config.Child(t).powerOnVM()
+			},
 		})
 	}
 
 	if utils.ShouldTestFeature("Test_waitForPowered") {
-		t.Run("Test_waitForPowered", func(t *testing.T) {
-			config.Child(t).waitForPowered()
+		runs = append(runs, runningTest{
+			"Test_waitForPowered",
+			func(t *testing.T) {
+				config.Child(t).waitForPowered()
+			},
 		})
 	}
 
 	if utils.ShouldTestFeature("Test_waitForIP") {
-		t.Run("Test_waitForIP", func(t *testing.T) {
-			config.Child(t).waitForIP()
+		runs = append(runs, runningTest{
+			"Test_waitForIP",
+			func(t *testing.T) {
+				config.Child(t).waitForIP()
+			},
 		})
 	}
 
 	if utils.ShouldTestFeature("Test_powerOffVM") {
-		t.Run("Test_powerOffVM", func(t *testing.T) {
-			config.Child(t).powerOffVM()
+		runs = append(runs, runningTest{
+			"Test_powerOffVM",
+			func(t *testing.T) {
+				config.Child(t).powerOffVM()
+			},
 		})
 	}
 
 	if utils.ShouldTestFeature("Test_shutdownGuest") {
-		t.Run("Test_shutdownGuest", func(t *testing.T) {
-			config.Child(t).shutdownVM()
+		runs = append(runs, runningTest{
+			"Test_shutdownGuest",
+			func(t *testing.T) {
+				config.Child(t).shutdownVM()
+			},
 		})
 	}
 
 	if utils.ShouldTestFeature("Test_deleteVM") {
-		t.Run("Test_deleteVM", func(t *testing.T) {
-			config.Child(t).deleteVM()
+		runs = append(runs, runningTest{
+			"Test_deleteVM",
+			func(t *testing.T) {
+				config.Child(t).deleteVM()
+			},
 		})
+	}
+
+	for _, run := range runs {
+		t.Logf("Run test: %s", run.name)
+		run.call(t)
 	}
 }
 

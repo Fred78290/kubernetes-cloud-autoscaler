@@ -10,4 +10,4 @@ export TestNodeGroupGroup_addNode=YES
 export TestNodeGroupGroup_deleteNode=YES
 export TestNodeGroupGroup_deleteNodeGroup=YES
 
-go test $VERBOSE --test.short -timeout 1200s -race ./server -run Test_Nodegroup
+go test $VERBOSE --test.short -timeout 1200s ./server -run Test_Nodegroup

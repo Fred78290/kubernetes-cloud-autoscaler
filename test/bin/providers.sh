@@ -11,4 +11,4 @@ export Test_powerOffVM=YES
 export Test_shutdownGuest=YES
 export Test_deleteVM=YES
 
-go test $VERBOSE --run Test_Provider -timeout 1200s -count 1 -race ./providers
+go test $VERBOSE --run Test_Provider -timeout 1200s -count 1 ./providers

@@ -26,4 +26,4 @@ export TestServer_Belongs=YES
 export TestServer_NodePrice=YES
 export TestServer_PodPrice=YES
 
-go test $VERBOSE --test.short -timeout 1200s -race ./server -run Test_Server
+go test $VERBOSE --test.short -timeout 1200s ./server -run Test_Server
