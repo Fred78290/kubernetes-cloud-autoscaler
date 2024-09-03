@@ -20,6 +20,16 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+type Remote struct {
+	Addr     string `yaml:"addr"`
+	AuthType string `yaml:"auth_type,omitempty"`
+	Project  string `yaml:"project,omitempty"`
+	Protocol string `yaml:"protocol,omitempty"`
+	Public   bool   `yaml:"public"`
+	Global   bool   `yaml:"-"`
+	Static   bool   `yaml:"-"`
+}
+
 type NetworkInterface struct {
 	Enabled     *bool                    `json:"enabled,omitempty" yaml:"primary,omitempty"`
 	Primary     bool                     `json:"primary,omitempty" yaml:"primary,omitempty"`
@@ -56,6 +66,7 @@ type Configuration struct {
 	Bind9Host         string            `json:"bind9-host"`
 	RndcKeyFile       string            `json:"rndc-key-file"`
 	Network           Network           `json:"network"`
+	Remotes           map[string]Remote `json:"remotes,omitempty"`
 }
 
 type lxdWrapper struct {
@@ -143,6 +154,72 @@ func (wrapper *lxdWrapper) CreateInstance(instanceName, instanceType string, con
 	return
 }
 
+func (wrapper *lxdWrapper) findImageByName(imageServer golxd.ImageServer, name string) (fingerprint string, err error) {
+	var alias *api.ImageAliasesEntry
+
+	if alias, _, err = imageServer.GetImageAlias(name); err != nil || alias == nil {
+		var images []api.Image
+
+		if images, err = imageServer.GetImages(); err != nil {
+			err = fmt.Errorf("image: %s not found, reason: %v", name, err)
+		} else {
+			for _, image := range images {
+				if image.Properties["name"] == name {
+					fingerprint = images[0].Fingerprint
+					break
+				}
+			}
+		}
+	} else {
+		fingerprint = alias.Target
+	}
+
+	if len(fingerprint) == 0 {
+		err = fmt.Errorf("image: %s not found", name)
+	}
+
+	return
+}
+
+func (wrapper *lxdWrapper) findImage(name string) (fingerprint string, err error) {
+	if strings.Contains(name, ":") {
+		var imageServer golxd.ImageServer
+		var image *api.Image
+		var op golxd.RemoteOperation
+		remote := providers.StringBefore(name, ":")
+		name = providers.StringAfter(name, ":")
+
+		glog.Infof("Get remote image information for %s:%s", remote, name)
+
+		if remoteServer, found := wrapper.Remotes[remote]; found {
+			if imageServer, err = golxd.ConnectSimpleStreams(remoteServer.Addr, nil); err == nil {
+				if fingerprint, err = wrapper.findImageByName(imageServer, name); err == nil {
+					if _, _, err = wrapper.client.GetImage(fingerprint); err != nil {
+						if image, _, err = imageServer.GetImage(fingerprint); err == nil {
+							glog.Infof("Copy remote image %s:%s to local", remote, name)
+
+							if op, err = wrapper.client.CopyImage(imageServer, *image, nil); err == nil {
+								err = op.Wait()
+							}
+
+							glog.Infof("Copy done %s:%s, err: %v", remote, name, err)
+						}
+					} else {
+						glog.Infof("remote image %s:%s found locally", remote, name)
+					}
+				}
+			} else {
+				err = fmt.Errorf("remote image server %s failed: reason: %v", remoteServer.Addr, err)
+			}
+		} else {
+			err = fmt.Errorf("remote image server: %s not found", remote)
+		}
+	} else {
+		fingerprint, err = wrapper.findImageByName(wrapper.client, name)
+	}
+
+	return
+}
 func (wrapper *lxdWrapper) ConfigurationDidLoad() (err error) {
 	if wrapper.Configuration.UseBind9 {
 		if wrapper.bind9Provider, err = rfc2136.NewDNSRFC2136ProviderCredentials(wrapper.Configuration.Bind9Host, wrapper.Configuration.RndcKeyFile); err != nil {
@@ -179,23 +256,8 @@ func (wrapper *lxdWrapper) ConfigurationDidLoad() (err error) {
 
 	wrapper.client = wrapper.client.UseProject(wrapper.Project)
 
-	var alias *api.ImageAliasesEntry
-
-	if alias, _, err = wrapper.client.GetImageAlias(wrapper.TemplateName); err != nil || alias == nil {
-		var images []api.Image
-
-		if images, err = wrapper.client.GetImages(); err != nil {
-			return fmt.Errorf("image: %s not found, reason: %v", wrapper.TemplateName, err)
-		} else {
-			for _, image := range images {
-				if image.Properties["name"] == wrapper.TemplateName {
-					wrapper.imageFingerPrint = images[0].Fingerprint
-					break
-				}
-			}
-		}
-	} else {
-		wrapper.imageFingerPrint = alias.Target
+	if wrapper.imageFingerPrint, err = wrapper.findImage(wrapper.TemplateName); err != nil {
+		return
 	}
 
 	if len(wrapper.imageFingerPrint) == 0 {

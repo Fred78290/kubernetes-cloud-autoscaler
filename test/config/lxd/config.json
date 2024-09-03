@@ -1,0 +1,5 @@
+{
+    "instance-name": "vm-autoscaled-test-${GITHUB_RUN_ID}",
+    "instance-type": "tiny",
+	"disk-size": 20480
+}

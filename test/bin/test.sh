@@ -7,9 +7,20 @@ if [ -z "${GITHUB_RUN_ID}" ]; then
 fi
 
 if [ ! -f "${CURDIR}/../local.env" ]; then
+
+    if [ -n "${SSH_PRIVATEKEY}" ] && [ ! -f ${HOME}/.ssh/${SSH_KEYFILE} ]; then
+        mkdir -p ${HOME}/.ssh
+
+        echo -n ${SSH_PRIVATEKEY} | base64 -d > ${HOME}/.ssh/${SSH_KEYFILE}
+
+        chmod 0600 ${HOME}/.ssh/${SSH_KEYFILE}
+        ssh-keygen -f ${HOME}/.ssh/${SSH_KEYFILE} -y > ${HOME}/.ssh/${SSH_KEYFILE}.pub
+    fi
+
 cat > ${CURDIR}/../local.env <<EOF
 export SSH_KEYFILE=test_rsa
 export SSH_PRIVATEKEY=$SSH_PRIVATEKEY
+export SSH_PUBLIC_KEY="$(cat ${HOME}/.ssh/${SSH_KEYFILE}.pub)"
 export SEED_IMAGE=$SEED_IMAGE
 export SEED_USER=$SEED_USER
 export KUBE_ENGINE=external

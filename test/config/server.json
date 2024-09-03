@@ -49,6 +49,9 @@
 	"cloud-init": {
 		"package_update": false,
 		"package_upgrade": false,
+		"ssh_authorized_keys": [
+			"${SSH_PUBLIC_KEY}"
+		],
 		"growpart": {
 			"ignore_growroot_disabled": false,
 			"mode": "auto",

@@ -161,7 +161,7 @@ func (config *configurationTest) createVM() {
 				NodeGroup: config.appConfig.NodeGroup,
 				UserName:  config.appConfig.SSH.UserName,
 				AuthKey:   config.appConfig.SSH.AuthKeys,
-				CloudInit: nil,
+				CloudInit: config.appConfig.CloudInit,
 				Machine:   &machine,
 			}
 
