@@ -282,6 +282,7 @@ func (wrapper *openstackWrapper) ConfigurationDidLoad() (err error) {
 				NicName:     "ens3",
 				DHCP:        inf.DHCP,
 				IPAddress:   inf.IPAddress,
+				Netmask:     inf.Netmask,
 			},
 		}
 
