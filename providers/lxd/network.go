@@ -3,15 +3,10 @@ package lxd
 import (
 	"bytes"
 
-	"github.com/Fred78290/kubernetes-cloud-autoscaler/cloudinit"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
 	"github.com/canonical/lxd/shared/api"
 	"gopkg.in/yaml.v2"
 )
-
-type TypeConfig struct {
-	Type string `default:"physical" json:"type,omitempty" yaml:"type,omitempty"`
-}
 
 type SubnetConfig struct {
 	Type    string `default:"dhcp" json:"type,omitempty" yaml:"type,omitempty"`
@@ -20,13 +15,13 @@ type SubnetConfig struct {
 }
 
 type NetworkConfig struct {
-	TypeConfig
+	Type    string `default:"physical" json:"type,omitempty" yaml:"type,omitempty"`
 	Name    string
 	Subnets []SubnetConfig
 }
 
 type RouteConfig struct {
-	TypeConfig
+	Type        string `default:"physical" json:"type,omitempty" yaml:"type,omitempty"`
 	Destination string `json:"destination,omitempty" yaml:"destination,omitempty"`
 	Gateway     string `json:"gateway,omitempty" yaml:"gateway,omitempty"`
 	Metric      *int   `json:"metric,omitempty" yaml:"metric,omitempty"`
@@ -34,7 +29,7 @@ type RouteConfig struct {
 
 type NetworkDeclare struct {
 	Version int   `default:"1" json:"version,omitempty" yaml:"version,omitempty"`
-	Config  []any `json:"config,omitempty" yaml:"ethernets,omitempty"`
+	Config  []any `json:"config,omitempty" yaml:"config,omitempty"`
 }
 
 type lxdNetwork struct {
@@ -86,38 +81,40 @@ func (vnet *lxdNetwork) GetCloudInitNetwork(useMacAddress bool) *NetworkDeclare 
 		if n.IsEnabled() {
 			if len(n.NicName) > 0 {
 				ethernet := NetworkConfig{
-					TypeConfig: TypeConfig{
-						Type: "physical",
-					},
-					Name: n.NetworkName,
+					Type: "physical",
+					Name: n.NicName,
 				}
 
-				if n.DHCP || len(n.IPAddress) == 0 {
-					ethernet.Subnets = append(ethernet.Subnets, SubnetConfig{
-						Type: "dhcp",
-					})
-				} else {
-					ethernet.Subnets = append(ethernet.Subnets, SubnetConfig{
-						Type:    "static",
-						Address: cloudinit.ToCIDR(n.IPAddress, n.Netmask),
-						Gateway: n.gateway,
-					})
-				}
+				ethernet.Subnets = append(ethernet.Subnets, SubnetConfig{
+					Type: "dhcp",
+				})
+
+				//				if n.DHCP || len(n.IPAddress) == 0 {
+				//					ethernet.Subnets = append(ethernet.Subnets, SubnetConfig{
+				//						Type: "dhcp",
+				//					})
+				//				} else {
+				//					ethernet.Subnets = append(ethernet.Subnets, SubnetConfig{
+				//						Type:    "static",
+				//						Address: cloudinit.ToCIDR(n.IPAddress, n.Netmask),
+				//						Gateway: n.gateway,
+				//					})
+				//				}
 
 				declare.Config = append(declare.Config, &ethernet)
 			}
 
 			for _, r := range n.Routes {
-				route := RouteConfig{
-					TypeConfig: TypeConfig{
-						Type: "route",
-					},
-					Destination: r.To,
-					Gateway:     r.Via,
-					Metric:      &r.Metric,
-				}
+				if r.To != "default" {
+					route := RouteConfig{
+						Type:        "route",
+						Destination: r.To,
+						Gateway:     r.Via,
+						Metric:      &r.Metric,
+					}
 
-				declare.Config = append(declare.Config, &route)
+					declare.Config = append(declare.Config, &route)
+				}
 			}
 		}
 	}

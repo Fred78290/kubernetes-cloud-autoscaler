@@ -15,7 +15,7 @@ spec:
   - demo-annotation.acme.com=demo
   - sample-annotation.acme.com=sample
   network:
-    vmware:
+    multipass:
       - network: "lxdbr0"
         dhcp: true
       - network: "mpbr0"

@@ -2,13 +2,14 @@ package lxd
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
-	"github.com/Fred78290/kubernetes-cloud-autoscaler/cloudinit"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/constantes"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/context"
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
+	"github.com/Fred78290/kubernetes-cloud-autoscaler/utils"
 	golxd "github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared/api"
 	glog "github.com/sirupsen/logrus"
@@ -234,16 +235,16 @@ func (instance *ServerInstance) Create(controlPlane bool, nodeGroup, userData st
 	devices := make(map[string]map[string]string)
 	config := make(map[string]string)
 
-	for _, inf := range instance.network.LxdInterfaces {
+	for _, inf := range instance.attachedNetwork.LxdInterfaces {
 		if inf.IsEnabled() {
 			device := map[string]string{
 				"type":    "nic",
 				"network": inf.NetworkName,
-				"name":    inf.NetworkName,
+				"name":    inf.NicName,
 			}
 
 			if !inf.DHCP && len(inf.IPAddress) > 0 {
-				device["ipv4.address"] = cloudinit.ToCIDR(inf.IPAddress, inf.Netmask)
+				device["ipv4.address"] = inf.IPAddress
 			}
 
 			devices[inf.NicName] = device
@@ -260,7 +261,7 @@ func (instance *ServerInstance) Create(controlPlane bool, nodeGroup, userData st
 	config["limits.cpu"] = fmt.Sprintf("%d", machine.Vcpu)
 	config["limits.memory"] = fmt.Sprintf("%dMiB", machine.Memory)
 	config["cloud-init.user-data"] = userData
-	config["cloud-init.network-config"] = instance.network.GetCloudInitNetwork(false).encodeCloudInit()
+	config["cloud-init.network-config"] = instance.attachedNetwork.GetCloudInitNetwork(false).encodeCloudInit()
 
 	req := api.InstancesPost{
 		InstancePut: api.InstancePut{
@@ -276,6 +277,10 @@ func (instance *ServerInstance) Create(controlPlane bool, nodeGroup, userData st
 		Name:  instance.InstanceName,
 		Type:  instance.ContainerType,
 		Start: false,
+	}
+
+	if glog.GetLevel() > glog.InfoLevel {
+		fmt.Fprintf(os.Stderr, "Config for: %s, %s", instance.InstanceName, utils.ToYAML(&req))
 	}
 
 	if op, err = instance.client.CreateInstance(req); err != nil {

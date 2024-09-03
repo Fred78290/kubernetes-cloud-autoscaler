@@ -21,13 +21,14 @@ import (
 )
 
 type NetworkInterface struct {
-	Enabled     *bool  `json:"enabled,omitempty" yaml:"primary,omitempty"`
-	Primary     bool   `json:"primary,omitempty" yaml:"primary,omitempty"`
-	NicName     string `json:"nic,omitempty" yaml:"primary,omitempty"`
-	NetworkName string `json:"network,omitempty" yaml:"network,omitempty"`
-	DHCP        bool   `json:"dhcp,omitempty" yaml:"dhcp,omitempty"`
-	IPAddress   string `json:"address,omitempty" yaml:"address,omitempty"`
-	Netmask     string `json:"netmask,omitempty" yaml:"netmask,omitempty"`
+	Enabled     *bool                    `json:"enabled,omitempty" yaml:"primary,omitempty"`
+	Primary     bool                     `json:"primary,omitempty" yaml:"primary,omitempty"`
+	NicName     string                   `json:"nic,omitempty" yaml:"primary,omitempty"`
+	NetworkName string                   `json:"network,omitempty" yaml:"network,omitempty"`
+	DHCP        bool                     `json:"dhcp,omitempty" yaml:"dhcp,omitempty"`
+	IPAddress   string                   `json:"address,omitempty" yaml:"address,omitempty"`
+	Netmask     string                   `json:"netmask,omitempty" yaml:"netmask,omitempty"`
+	Routes      []v1alpha2.NetworkRoutes `json:"routes,omitempty" yaml:"routes,omitempty"`
 }
 
 type Network struct {
@@ -219,6 +220,8 @@ func (wrapper *lxdWrapper) ConfigurationDidLoad() (err error) {
 				NicName:     inf.NicName,
 				DHCP:        inf.DHCP,
 				IPAddress:   inf.IPAddress,
+				Netmask:     inf.Netmask,
+				Routes:      inf.Routes,
 			},
 		}
 
@@ -472,7 +475,15 @@ func (handler *lxdHandler) InstanceWaitForPowered() (err error) {
 }
 
 func (handler *lxdHandler) InstanceWaitForToolsRunning() (bool, error) {
-	return true, nil
+	return true, context.PollImmediate(250*time.Millisecond, handler.Timeout*time.Second, func() (bool, error) {
+		if instance, _, err := handler.client.GetInstanceFull(handler.instanceName); err != nil {
+			return false, err
+		} else if handler.runningInstance.AddressIP, err = handler.getAddress(instance); err != nil {
+			return false, nil
+		}
+
+		return true, nil
+	})
 }
 
 func (handler *lxdHandler) InstanceMaxPods(desiredMaxPods int) (int, error) {

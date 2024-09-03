@@ -15,7 +15,7 @@ spec:
   - demo-annotation.acme.com=demo
   - sample-annotation.acme.com=sample
   network:
-    vmware:
+    lxd:
       - network: "lxdbr0"
         dhcp: true
       - network: "lxdbr1"
@@ -38,7 +38,7 @@ spec:
   - demo-annotation.acme.com=demo
   - sample-annotation.acme.com=sample
   network:
-    lxd:
+    vmware:
       - network: "lxdbr0"
         dhcp: true
       - network: "lxdbr1"
