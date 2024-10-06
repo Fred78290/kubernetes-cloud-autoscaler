@@ -181,35 +181,42 @@ func (wrapper *lxdWrapper) findImageByName(imageServer golxd.ImageServer, name s
 	return
 }
 
+func (wrapper *lxdWrapper) copyImage(imageServer golxd.ImageServer, remote, name string) (fingerprint string, err error) {
+	var image *api.Image
+	var op golxd.RemoteOperation
+
+	if fingerprint, err = wrapper.findImageByName(imageServer, name); err == nil {
+		if _, _, err = wrapper.client.GetImage(fingerprint); err != nil {
+			if image, _, err = imageServer.GetImage(fingerprint); err == nil {
+				glog.Infof("Copy remote image %s:%s to local", remote, name)
+
+				if op, err = wrapper.client.CopyImage(imageServer, *image, nil); err == nil {
+					err = op.Wait()
+				}
+
+				glog.Infof("Copy done %s:%s, err: %v", remote, name, err)
+			}
+		} else {
+			glog.Infof("remote image %s:%s found locally", remote, name)
+		}
+	}
+
+	return
+}
+
 func (wrapper *lxdWrapper) findImage(name string) (fingerprint string, err error) {
 	if strings.Contains(name, ":") {
 		var imageServer golxd.ImageServer
-		var image *api.Image
-		var op golxd.RemoteOperation
 		remote := providers.StringBefore(name, ":")
 		name = providers.StringAfter(name, ":")
 
 		glog.Infof("Get remote image information for %s:%s", remote, name)
 
 		if remoteServer, found := wrapper.Remotes[remote]; found {
-			if imageServer, err = golxd.ConnectSimpleStreams(remoteServer.Addr, nil); err == nil {
-				if fingerprint, err = wrapper.findImageByName(imageServer, name); err == nil {
-					if _, _, err = wrapper.client.GetImage(fingerprint); err != nil {
-						if image, _, err = imageServer.GetImage(fingerprint); err == nil {
-							glog.Infof("Copy remote image %s:%s to local", remote, name)
-
-							if op, err = wrapper.client.CopyImage(imageServer, *image, nil); err == nil {
-								err = op.Wait()
-							}
-
-							glog.Infof("Copy done %s:%s, err: %v", remote, name, err)
-						}
-					} else {
-						glog.Infof("remote image %s:%s found locally", remote, name)
-					}
-				}
-			} else {
+			if imageServer, err = golxd.ConnectSimpleStreams(remoteServer.Addr, nil); err != nil {
 				err = fmt.Errorf("remote image server %s failed: reason: %v", remoteServer.Addr, err)
+			} else if fingerprint, err = wrapper.copyImage(imageServer, remote, name); err != nil {
+				err = fmt.Errorf("copy image server %s failed: reason: %v", remoteServer.Addr, err)
 			}
 		} else {
 			err = fmt.Errorf("remote image server: %s not found", remote)
@@ -220,6 +227,7 @@ func (wrapper *lxdWrapper) findImage(name string) (fingerprint string, err error
 
 	return
 }
+
 func (wrapper *lxdWrapper) ConfigurationDidLoad() (err error) {
 	if wrapper.Configuration.UseBind9 {
 		if wrapper.bind9Provider, err = rfc2136.NewDNSRFC2136ProviderCredentials(wrapper.Configuration.Bind9Host, wrapper.Configuration.RndcKeyFile); err != nil {
