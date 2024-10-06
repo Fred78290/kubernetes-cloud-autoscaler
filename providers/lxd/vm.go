@@ -196,7 +196,7 @@ func (instance *ServerInstance) Status() (status providers.InstanceStatus, err e
 		return
 	}
 
-	if addressIP, err = instance.getAddress(container); err != nil {
+	if addressIP, err = instance.getAddress(container, false); err != nil {
 		return
 	}
 

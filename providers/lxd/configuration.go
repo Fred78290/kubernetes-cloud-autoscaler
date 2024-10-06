@@ -314,7 +314,7 @@ func (wrapper *lxdWrapper) ConfigurationDidLoad() (err error) {
 	return
 }
 
-func (wrapper *lxdWrapper) getAddress(server *api.InstanceFull) (addressIP string, err error) {
+func (wrapper *lxdWrapper) getAddress(server *api.InstanceFull, failIfMissingNetwork bool) (addressIP string, err error) {
 	if server.State != nil {
 		inf := wrapper.network.PrimaryInterface()
 
@@ -325,8 +325,10 @@ func (wrapper *lxdWrapper) getAddress(server *api.InstanceFull) (addressIP strin
 				}
 			}
 
-			err = fmt.Errorf("instance: %s doesn't have address", server.Name)
-		} else {
+			if failIfMissingNetwork {
+				err = fmt.Errorf("instance: %s doesn't have address", server.Name)
+			}
+		} else if failIfMissingNetwork {
 			err = fmt.Errorf("instance: %s doesn't have nic", server.Name)
 		}
 	}
@@ -342,7 +344,7 @@ func (wrapper *lxdWrapper) getServerInstance(name string) (vm *ServerInstance, e
 		return
 	}
 
-	if addressIP, err = wrapper.getAddress(instance); err == nil {
+	if addressIP, err = wrapper.getAddress(instance, false); err == nil {
 		vm = &ServerInstance{
 			lxdWrapper:     wrapper,
 			InstanceName:   instance.Name,
@@ -548,7 +550,7 @@ func (handler *lxdHandler) InstanceWaitForToolsRunning() (bool, error) {
 	return true, context.PollImmediate(250*time.Millisecond, handler.Timeout*time.Second, func() (bool, error) {
 		if instance, _, err := handler.client.GetInstanceFull(handler.instanceName); err != nil {
 			return false, err
-		} else if handler.runningInstance.AddressIP, err = handler.getAddress(instance); err != nil {
+		} else if handler.runningInstance.AddressIP, err = handler.getAddress(instance, true); err != nil {
 			return false, nil
 		}
 
