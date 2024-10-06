@@ -35,6 +35,15 @@ if [ -n "${NODEGROUP}" ]; then
 		| sed -e "s/\/etc\/ssl\/certs\/autoscaler-utility/${AUTOSCALER_DESKTOP_UTILITY_TLS}/g" \
 		| jq --arg BIND9_RNDCKEY "${BIND9_RNDCKEY}" '.|."rndc-key-file" = $BIND9_RNDCKEY | ."lxd-server-url" = "unix:"' > ${CONFIG_DIR}/provider.json
 
+	#cat ${AUTOSCALER_HOME}/config/${NODEGROUP}/config/provider.json \
+	#	| sed -e "s/\/etc\/ssl\/certs\/autoscaler-utility/${AUTOSCALER_DESKTOP_UTILITY_TLS}/g" \
+	#	| jq --arg BIND9_RNDCKEY "${BIND9_RNDCKEY}" '.|."rndc-key-file" = $BIND9_RNDCKEY 
+	#	| ."lxd-config-location" = "/home/stack/snap/lxd/common/config" 
+	#	| ."tls-server-cert" = "servercerts/stack.crt"
+	#	| ."tls-client-cert" = "client.crt"
+	#	| ."tls-client-key" = "client.key"
+	#	| ."lxd-server-url" = "https://10.0.0.21:8443"' > ${CONFIG_DIR}/provider.json
+
 	cat ${AUTOSCALER_HOME}/config/${NODEGROUP}/config/autoscaler.json | jq \
 		--arg ETCD_SSL_DIR "${AUTOSCALER_HOME}/config/${NODEGROUP}/cluster/etcd" \
 		--arg PKI_DIR "${AUTOSCALER_HOME}/config/${NODEGROUP}/cluster/kubernetes/pki" \

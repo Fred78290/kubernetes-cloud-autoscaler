@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"os"
 	"path"
 	"strings"
 	"time"
@@ -226,6 +227,18 @@ func (wrapper *lxdWrapper) findImage(name string) (fingerprint string, err error
 	return
 }
 
+func (wrapper *lxdWrapper) readLxdPEM(pem string) (content string, err error) {
+	if pem != "" {
+		var b []byte
+
+		if b, err = os.ReadFile(path.Join(wrapper.LxdConfigLocation, pem)); err == nil {
+			content = string(b)
+		}
+	}
+
+	return
+}
+
 func (wrapper *lxdWrapper) ConfigurationDidLoad() (err error) {
 	if wrapper.Configuration.UseBind9 {
 		if wrapper.bind9Provider, err = rfc2136.NewDNSRFC2136ProviderCredentials(wrapper.Configuration.Bind9Host, wrapper.Configuration.RndcKeyFile); err != nil {
@@ -239,15 +252,30 @@ func (wrapper *lxdWrapper) ConfigurationDidLoad() (err error) {
 		}
 	} else {
 		var ca string
+		var serverCert string
+		var clientCert string
+		var clientKey string
 
-		if wrapper.TLSCA != "" {
-			ca = path.Join(wrapper.LxdConfigLocation, wrapper.TLSCA)
+		if ca, err = wrapper.readLxdPEM(wrapper.TLSCA); err != nil {
+			return err
+		}
+
+		if serverCert, err = wrapper.readLxdPEM(wrapper.TLSServerCert); err != nil {
+			return err
+		}
+
+		if clientCert, err = wrapper.readLxdPEM(wrapper.TLSClientCert); err != nil {
+			return err
+		}
+
+		if clientKey, err = wrapper.readLxdPEM(wrapper.TLSClientKey); err != nil {
+			return err
 		}
 
 		args := golxd.ConnectionArgs{
-			TLSServerCert: path.Join(wrapper.LxdConfigLocation, wrapper.TLSServerCert),
-			TLSClientCert: path.Join(wrapper.LxdConfigLocation, wrapper.TLSClientCert),
-			TLSClientKey:  path.Join(wrapper.LxdConfigLocation, wrapper.TLSClientKey),
+			TLSServerCert: serverCert,
+			TLSClientCert: clientCert,
+			TLSClientKey:  clientKey,
 			TLSCA:         ca,
 		}
 
