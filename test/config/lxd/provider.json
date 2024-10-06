@@ -1,5 +1,5 @@
 {
-	"lxd-server-url": "unix:",
+	"lxd-server-url": "unix:/var/snap/lxd/common/lxd/unix.socket",
 	"container-type": "container",
 	"storage-pool": "default",
 	"profiles": [

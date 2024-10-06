@@ -71,7 +71,9 @@ container-arch-%: build-in-docker-arch-%
 	@echo "Full in-docker image ${TAG}-$* completed"
 
 test-in-docker: docker-builder
-	docker run --rm -v `pwd`:/gopath/src/github.com/Fred78290/kubernetes-cloud-autoscaler/ kubernetes-cloud-autoscaler-builder:latest bash \
+	docker run --rm -v `pwd`:/gopath/src/github.com/Fred78290/kubernetes-cloud-autoscaler/ \
+		-v /var/snap/lxd/common/lxd/unix.socket:/var/snap/lxd/common/lxd/unix.socket \
+		kubernetes-cloud-autoscaler-builder:latest bash \
 		-c 'cd /gopath/src/github.com/Fred78290/kubernetes-cloud-autoscaler && ./test/bin/lxd.sh && ./test/bin/vsphere.sh && ./test/bin/aws.sh'
 
 .PHONY: all build test-in-docker test-unit clean docker-builder build-in-docker push-image push-manifest
