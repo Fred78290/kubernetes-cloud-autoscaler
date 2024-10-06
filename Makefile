@@ -72,6 +72,6 @@ container-arch-%: build-in-docker-arch-%
 
 test-in-docker: docker-builder
 	docker run --rm -v `pwd`:/gopath/src/github.com/Fred78290/kubernetes-cloud-autoscaler/ kubernetes-cloud-autoscaler-builder:latest bash \
-		-c 'cd /gopath/src/github.com/Fred78290/kubernetes-cloud-autoscaler && ./test/bin/vsphere.sh && ./test/bin/aws.sh'
+		-c 'cd /gopath/src/github.com/Fred78290/kubernetes-cloud-autoscaler && ./test/bin/lxd.sh && ./test/bin/vsphere.sh && ./test/bin/aws.sh'
 
 .PHONY: all build test-in-docker test-unit clean docker-builder build-in-docker push-image push-manifest
