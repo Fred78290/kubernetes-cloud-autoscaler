@@ -18,8 +18,6 @@ spec:
     lxd:
       - network: "lxdbr0"
         dhcp: true
-      - network: "lxdbr1"
-        dhcp: true
 ---
 apiVersion: "nodemanager.aldunelabs.com/v1alpha2"
 kind: "ManagedNode"
@@ -40,6 +38,4 @@ spec:
   network:
     lxd:
       - network: "lxdbr0"
-        dhcp: true
-      - network: "lxdbr1"
         dhcp: true
