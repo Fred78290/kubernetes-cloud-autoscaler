@@ -1,7 +1,7 @@
 #!/bin/bash
 sudo rm -rf out
 
-VERSION=v1.30.0
+VERSION=v1.31.0
 
 if [ -f ./.config/registry ]; then
 	REGISTRY=$(cat ./.config/registry)
