@@ -529,30 +529,6 @@ func (c *Controller) CreateCRD() error {
 																	Type:        "string",
 																	Description: "Valid ip v4 address or DHCP or NONE",
 																},
-																"netmask": {
-																	Type:        "string",
-																	Description: "Netmask in format xxx.xxx.xxx.xxx",
-																},
-																"routes": {
-																	Type:        "array",
-																	Description: "Override network routes",
-																	Items: &apiextensionv1.JSONSchemaPropsOrArray{
-																		Schema: &apiextensionv1.JSONSchemaProps{
-																			Type: "object",
-																			Properties: map[string]apiextensionv1.JSONSchemaProps{
-																				"to": {
-																					Type: "string",
-																				},
-																				"via": {
-																					Type: "string",
-																				},
-																				"metric": {
-																					Type: "integer",
-																				},
-																			},
-																		},
-																	},
-																},
 															},
 														},
 													},

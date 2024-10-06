@@ -31,14 +31,12 @@ type Remote struct {
 }
 
 type NetworkInterface struct {
-	Enabled     *bool                    `json:"enabled,omitempty" yaml:"primary,omitempty"`
-	Primary     bool                     `json:"primary,omitempty" yaml:"primary,omitempty"`
-	NicName     string                   `json:"nic,omitempty" yaml:"primary,omitempty"`
-	NetworkName string                   `json:"network,omitempty" yaml:"network,omitempty"`
-	DHCP        bool                     `json:"dhcp,omitempty" yaml:"dhcp,omitempty"`
-	IPAddress   string                   `json:"address,omitempty" yaml:"address,omitempty"`
-	Netmask     string                   `json:"netmask,omitempty" yaml:"netmask,omitempty"`
-	Routes      []v1alpha2.NetworkRoutes `json:"routes,omitempty" yaml:"routes,omitempty"`
+	Enabled     *bool  `json:"enabled,omitempty" yaml:"primary,omitempty"`
+	Primary     bool   `json:"primary,omitempty" yaml:"primary,omitempty"`
+	NicName     string `json:"nic,omitempty" yaml:"primary,omitempty"`
+	NetworkName string `json:"network,omitempty" yaml:"network,omitempty"`
+	DHCP        bool   `json:"dhcp,omitempty" yaml:"dhcp,omitempty"`
+	IPAddress   string `json:"address,omitempty" yaml:"address,omitempty"`
 }
 
 type Network struct {
@@ -290,8 +288,7 @@ func (wrapper *lxdWrapper) ConfigurationDidLoad() (err error) {
 				NicName:     inf.NicName,
 				DHCP:        inf.DHCP,
 				IPAddress:   inf.IPAddress,
-				Netmask:     inf.Netmask,
-				Routes:      inf.Routes,
+				Netmask:     "255.255.255.255",
 			},
 		}
 

@@ -19,13 +19,6 @@ spec:
       - network: "lxdbr0"
         dhcp: false
         address: 10.129.134.11
-        netmask: 255.255.255.0
-        routes:
-        - to: default
-          via: 192.168.2.254
-          metric: 100
-      - network: "lxdbr1"
-        dhcp: true
 ---
 apiVersion: "nodemanager.aldunelabs.com/v1alpha2"
 kind: "ManagedNode"
@@ -48,10 +41,3 @@ spec:
       - network: "lxdbr0"
         dhcp: false
         address: 10.129.134.12
-        netmask: 255.255.255.0
-        routes:
-        - to: default
-          via: 10.129.134.1
-          metric: 100
-      - network: "lxdbr1"
-        dhcp: true

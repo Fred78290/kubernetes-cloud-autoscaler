@@ -19,10 +19,3 @@ spec:
       - network: "lxdbr0"
         dhcp: false
         address: 10.129.134.14
-        netmask: 255.255.255.0
-        routes:
-        - to: default
-          via: 10.129.134.1
-          metric: 100
-      - network: "lxdbr1"
-        dhcp: true

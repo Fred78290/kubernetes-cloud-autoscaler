@@ -104,18 +104,18 @@ func (vnet *lxdNetwork) GetCloudInitNetwork(useMacAddress bool) *NetworkDeclare 
 				declare.Config = append(declare.Config, &ethernet)
 			}
 
-			for _, r := range n.Routes {
-				if r.To != "default" {
-					route := RouteConfig{
-						Type:        "route",
-						Destination: r.To,
-						Gateway:     r.Via,
-						Metric:      &r.Metric,
-					}
-
-					declare.Config = append(declare.Config, &route)
-				}
-			}
+			//			for _, r := range n.Routes {
+			//				if r.To != "default" {
+			//					route := RouteConfig{
+			//						Type:        "route",
+			//						Destination: r.To,
+			//						Gateway:     r.Via,
+			//						Metric:      &r.Metric,
+			//					}
+			//
+			//					declare.Config = append(declare.Config, &route)
+			//				}
+			//			}
 		}
 	}
 

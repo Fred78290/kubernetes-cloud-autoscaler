@@ -62,8 +62,9 @@ type OpenStackManagedNodeNetwork struct {
 }
 
 type LxdManagedNodeNetwork struct {
-	CommonManagedNodeNetwork
-	Routes []NetworkRoutes `json:"routes,omitempty" yaml:"routes,omitempty"`
+	NetworkName string `json:"network,omitempty"` //vnet for desktop
+	DHCP        bool   `json:"dhcp,omitempty"`
+	IPV4Address string `json:"address,omitempty"`
 }
 
 type CloudStackManagedNodeNetwork struct {
@@ -114,7 +115,11 @@ type LxdManagedNodeNetworks []LxdManagedNodeNetwork
 
 func (m LxdManagedNodeNetworks) Managed() (managed []ManagedNetworkInterface) {
 	for _, net := range m {
-		managed = append(managed, &net)
+		managed = append(managed, &CommonManagedNodeNetwork{
+			NetworkName: net.NetworkName,
+			DHCP:        net.DHCP,
+			IPV4Address: net.IPV4Address,
+		})
 	}
 
 	return
@@ -255,5 +260,5 @@ func (m *MultipassManagedNodeNetwork) GetMacAddress() string {
 
 // ** LxdManagedNodeNetwork
 func (m *LxdManagedNodeNetwork) GetRoutes() []NetworkRoutes {
-	return m.Routes
+	return nil
 }
