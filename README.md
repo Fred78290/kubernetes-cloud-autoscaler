@@ -4,7 +4,7 @@
 
 # kubernetes-cloud-autoscaler
 
-Kubernetes cloud autoscaler for **vsphere,aws,multipass,openstack,cloudstack and vmware workstation and vmware fusion** provider including a custom resource controller to create managed node without code
+Kubernetes cloud autoscaler for **vsphere,aws,multipass,openstack,cloudstack,lxd and vmware workstation and vmware fusion** provider including a custom resource controller to create managed node without code
 
 ### This project replace [kubernetes-vmware-autoscaler](https://github.com/Fred78290/kubernetes-vmware-autoscaler), [kubernetes-aws-autoscaler](https://github.com/Fred78290/kubernetes-aws-autoscaler), [kubernetes-multipass-autoscaler](https://github.com/Fred78290/kubernetes-multipass-autoscaler), [kubernetes-desktop-autoscaler](https://github.com/Fred78290/kubernetes-desktop-autoscaler).
 
@@ -19,6 +19,7 @@ The autoscaler allow to use different running plateform with different kubernete
 * Multipass
 * OpenStack
 * CloudStack
+* LXD
 
 ## Supported kube engine with kubernetes distribution
 
@@ -32,6 +33,8 @@ The autoscaler allow to use different running plateform with different kubernete
 
 * 1.30.0
   * This version is supported kubernetes v1.30
+* 1.31.0
+  * This version is supported kubernetes v1.31
 
 ## How it works
 
@@ -111,7 +114,7 @@ You can also use the vanilla autoscaler with the [externalgrpc cloud provider](h
 * [external](./examples/multipass/external/autoscaler.yaml)
 * [k3s](./examples/multipass/k3s/autoscaler.yaml)
 * [kubeadm](./examples/multipass/kubeadm/autoscaler.yaml)
-* [microk8s](./examples/multipass/kubeadm/autoscaler.yaml)
+* [microk8s](./examples/multipass/microk8s/autoscaler.yaml)
 * [rke2](./examples/multipass/k3s/autoscaler.yaml)
 
 ## Use external kubernetes distribution
@@ -452,6 +455,42 @@ kubectl apply -f artifacts/examples/vsphere/rke2/managed-addr.yaml
 kubectl apply -f artifacts/examples/vsphere/rke2/managed-control-plane.yaml
 kubectl apply -f artifacts/examples/vsphere/rke2/managed-dhcp.yaml
 kubectl apply -f artifacts/examples/vsphere/rke2/managed-nodes.yaml
+```
+
+#### Create managed node on lxd with k3s engine
+
+```bash
+kubectl apply -f artifacts/examples/lxd/k3s/managed-addr.yaml
+kubectl apply -f artifacts/examples/lxd/k3s/managed-control-plane.yaml
+kubectl apply -f artifacts/examples/lxd/k3s/managed-dhcp.yaml
+kubectl apply -f artifacts/examples/lxd/k3s/managed-nodes.yaml
+```
+
+#### Create managed node on lxd with kubeadm engine
+
+```bash
+kubectl apply -f artifacts/examples/lxd/kubeadm/managed-addr.yaml
+kubectl apply -f artifacts/examples/lxd/kubeadm/managed-control-plane.yaml
+kubectl apply -f artifacts/examples/lxd/kubeadm/managed-dhcp.yaml
+kubectl apply -f artifacts/examples/lxd/kubeadm/managed-nodes.yaml
+```
+
+#### Create managed node on lxd with microk8s engine
+
+```bash
+kubectl apply -f artifacts/examples/lxd/microk8s/managed-addr.yaml
+kubectl apply -f artifacts/examples/lxd/microk8s/managed-control-plane.yaml
+kubectl apply -f artifacts/examples/lxd/microk8s/managed-dhcp.yaml
+kubectl apply -f artifacts/examples/lxd/microk8s/managed-nodes.yaml
+```
+
+#### Create managed node on lxd with rke2 engine
+
+```bash
+kubectl apply -f artifacts/examples/lxd/rke2/managed-addr.yaml
+kubectl apply -f artifacts/examples/lxd/rke2/managed-control-plane.yaml
+kubectl apply -f artifacts/examples/lxd/rke2/managed-dhcp.yaml
+kubectl apply -f artifacts/examples/lxd/rke2/managed-nodes.yaml
 ```
 
 If you want delete the node just delete the CRD with the call
