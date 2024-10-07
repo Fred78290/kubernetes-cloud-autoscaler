@@ -29,6 +29,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install LXD
+        uses: canonical/setup-lxd@main
+        with:
+          channel: 6.1/stable
+
       - name: Cache vendor
         uses: actions/cache@v4
         env:
