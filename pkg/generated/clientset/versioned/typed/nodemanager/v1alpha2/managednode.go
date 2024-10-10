@@ -20,13 +20,14 @@ package v1alpha2
 
 import (
 	"context"
+	"time"
 
 	v1alpha2 "github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha2"
 	scheme "github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
-	gentype "k8s.io/client-go/gentype"
+	rest "k8s.io/client-go/rest"
 )
 
 // ManagedNodesGetter has a method to return a ManagedNodeInterface.
@@ -39,7 +40,6 @@ type ManagedNodesGetter interface {
 type ManagedNodeInterface interface {
 	Create(ctx context.Context, managedNode *v1alpha2.ManagedNode, opts v1.CreateOptions) (*v1alpha2.ManagedNode, error)
 	Update(ctx context.Context, managedNode *v1alpha2.ManagedNode, opts v1.UpdateOptions) (*v1alpha2.ManagedNode, error)
-	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
 	UpdateStatus(ctx context.Context, managedNode *v1alpha2.ManagedNode, opts v1.UpdateOptions) (*v1alpha2.ManagedNode, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
@@ -52,18 +52,133 @@ type ManagedNodeInterface interface {
 
 // managedNodes implements ManagedNodeInterface
 type managedNodes struct {
-	*gentype.ClientWithList[*v1alpha2.ManagedNode, *v1alpha2.ManagedNodeList]
+	client rest.Interface
 }
 
 // newManagedNodes returns a ManagedNodes
 func newManagedNodes(c *NodemanagerV1alpha2Client) *managedNodes {
 	return &managedNodes{
-		gentype.NewClientWithList[*v1alpha2.ManagedNode, *v1alpha2.ManagedNodeList](
-			"managednodes",
-			c.RESTClient(),
-			scheme.ParameterCodec,
-			"",
-			func() *v1alpha2.ManagedNode { return &v1alpha2.ManagedNode{} },
-			func() *v1alpha2.ManagedNodeList { return &v1alpha2.ManagedNodeList{} }),
+		client: c.RESTClient(),
 	}
+}
+
+// Get takes name of the managedNode, and returns the corresponding managedNode object, and an error if there is any.
+func (c *managedNodes) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha2.ManagedNode, err error) {
+	result = &v1alpha2.ManagedNode{}
+	err = c.client.Get().
+		Resource("managednodes").
+		Name(name).
+		VersionedParams(&options, scheme.ParameterCodec).
+		Do(ctx).
+		Into(result)
+	return
+}
+
+// List takes label and field selectors, and returns the list of ManagedNodes that match those selectors.
+func (c *managedNodes) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha2.ManagedNodeList, err error) {
+	var timeout time.Duration
+	if opts.TimeoutSeconds != nil {
+		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
+	}
+	result = &v1alpha2.ManagedNodeList{}
+	err = c.client.Get().
+		Resource("managednodes").
+		VersionedParams(&opts, scheme.ParameterCodec).
+		Timeout(timeout).
+		Do(ctx).
+		Into(result)
+	return
+}
+
+// Watch returns a watch.Interface that watches the requested managedNodes.
+func (c *managedNodes) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
+	var timeout time.Duration
+	if opts.TimeoutSeconds != nil {
+		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
+	}
+	opts.Watch = true
+	return c.client.Get().
+		Resource("managednodes").
+		VersionedParams(&opts, scheme.ParameterCodec).
+		Timeout(timeout).
+		Watch(ctx)
+}
+
+// Create takes the representation of a managedNode and creates it.  Returns the server's representation of the managedNode, and an error, if there is any.
+func (c *managedNodes) Create(ctx context.Context, managedNode *v1alpha2.ManagedNode, opts v1.CreateOptions) (result *v1alpha2.ManagedNode, err error) {
+	result = &v1alpha2.ManagedNode{}
+	err = c.client.Post().
+		Resource("managednodes").
+		VersionedParams(&opts, scheme.ParameterCodec).
+		Body(managedNode).
+		Do(ctx).
+		Into(result)
+	return
+}
+
+// Update takes the representation of a managedNode and updates it. Returns the server's representation of the managedNode, and an error, if there is any.
+func (c *managedNodes) Update(ctx context.Context, managedNode *v1alpha2.ManagedNode, opts v1.UpdateOptions) (result *v1alpha2.ManagedNode, err error) {
+	result = &v1alpha2.ManagedNode{}
+	err = c.client.Put().
+		Resource("managednodes").
+		Name(managedNode.Name).
+		VersionedParams(&opts, scheme.ParameterCodec).
+		Body(managedNode).
+		Do(ctx).
+		Into(result)
+	return
+}
+
+// UpdateStatus was generated because the type contains a Status member.
+// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
+func (c *managedNodes) UpdateStatus(ctx context.Context, managedNode *v1alpha2.ManagedNode, opts v1.UpdateOptions) (result *v1alpha2.ManagedNode, err error) {
+	result = &v1alpha2.ManagedNode{}
+	err = c.client.Put().
+		Resource("managednodes").
+		Name(managedNode.Name).
+		SubResource("status").
+		VersionedParams(&opts, scheme.ParameterCodec).
+		Body(managedNode).
+		Do(ctx).
+		Into(result)
+	return
+}
+
+// Delete takes name of the managedNode and deletes it. Returns an error if one occurs.
+func (c *managedNodes) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
+	return c.client.Delete().
+		Resource("managednodes").
+		Name(name).
+		Body(&opts).
+		Do(ctx).
+		Error()
+}
+
+// DeleteCollection deletes a collection of objects.
+func (c *managedNodes) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	var timeout time.Duration
+	if listOpts.TimeoutSeconds != nil {
+		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
+	}
+	return c.client.Delete().
+		Resource("managednodes").
+		VersionedParams(&listOpts, scheme.ParameterCodec).
+		Timeout(timeout).
+		Body(&opts).
+		Do(ctx).
+		Error()
+}
+
+// Patch applies the patch and returns the patched managedNode.
+func (c *managedNodes) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha2.ManagedNode, err error) {
+	result = &v1alpha2.ManagedNode{}
+	err = c.client.Patch(pt).
+		Resource("managednodes").
+		Name(name).
+		SubResource(subresources...).
+		VersionedParams(&opts, scheme.ParameterCodec).
+		Body(data).
+		Do(ctx).
+		Into(result)
+	return
 }

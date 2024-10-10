@@ -20,8 +20,8 @@ package v1alpha2
 
 import (
 	v1alpha2 "github.com/Fred78290/kubernetes-cloud-autoscaler/pkg/apis/nodemanager/v1alpha2"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -39,10 +39,30 @@ type ManagedNodeLister interface {
 
 // managedNodeLister implements the ManagedNodeLister interface.
 type managedNodeLister struct {
-	listers.ResourceIndexer[*v1alpha2.ManagedNode]
+	indexer cache.Indexer
 }
 
 // NewManagedNodeLister returns a new ManagedNodeLister.
 func NewManagedNodeLister(indexer cache.Indexer) ManagedNodeLister {
-	return &managedNodeLister{listers.New[*v1alpha2.ManagedNode](indexer, v1alpha2.Resource("managednode"))}
+	return &managedNodeLister{indexer: indexer}
+}
+
+// List lists all ManagedNodes in the indexer.
+func (s *managedNodeLister) List(selector labels.Selector) (ret []*v1alpha2.ManagedNode, err error) {
+	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
+		ret = append(ret, m.(*v1alpha2.ManagedNode))
+	})
+	return ret, err
+}
+
+// Get retrieves the ManagedNode from the index for a given name.
+func (s *managedNodeLister) Get(name string) (*v1alpha2.ManagedNode, error) {
+	obj, exists, err := s.indexer.GetByKey(name)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, errors.NewNotFound(v1alpha2.Resource("managednode"), name)
+	}
+	return obj.(*v1alpha2.ManagedNode), nil
 }
