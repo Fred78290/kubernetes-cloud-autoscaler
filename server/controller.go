@@ -977,9 +977,9 @@ func (c *Controller) handleManagedNode(key string, managedNodesByUID map[uid.UID
 					newStatus.Reason = nodemanager.StatusManagedNodeReason(nodemanager.StatusManagedNodeInstanceTypeNotRegistred)
 					newStatus.Message = fmt.Sprintf("managed node %s use unregistered instance type: %s", key, managedNode.Spec.InstanceType)
 
-					glog.Infof("%s", newStatus.Message)
+					glog.Info(newStatus.Message)
 
-					c.recorder.Eventf(managedNode, corev1.EventTypeWarning, ErrorEvent, "%s", newStatus.Message)
+					c.recorder.Event(managedNode, corev1.EventTypeWarning, ErrorEvent, newStatus.Message)
 
 				} else if limitStatus := c.checkRessourceLimits(managedNode, machineSpec); limitStatus != resourceLimitsNice {
 
@@ -1000,7 +1000,7 @@ func (c *Controller) handleManagedNode(key string, managedNodesByUID map[uid.UID
 
 						glog.Infof("managed node %s break resource limits", key)
 
-						c.recorder.Eventf(managedNode, corev1.EventTypeWarning, ErrorEvent, "%s", newStatus.Message)
+						c.recorder.Event(managedNode, corev1.EventTypeWarning, ErrorEvent, newStatus.Message)
 					}
 
 				} else if node, err = nodeGroup.addManagedNode(managedNode); err == nil {
@@ -1036,7 +1036,7 @@ func (c *Controller) handleManagedNode(key string, managedNodesByUID map[uid.UID
 					newStatus.Message = err.Error()
 					newStatus.Reason = nodemanager.StatusManagedNodeReason(nodemanager.StatusManagedNodeCreationFailed)
 
-					c.recorder.Eventf(managedNode, corev1.EventTypeWarning, ErrorEvent, "%s", newStatus.Message)
+					c.recorder.Event(managedNode, corev1.EventTypeWarning, ErrorEvent, newStatus.Message)
 				}
 
 			} else if oldStatus.Code == nodemanager.StatusManagedNodeCreated {
