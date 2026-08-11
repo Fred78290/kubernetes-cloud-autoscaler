@@ -39,7 +39,7 @@ func (wrapper *hostMultipassWrapper) shell(args ...string) (output string, err e
 
 		if err := cmd.Run(); err != nil {
 			if strings.Contains(stderr.String(), "failed to obtain exit status for remote process") || strings.Contains(err.Error(), "failed to obtain exit status for remote process") {
-				glog.Debugf(fmt.Sprintf("Shell: %s error: %v", stderr.String(), err))
+				glog.Debugf("Shell: %s error: %v", stderr.String(), err)
 				return false, nil
 			}
 

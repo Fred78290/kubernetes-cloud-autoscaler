@@ -10,7 +10,7 @@ import (
 	"github.com/Fred78290/kubernetes-cloud-autoscaler/providers"
 	glog "github.com/sirupsen/logrus"
 
-	"github.com/vmware/govmomi/govc/flags"
+	"github.com/vmware/govmomi/cli/flags"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25"
 	"github.com/vmware/govmomi/vim25/mo"
