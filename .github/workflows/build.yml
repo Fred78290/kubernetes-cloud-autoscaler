@@ -72,8 +72,6 @@ jobs:
 
       - name: Install LXD
         uses: canonical/setup-lxd@main
-        with:
-          channel: 6.1/stable
 
       - name: Cache vendor
         uses: actions/cache@v4
@@ -100,7 +98,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@v2.3.0
+        uses: SonarSource/sonarcloud-github-action@v5.0.0
     
       - name: Prepare SonarCloud
         shell: bash
