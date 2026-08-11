@@ -1,6 +1,0 @@
-{
-	"sonarlint.connectedMode.project": {
-		"connectionId": "fred78290-github",
-		"projectKey": "Fred78290_kubernetes-cloud-autoscaler"
-	}
-}

@@ -174,7 +174,7 @@ func (instance *ServerInstance) Delete() (err error) {
 
 	var op golxd.Operation
 
-	if op, err = instance.client.DeleteInstance(instance.InstanceName); err != nil {
+	if op, err = instance.client.DeleteInstance(instance.InstanceName, false); err != nil {
 		return
 	}
 

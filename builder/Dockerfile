@@ -18,7 +18,9 @@ LABEL maintainer="Frederic Boltz <frederic.boltz@gmail.com>"
 ENV GOPATH=/gopath/
 ENV PATH=$GOPATH/bin:$PATH
 
-RUN apt-get update && apt-get --yes install libseccomp-dev && \
+RUN apt-get update && apt-get --yes install libseccomp-dev git && \
     go version && \
-    go install github.com/vmware/govmomi/vcsim@latest
+    git clone --depth 1 --branch v0.55.1 https://github.com/vmware/govmomi.git /tmp/govmomi && \
+    cd /tmp/govmomi/vcsim && go build -o $GOPATH/bin/vcsim . && \
+    rm -rf /tmp/govmomi
 CMD ["/bin/bash"]

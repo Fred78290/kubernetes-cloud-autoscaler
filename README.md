@@ -1,5 +1,4 @@
 [![Build Status](https://github.com/Fred78290/kubernetes-cloud-autoscaler/actions/workflows/build.yml/badge.svg)](https://github.com/Fred78290/kubernetes-cloud-autoscaler/actions/workflows/build.yml)
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=Fred78290_kubernetes-cloud-autoscaler&metric=alert_status)](https://sonarcloud.io/dashboard?id=Fred78290_kubernetes-cloud-autoscaler)
 [![Licence](https://img.shields.io/hexpm/l/plug.svg)](https://github.com/Fred78290/kubernetes-cloud-autoscaler/blob/master/LICENSE)
 
 # kubernetes-cloud-autoscaler
@@ -35,6 +34,8 @@ The autoscaler allow to use different running plateform with different kubernete
   * This version is supported kubernetes v1.30
 * 1.31.0
   * This version is supported kubernetes v1.31
+* 1.36.0
+  * This version is supported kubernetes v1.36
 
 ## How it works
 

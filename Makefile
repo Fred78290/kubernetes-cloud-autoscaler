@@ -5,7 +5,7 @@ ALL_ARCH = amd64 arm64
 all: $(addprefix build-arch-,$(ALL_ARCH))
 
 VERSION_MAJOR ?= 1
-VERSION_MINOR ?= 29
+VERSION_MINOR ?= 36
 VERSION_BUILD ?= 0
 TAG?=v$(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_BUILD)
 FLAGS=
@@ -74,6 +74,7 @@ test-in-docker: docker-builder
 	docker run --rm -v `pwd`:/gopath/src/github.com/Fred78290/kubernetes-cloud-autoscaler/ \
 		-v /var/snap/lxd/common/lxd/unix.socket:/var/snap/lxd/common/lxd/unix.socket \
 		kubernetes-cloud-autoscaler-builder:latest bash \
-		-c 'cd /gopath/src/github.com/Fred78290/kubernetes-cloud-autoscaler && ./test/bin/lxd.sh && ./test/bin/vsphere.sh && ./test/bin/aws.sh'
+		-c 'cd /gopath/src/github.com/Fred78290/kubernetes-cloud-autoscaler && ./test/bin/lxd.sh && ./test/bin/vsphere.sh'
+	# ./test/bin/aws.sh is disabled: the AWS account backing CI (SEED_IMAGE AMI, etc.) is stale
 
 .PHONY: all build test-in-docker test-unit clean docker-builder build-in-docker push-image push-manifest
