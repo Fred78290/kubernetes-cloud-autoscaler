@@ -35,6 +35,8 @@ The autoscaler allow to use different running plateform with different kubernete
   * This version is supported kubernetes v1.30
 * 1.31.0
   * This version is supported kubernetes v1.31
+* 1.36.0
+  * This version is supported kubernetes v1.36
 
 ## How it works
 
